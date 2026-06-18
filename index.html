@@ -1272,10 +1272,16 @@ function initTecnico(){
 function renderTecOTs(filter){
   filter=filter||currentFilter;
   var cnNorm=currentUser.nombre.toLowerCase();
-  // OT disponibles: sin asignar (cualquier técnico puede tomarla)
-  var disponibles=DB.ots.filter(function(o){ return !o.tecnico && o.status==='abierto'; });
-  // OT propias: asignadas a este técnico y no cerradas
-  var propias=DB.ots.filter(function(o){ return o.tecnico&&o.tecnico.toLowerCase()===cnNorm&&o.status!=='cerrado'; });
+  // OT disponibles: abiertas sin nadie o en proceso (el técnico puede unirse)
+  var disponibles=DB.ots.filter(function(o){
+    return (o.status==='abierto'||o.status==='proceso')
+      && !tecnicoEnTurnoActual(o, currentUser.nombre)
+      && o.status!=='validar' && o.status!=='cerrado';
+  });
+  // OT propias: en las que ya está registrado este técnico y no están cerradas
+  var propias=DB.ots.filter(function(o){
+    return tecnicoEnOT(o, currentUser.nombre) && o.status!=='cerrado';
+  });
   const el=document.getElementById('tec-ot-list');
   var html='';
   if(filter==='todas'||filter==='abierto'){
@@ -1334,20 +1340,90 @@ function verOTTec(id){
   showScreen('tec-detalle');
 }
 
+// Helper — turno según hora actual
+function turnoActual(){
+  var h = new Date().getHours() + new Date().getMinutes()/60;
+  if(h >= 6  && h < 14)   return 'T1 (06:00–14:00)';
+  if(h >= 14 && h < 21.5) return 'T2 (14:00–21:30)';
+  return 'T3 (21:30–07:00)';
+}
+
+// Helper — ¿este técnico ya está en la OT?
+function tecnicoEnOT(ot, nombre){
+  // Returns true if this tech is registered in the OT at all (for display/counts)
+  if(!ot.tecnicos || !ot.tecnicos.length) return false;
+  var n = nombre.toLowerCase();
+  return ot.tecnicos.some(function(t){ return t.nombre.toLowerCase()===n; });
+}
+
+function tecnicoEnTurnoActual(ot, nombre){
+  // Returns true only if tech registered TODAY in the CURRENT shift
+  // Used to prevent double-registration in the same shift
+  if(!ot.tecnicos || !ot.tecnicos.length) return false;
+  var n    = nombre.toLowerCase();
+  var hoy  = new Date().toISOString().split('T')[0];
+  var turno= turnoActual();
+  return ot.tecnicos.some(function(t){
+    var diaReg = t.fecha ? t.fecha.split('T')[0] : '';
+    return t.nombre.toLowerCase()===n && diaReg===hoy && t.turno===turno;
+  });
+}
+
+// Helper — nombre del primer técnico que tomó la OT
+function primerTecnico(ot){
+  if(ot.tecnicos && ot.tecnicos.length) return ot.tecnicos[0].nombre;
+  return ot.tecnico || null; // compatibilidad con OTs viejas
+}
+
+// Helper — todos los registros de intervención (incluyendo repeticiones por turno)
+function listaTecnicos(ot){
+  if(ot.tecnicos && ot.tecnicos.length) return ot.tecnicos;
+  if(ot.tecnico) return [{nombre:ot.tecnico, nomina:ot.nominaTecnico||'—', turno:'—', fecha:ot.fechaTomada||ot.fechaAlta}];
+  return [];
+}
+
+// Helper — técnicos únicos que han intervenido (para conteos)
+function tecnicosUnicos(ot){
+  var vistos = {};
+  return listaTecnicos(ot).filter(function(t){
+    if(vistos[t.nombre.toLowerCase()]) return false;
+    vistos[t.nombre.toLowerCase()] = true;
+    return true;
+  });
+}
+
 function tomarOT(id){
   var ot = DB.ots.find(function(o){ return o.id===id; });
   if(!ot){ alert('OT no encontrada'); return; }
-  if(ot.tecnico){ alert('Esta OT ya fue tomada por '+ot.tecnico+'. Recarga la pantalla.'); renderTecOTs('todas'); return; }
-  ot.tecnico = currentUser.nombre;
-  ot.nominaTecnico = currentUser.nomina;
-  ot.status = 'proceso';
-  ot.fechaTomada = new Date().toISOString();
+
+  // Inicializar array de técnicos si no existe
+  if(!ot.tecnicos) ot.tecnicos = [];
+
+  // Bloquear solo si ya se registró HOY en el turno actual
+  if(tecnicoEnTurnoActual(ot, currentUser.nombre)){
+    alert('Ya estás registrado en este turno para esta OT. Puedes registrar actividades.');
+    verOTTec(id); return;
+  }
+
+  // Agregar al array de técnicos
+  ot.tecnicos.push({
+    nombre:   currentUser.nombre,
+    nomina:   currentUser.nomina,
+    turno:    turnoActual(),
+    fecha:    new Date().toISOString()
+  });
+
+  // Mantener ot.tecnico con el primer técnico (compatibilidad)
+  ot.tecnico = ot.tecnicos[0].nombre;
+  ot.status  = 'proceso';
+  if(!ot.fechaTomada) ot.fechaTomada = new Date().toISOString();
+
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' tomada por '+currentUser.nombre+' (Nóm. '+currentUser.nomina+') — '+ot.equipo,
+    texto:'OT '+ot.folio+' — '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') se unió a la atención.',
     fecha:new Date().toISOString(), leida:false});
   saveDB();
   currentOTId = id;
-  alert('✓ OT '+ot.folio+' tomada. Ya puedes registrar actividades.');
+  alert('✓ Quedaste registrado en OT '+ot.folio+'. Ya puedes registrar tus actividades.');
   verOTTec(id);
   renderTecOTs('todas');
 }
@@ -1390,20 +1466,27 @@ function buildDetalleTec(ot){
     }).join('');
   }
 
-  var sinAsignar = !ot.tecnico;
-  var canEdit = ot.status!=='cerrado' && ot.status!=='validar' && !sinAsignar;
+  var yaSoy    = tecnicoEnOT(ot, currentUser.nombre);
+  var canEdit  = ot.status!=='cerrado' && ot.status!=='validar' && yaSoy;
+  var puedeUnirse = (ot.status==='abierto'||ot.status==='proceso') && !tecnicoEnTurnoActual(ot, currentUser.nombre) && ot.status!=='validar' && ot.status!=='cerrado';
 
   var tomarSec='';
-  if(sinAsignar){
+  if(puedeUnirse){
+    var esPrimero = !ot.tecnicos || ot.tecnicos.length===0;
     tomarSec='<div class="alert alert-warn" style="margin:12px">'
       +'<div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
-      +'<div><strong>OT sin atender</strong><br>Toma esta orden para dejar registro de que tú la atiendes.</div>'
+      +'<div><strong>'+(esPrimero?'OT sin atender':'OT en proceso — relevaste al turno anterior')+'</strong><br>'
+      +(esPrimero?'Regístrate para dejar constancia de que tú la atiendes.':'Agrégarte para continuar el trabajo y registrar tus actividades.')
+      +'</div></div>'
+      +'<div class="section-head">'+(esPrimero?'Tomar orden de trabajo':'Unirme a esta OT')+'</div>'
+      +'<div class="field-row"><div class="field-lbl">Tu nómina y turno</div>'
+        +'<div class="field-val">'+currentUser.nomina+' — '+currentUser.nombre+'</div>'
+        +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+turnoActual()+'</div>'
       +'</div>'
-      +'<div class="section-head">Tomar orden de trabajo</div>'
-      +'<div class="field-row"><div class="field-lbl">Técnico que toma la orden</div>'
-      +'<div class="field-val">'+currentUser.nomina+' — '+currentUser.nombre+'</div></div>'
       +'<div style="padding:12px 16px">'
-        +'<button class="btn btn-green btn-block" onclick="tomarOT(this.dataset.id)" data-id="'+ot.id+'">Tomar esta OT a mi nombre</button>'
+        +'<button class="btn btn-green btn-block" onclick="tomarOT(this.dataset.id)" data-id="'+ot.id+'">'
+          +(esPrimero?'Tomar esta OT a mi nombre':'Unirme y continuar esta OT')
+        +'</button>'
       +'</div>';
   }
 
@@ -1431,7 +1514,24 @@ function buildDetalleTec(ot){
     +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+' — '+ot.nave+' · '+ot.area+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Prioridad</div><div class="field-val">'+(ot.prioridad==='urgente'?'<span class="badge badge-urgente">Urgente</span>':'Normal')+'</div></div>'
-    +'<div class="field-row"><div class="field-lbl">Técnico asignado</div><div class="field-val">'+(ot.tecnico||'<span style="color:var(--red)">Sin tomar</span>')+'</div></div>'
+    // Fila de técnicos que han intervenido
+  +(function(){
+    var tecs = listaTecnicos(ot);
+    if(!tecs.length) return '<div class="field-row"><div class="field-lbl">Técnico(s)</div><div class="field-val"><span style="color:var(--red)">Sin tomar</span></div></div>';
+    return '<div class="field-row"><div class="field-lbl">Técnico(s) que han intervenido</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">'
+      +tecs.map(function(t,i){
+        return '<div style="display:flex;align-items:center;gap:8px">'
+          +'<div class="avatar av-green" style="width:28px;height:28px;font-size:10px;flex-shrink:0">'+initials(t.nombre)+'</div>'
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+t.nombre+'</div>'
+            +'<div style="font-size:11px;color:var(--text2)">Nóm. '+t.nomina+' · '+t.turno+'</div>'
+          +'</div>'
+          +(i===0?'<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--green-light);color:var(--green-dark)">Primer contacto</span>':'')
+        +'</div>';
+      }).join('')
+      +'</div></div>';
+  })()
     +espWarn
     +tomarSec
     +'<div class="section-head">Tipo de problema</div>'
@@ -1457,7 +1557,8 @@ function guardarActividad(){
     fin:document.getElementById('act-fin').value,
     avance,accion,
     obs:document.getElementById('act-obs').value,
-    tecnico:currentUser.nombre
+    tecnico:currentUser.nombre,
+    nomina:currentUser.nomina
   });
   ot.avance=avance;
   ot.status=concluir?'validar':'proceso';
@@ -1517,7 +1618,7 @@ function guardarRefaccion(){
 
 function renderTecHistorial(){
   var cnH=currentUser.nombre.toLowerCase();
-  const ots=DB.ots.filter(o=>o.tecnico&&o.tecnico.toLowerCase()===cnH&&o.status==='cerrado');
+  const ots=DB.ots.filter(function(o){ return o.status==='cerrado' && (tecnicoEnOT(o,currentUser.nombre)||(o.tecnico&&o.tecnico.toLowerCase()===cnH)); });
   const el=document.getElementById('tec-historial-list');
   if(!ots.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">Sin órdenes cerradas aún</div></div>';return;}
   el.innerHTML=ots.map(ot=>`<div class="card" onclick="verOTTec('${ot.id}')">
@@ -1542,8 +1643,7 @@ function renderNotifsTec(){
 }
 
 function renderTecPerfil(){
-  var cnP=currentUser.nombre.toLowerCase();
-  const mis=DB.ots.filter(o=>o.tecnico&&o.tecnico.toLowerCase()===cnP);
+  const mis=DB.ots.filter(function(o){ return tecnicoEnOT(o,currentUser.nombre)||(o.tecnico&&o.tecnico.toLowerCase()===currentUser.nombre.toLowerCase()); });
   document.getElementById('tec-perfil-content').innerHTML=`
     <div style="padding:24px 16px;text-align:center">
       <div class="avatar av-green" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">${initials(currentUser.nombre)}</div>
@@ -1701,8 +1801,8 @@ function renderTecnicos(){
   });
   const tecs = sorted.map(p=>{
     const n = p.nombre;
-    const activas  = DB.ots.filter(o=>o.tecnico===n && o.status!=='cerrado').length;
-    const cerradas = DB.ots.filter(o=>o.tecnico===n && o.status==='cerrado').length;
+    const activas  = DB.ots.filter(function(o){ return tecnicoEnOT(o,n)&&o.status!=='cerrado'; }).length;
+    const cerradas = DB.ots.filter(function(o){ return tecnicoEnOT(o,n)&&o.status==='cerrado'; }).length;
     return Object.assign({},p,{activas,cerradas});
   });
   const maxC = Math.max.apply(null, tecs.map(t=>t.cerradas).concat([1]));
@@ -1770,7 +1870,7 @@ function verDetalleTecnico(nomina){
   var p = (DB.personal||[]).find(x=>x.nomina===nomina);
   if(!p) return;
   var nombre   = p.nombre;
-  var todas    = DB.ots.filter(o=>o.tecnico===nombre);
+  var todas    = DB.ots.filter(function(o){ return tecnicoEnOT(o,nombre)||(o.tecnico&&o.tecnico.toLowerCase()===nombre.toLowerCase()); });
   var activas  = todas.filter(o=>o.status!=='cerrado');
   var cerradas = todas.filter(o=>o.status==='cerrado');
   var el = document.getElementById('sup-tecnicos-content');
