@@ -53,7 +53,7 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .btn-sm{padding:6px 12px;font-size:12px}
 .btn-block{width:100%}
 /* ===== TOPBAR ===== */
-.topbar{display:flex;align-items:center;gap:10px;padding:12px 16px;color:#fff;flex-shrink:0}
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 16px;color:#fff;flex-shrink:0;position:sticky;top:0;z-index:50}
 .topbar-blue{background:var(--blue)}
 .topbar-green{background:var(--green)}
 .topbar-purple{background:var(--purple)}
@@ -65,7 +65,7 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .topbar-icon-btn:hover{background:rgba(255,255,255,.25)}
 .notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:#E24B4A;border-radius:50%;border:1.5px solid var(--blue)}
 /* ===== TAB BAR ===== */
-.tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+.tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;position:sticky;bottom:0;z-index:50}
 .tabbar-item{flex:1;padding:8px 4px 10px;text-align:center;font-size:10px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;transition:color .15s}
 .tabbar-item.active{color:var(--blue);border-top-color:var(--blue)}
 .tabbar-item.active.green{color:var(--green);border-top-color:var(--green)}
@@ -161,9 +161,9 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .fab:active{transform:scale(.95)}
 .fab svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* ===== MODAL ===== */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
-.modal-sheet{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0)}
+.modal-sheet{background:var(--surface);border-radius:16px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)}
 .modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 8px}
 .modal-title{font-size:16px;font-weight:600;padding:4px 16px 14px;color:var(--text)}
 /* ===== MISC ===== */
