@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MantoApp — Órdenes de Trabajo</title>
+<style>
+/* ===== RESET & BASE ===== */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#185FA5;--blue-light:#E6F1FB;--blue-dark:#0C447C;
+  --green:#0F6E56;--green-light:#E1F5EE;--green-dark:#085041;
+  --purple:#3C3489;--purple-light:#EEEDFE;--purple-dark:#26215C;
+  --amber:#BA7517;--amber-light:#FAEEDA;--amber-dark:#633806;
+  --red:#A32D2D;--red-light:#FCEBEB;--red-dark:#501313;
+  --gray:#5F5E5A;--gray-light:#F1EFE8;--gray-dark:#2C2C2A;
+  --teal:#0F6E56;--teal-light:#E1F5EE;
+  --bg:#F5F5F3;--surface:#FFFFFF;--border:#E0DED8;
+  --text:#1A1A18;--text2:#5F5E5A;--text3:#888780;
+  --radius:10px;--radius-sm:6px;--shadow:0 1px 4px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px}
+/* ===== LAYOUT ===== */
+.page{display:none;flex-direction:column;min-height:100vh}
+.page.active{display:flex}
+/* ===== LOGIN ===== */
+#page-login{align-items:center;justify-content:center;background:linear-gradient(160deg,var(--blue-dark) 0%,var(--blue) 100%)}
+.login-card{background:var(--surface);border-radius:16px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo-icon{width:56px;height:56px;background:var(--blue);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px}
+.login-logo-icon svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.login-title{font-size:20px;font-weight:600;color:var(--text);text-align:center}
+.login-sub{font-size:13px;color:var(--text2);text-align:center;margin-top:4px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px;display:block}
+.form-input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--surface);transition:border-color .15s}
+.form-input:focus{outline:none;border-color:var(--blue)}
+.form-select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--surface)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;border:none;transition:opacity .15s,transform .1s}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--blue);color:#fff;width:100%}
+.btn-primary:hover{opacity:.92}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{opacity:.92}
+.btn-outline{background:transparent;color:var(--blue);border:1px solid var(--blue)}
+.btn-outline:hover{background:var(--blue-light)}
+.btn-warn{background:transparent;color:var(--amber);border:1px solid var(--amber)}
+.btn-warn:hover{background:var(--amber-light)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid var(--red)}
+.btn-danger:hover{background:var(--red-light)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-block{width:100%}
+/* ===== TOPBAR ===== */
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 16px;color:#fff;flex-shrink:0}
+.topbar-blue{background:var(--blue)}
+.topbar-green{background:var(--green)}
+.topbar-purple{background:var(--purple)}
+.topbar-back{background:transparent;border:none;color:#fff;padding:4px;border-radius:6px;display:flex;align-items:center}
+.topbar-back:hover{background:rgba(255,255,255,.15)}
+.topbar-title{font-size:16px;font-weight:600;flex:1}
+.topbar-sub{font-size:11px;opacity:.75;margin-top:1px}
+.topbar-icon-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.topbar-icon-btn:hover{background:rgba(255,255,255,.25)}
+.notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:#E24B4A;border-radius:50%;border:1.5px solid var(--blue)}
+/* ===== TAB BAR ===== */
+.tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+.tabbar-item{flex:1;padding:8px 4px 10px;text-align:center;font-size:10px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;transition:color .15s}
+.tabbar-item.active{color:var(--blue);border-top-color:var(--blue)}
+.tabbar-item.active.green{color:var(--green);border-top-color:var(--green)}
+.tabbar-item.active.purple{color:var(--purple);border-top-color:var(--purple)}
+.tabbar-item svg{display:block;width:22px;height:22px;margin:0 auto 2px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* ===== SCREEN SYSTEM ===== */
+.screen{display:none;flex:1;flex-direction:column;overflow-y:auto}
+.screen.active{display:flex}
+/* ===== CARDS ===== */
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px;margin-bottom:10px}
+.card:last-child{margin-bottom:0}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.card-folio{font-size:14px;font-weight:600;color:var(--text)}
+.card-desc{font-size:13px;color:var(--text2);margin-bottom:8px}
+.card-tags{display:flex;gap:6px;flex-wrap:wrap}
+/* ===== BADGES ===== */
+.badge{font-size:11px;font-weight:500;padding:3px 9px;border-radius:999px;display:inline-block;white-space:nowrap}
+.badge-abierto{background:var(--blue-light);color:var(--blue-dark)}
+.badge-proceso{background:#E6F1FB;color:#185FA5}
+.badge-espera{background:var(--red-light);color:var(--red-dark)}
+.badge-validar{background:var(--green-light);color:var(--green-dark)}
+.badge-cerrado{background:var(--gray-light);color:var(--gray-dark)}
+.badge-urgente{background:#FCEBEB;color:#A32D2D}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--gray-light);color:var(--text2)}
+/* ===== SECTION ===== */
+.section-head{background:var(--bg);padding:7px 16px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.field-row{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
+.field-row:last-child{border-bottom:none}
+.field-lbl{font-size:11px;color:var(--text2)}
+.field-val{font-size:14px;color:var(--text);font-weight:500}
+.field-input{width:100%;padding:0;border:none;background:transparent;font-size:14px;color:var(--text);font-weight:500}
+.field-input:focus{outline:none}
+.field-select{width:100%;padding:0;border:none;background:transparent;font-size:14px;color:var(--text);font-weight:500}
+.field-textarea{width:100%;padding:0;border:none;background:transparent;font-size:14px;color:var(--text);resize:none;min-height:64px}
+.field-textarea:focus,.field-input:focus,.field-select:focus{outline:none}
+/* ===== STEPPER ===== */
+.stepper{display:flex;align-items:center;padding:14px 16px 6px}
+.step-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;z-index:1}
+.step-dot.done{background:var(--blue);color:#fff}
+.step-dot.active{background:var(--amber);color:#fff;box-shadow:0 0 0 3px var(--amber-light)}
+.step-dot.pending{background:var(--bg);color:var(--text3);border:1.5px solid var(--border)}
+.step-line{flex:1;height:2px;background:var(--border)}
+.step-line.done{background:var(--blue)}
+.step-labels{display:flex;justify-content:space-between;padding:4px 14px 10px;font-size:9px;color:var(--text3)}
+/* ===== ALERT BANNERS ===== */
+.alert{border-radius:var(--radius-sm);padding:11px 13px;display:flex;gap:9px;margin:8px 12px;font-size:13px;line-height:1.5}
+.alert-icon{flex-shrink:0;margin-top:1px}
+.alert-warn{background:var(--amber-light);border:1px solid #EF9F27}
+.alert-warn .alert-icon{color:var(--amber)}
+.alert-ok{background:var(--green-light);border:1px solid #5DCAA5}
+.alert-ok .alert-icon{color:var(--green)}
+.alert-red{background:var(--red-light);border:1px solid #F09595}
+.alert-red .alert-icon{color:var(--red)}
+/* ===== CHIPS ===== */
+.chip-group{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px}
+.chip{font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;transition:all .15s}
+.chip.selected{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chip.selected.green{background:var(--green);border-color:var(--green)}
+/* ===== PROGRESS ===== */
+.progress-track{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:5px 0}
+.progress-fill{height:5px;border-radius:3px;background:var(--blue);transition:width .3s}
+.progress-fill.green{background:var(--green)}
+/* ===== KPI GRID ===== */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.kpi{background:var(--surface);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border)}
+.kpi-label{font-size:11px;color:var(--text2);margin-bottom:4px}
+.kpi-val{font-size:24px;font-weight:600;line-height:1;color:var(--text)}
+.kpi-val.good{color:var(--green)}
+.kpi-val.warn{color:var(--amber)}
+.kpi-val.bad{color:var(--red)}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:3px}
+/* ===== BAR CHART ===== */
+.bar-row{display:flex;align-items:center;gap:8px;padding:5px 16px}
+.bar-label{font-size:12px;color:var(--text2);width:80px;flex-shrink:0}
+.bar-track{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.bar-fill{height:6px;border-radius:3px;background:var(--purple)}
+.bar-count{font-size:12px;font-weight:600;color:var(--text);min-width:24px;text-align:right}
+/* ===== VALIDATE BOX ===== */
+.validate-box{margin:10px 12px;background:var(--green-light);border:1px solid #5DCAA5;border-radius:var(--radius);padding:16px}
+.validate-title{font-size:14px;font-weight:600;color:var(--green-dark);margin-bottom:4px}
+.validate-sub{font-size:12px;color:var(--green);margin-bottom:12px}
+/* ===== TECNICO ROW ===== */
+.tec-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+.av-blue{background:var(--blue-light);color:var(--blue-dark)}
+.av-green{background:var(--green-light);color:var(--green-dark)}
+.av-purple{background:var(--purple-light);color:var(--purple-dark)}
+.tec-info{flex:1}
+.tec-name{font-size:13px;font-weight:500;color:var(--text)}
+.tec-sub{font-size:11px;color:var(--text2)}
+/* ===== FAB ===== */
+.fab{position:fixed;bottom:72px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(24,95,165,.35);z-index:100}
+.fab:active{transform:scale(.95)}
+.fab svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* ===== MODAL ===== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-sheet{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0)}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 8px}
+.modal-title{font-size:16px;font-weight:600;padding:4px 16px 14px;color:var(--text)}
+/* ===== MISC ===== */
+.divider{height:1px;background:var(--border);margin:0}
+.spacer{height:80px}
+.scroll-content{flex:1;overflow-y:auto}
+.list-pad{padding:12px}
+.urgente-line{border-left:3px solid var(--red);border-radius:0 var(--radius) var(--radius) 0;padding-left:13px}
+.empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.empty-title{font-size:15px;font-weight:500;color:var(--text2);margin-bottom:6px}
+.empty-sub{font-size:13px;color:var(--text3)}
+.comment-row{padding:12px 16px;border-bottom:1px solid var(--border)}
+.comment-meta{font-size:11px;color:var(--text3);margin-bottom:4px}
+.comment-text{font-size:13px;color:var(--text)}
+.inline-form{padding:12px 16px;display:flex;gap:8px;align-items:flex-end}
+.range-wrap{padding:4px 0}
+.range-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px}
+input[type=range]{width:100%;accent-color:var(--blue)}
+input[type=range].green{accent-color:var(--green)}
+.filter-bar{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;scrollbar-width:none}
+.filter-bar::-webkit-scrollbar{display:none}
+.notif-item{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.notif-dot2{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.notif-text{font-size:13px;color:var(--text);flex:1;line-height:1.4}
+.notif-time{font-size:11px;color:var(--text3);margin-top:2px}
+/* ===== RESPONSIVE ===== */
+@media(min-width:480px){
+  #page-login{padding:24px}
+  .fab{bottom:80px}
+}
+
+/* ===== ADMIN ===== */
+:root{--orange:#C05A00;--orange-light:#FEF0E6;--orange-dark:#7A3800;}
+.topbar-orange{background:var(--orange)}
+.tabbar-item.active.orange{color:var(--orange);border-top-color:var(--orange)}
+.badge-activo{background:#EAF3DE;color:#27500A}
+.badge-baja{background:#FCEBEB;color:#791F1F}
+.search-box{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.search-input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:var(--surface);color:var(--text)}
+.search-input:focus{outline:none;border-color:var(--orange)}
+.person-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.person-row:hover{background:var(--orange-light)}
+.person-info{flex:1;min-width:0}
+.person-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person-sub{font-size:11px;color:var(--text2)}
+.person-nomina{font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0}
+.fab-orange{background:var(--orange)}
+.btn-orange{background:var(--orange);color:#fff;border:none}
+.btn-orange:hover{opacity:.9}
+.dept-pill{display:inline-block;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--orange-light);color:var(--orange-dark);font-weight:500}
+.stat-row{display:flex;gap:8px;padding:10px 12px;flex-wrap:wrap}
+.stat-chip{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;text-align:center;flex:1;min-width:70px}
+.stat-chip-val{font-size:20px;font-weight:600;color:var(--text)}
+.stat-chip-lbl{font-size:10px;color:var(--text2);margin-top:2px}
+
+
+/* Admin hub */
+.adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.adm-tabbar::-webkit-scrollbar{display:none}
+.adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
+.adm-tab.active{color:var(--orange);border-top-color:var(--orange)}
+.adm-tab svg{display:block;width:20px;height:20px;margin:0 auto 2px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.adm-back-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--orange-light);border-bottom:1px solid var(--border);font-size:12px;font-weight:500;color:var(--orange-dark);cursor:pointer;border:none;width:100%;text-align:left}
+.adm-back-btn svg{width:16px;height:16px;stroke:var(--orange-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+
+/* ===== ADMIN BACK BAR ===== */
+.adm-back-btn{display:flex;align-items:center;gap:6px;width:100%;padding:9px 14px;background:var(--orange);color:#fff;border:none;font-size:12px;font-weight:500;cursor:pointer;flex-shrink:0;z-index:10}
+.adm-back-btn:hover{opacity:.92}
+.adm-back-btn svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)}
+  60%{transform:translateX(-4px)}
+  80%{transform:translateX(4px)}
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="page-login" class="page active">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <div class="login-title">MantoApp</div>
+      <div class="login-sub">Órdenes de trabajo de mantenimiento</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label"># Nómina</label>
+      <input class="form-input" id="login-nomina" type="text" placeholder="Ej. 1869" maxlength="6" oninput="buscarNomina(this.value)" autocomplete="off">
+      <div id="login-nombre-preview" style="margin-top:6px;min-height:0;border-radius:6px;padding:0 12px;font-size:13px;display:none;transition:all .2s"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input class="form-input" id="login-pass" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:14px">Tu contraseña determina el perfil de acceso</p>
+  </div>
+</div>
+
+<!-- ==================== APP SOLICITANTE ==================== -->
+<div id="page-solicitante" class="page">
+  <!-- SCREEN: Lista OT -->
+  <div id="sol-lista" class="screen active">
+    <div class="topbar topbar-blue">
+      <div style="flex:1">
+        <div style="font-size:11px;opacity:.75" id="sol-greeting">Hola</div>
+        <div class="topbar-title">Mis solicitudes</div>
+      </div>
+      <button class="topbar-icon-btn" onclick="showNotifs('solicitante')" aria-label="Notificaciones">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot" id="sol-notif-dot"></span>
+      </button>
+    </div>
+    <div class="filter-bar" id="sol-filter-bar">
+      <button class="badge badge-proceso" onclick="filterOTs('todas','solicitante')" style="cursor:pointer">Todas</button>
+      <button class="badge badge-abierto" onclick="filterOTs('abierto','solicitante')" style="cursor:pointer">Abiertas</button>
+      <button class="badge badge-espera" onclick="filterOTs('espera','solicitante')" style="cursor:pointer">En espera</button>
+      <button class="badge badge-validar" onclick="filterOTs('validar','solicitante')" style="cursor:pointer">Validar</button>
+      <button class="badge badge-cerrado" onclick="filterOTs('cerrado','solicitante')" style="cursor:pointer">Cerradas</button>
+    </div>
+    <div class="scroll-content">
+      <div class="list-pad" id="sol-ot-list"></div>
+      <div class="spacer"></div>
+    </div>
+    <button class="fab" onclick="showScreen('sol-nueva')" aria-label="Nueva OT">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <nav class="tabbar">
+      <button class="tabbar-item active" onclick="showScreen('sol-lista')">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Mis OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sol-notifs')">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Avisos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sol-perfil')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        Perfil
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Nueva OT -->
+  <div id="sol-nueva" class="screen">
+    <div class="topbar topbar-blue">
+      <button class="topbar-back" onclick="showScreen('sol-lista')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Nueva solicitud</div>
+    </div>
+    <div class="scroll-content">
+      <div class="section-head">Datos del solicitante</div>
+      <div class="field-row"><div class="field-lbl">Nómina</div><div class="field-val" id="nueva-nomina-display">—</div></div>
+      <div class="field-row"><div class="field-lbl">Nombre</div><div class="field-val" id="nueva-nombre-display">—</div></div>
+      <div class="section-head">Ubicación</div>
+      <div class="field-row">
+        <div class="field-lbl">Tipo de servicio</div>
+        <select class="field-select" id="nueva-tipo">
+          <option value="MTTO-MAQ-PROD">MTTO-MAQ-PROD</option>
+          <option value="MTTO-INFRAESTRUCTURA">MTTO-INFRAESTRUCTURA</option>
+          <option value="MTTO-ELECTRICO">MTTO-ELÉCTRICO</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Nave</div>
+        <select class="field-select" id="nueva-nave">
+          <option>NAVE A1</option><option>NAVE A2</option><option>NAVE B</option><option>NAVE C</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Área</div>
+        <select class="field-select" id="nueva-area">
+          <option>Rotograbado</option><option>Laminado</option><option>Corte</option><option>Sellado</option><option>Extrusión</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Equipo</div>
+        <select class="field-select" id="nueva-equipo">
+          <option>IMP06</option><option>IMP03</option><option>LAM01</option><option>LAM02</option><option>COR01</option>
+        </select>
+      </div>
+      <div class="section-head">Descripción</div>
+      <div class="field-row">
+        <div class="field-lbl">Descripción de la falla o solicitud</div>
+        <textarea class="field-textarea" id="nueva-desc" placeholder="Describe el problema con el mayor detalle posible..."></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Prioridad</div>
+        <select class="field-select" id="nueva-prioridad">
+          <option value="normal">Normal</option>
+          <option value="urgente">Urgente — máquina parada</option>
+        </select>
+      </div>
+      <div style="padding:16px">
+        <button class="btn btn-primary btn-block" onclick="crearOT()">Enviar solicitud</button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Detalle OT solicitante -->
+  <div id="sol-detalle" class="screen">
+    <div class="topbar topbar-blue">
+      <button class="topbar-back" onclick="showScreen('sol-lista')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div>
+        <div class="topbar-title" id="sol-det-titulo">OT #—</div>
+        <div class="topbar-sub" id="sol-det-status">—</div>
+      </div>
+    </div>
+    <div class="scroll-content" id="sol-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Notificaciones -->
+  <div id="sol-notifs" class="screen">
+    <div class="topbar topbar-blue"><div class="topbar-title">Notificaciones</div></div>
+    <div class="scroll-content" id="sol-notifs-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sol-lista')">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Mis OT
+      </button>
+      <button class="tabbar-item active" onclick="showScreen('sol-notifs')">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Avisos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sol-perfil')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        Perfil
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Perfil -->
+  <div id="sol-perfil" class="screen">
+    <div class="topbar topbar-blue"><div class="topbar-title">Mi perfil</div></div>
+    <div class="scroll-content" id="sol-perfil-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sol-lista')">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Mis OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sol-notifs')">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Avisos
+      </button>
+      <button class="tabbar-item active" onclick="showScreen('sol-perfil')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        Perfil
+      </button>
+    </nav>
+  </div>
+</div>
+
+<!-- ==================== APP TÉCNICO ==================== -->
+<div id="page-tecnico" class="page">
+  <!-- SCREEN: Lista OT técnico -->
+  <div id="tec-lista" class="screen active">
+    <div class="topbar topbar-green">
+      <div style="flex:1">
+        <div style="font-size:11px;opacity:.75" id="tec-greeting">Técnico</div>
+        <div class="topbar-title">Mis órdenes</div>
+      </div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showNotifs('tecnico')" aria-label="Notificaciones">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot" id="tec-notif-dot" style="border-color:var(--green)"></span>
+      </button>
+    </div>
+    <div class="filter-bar">
+      <button class="badge badge-proceso" onclick="filterOTs('todas','tecnico')" style="cursor:pointer">Todas</button>
+      <button class="badge badge-abierto" onclick="filterOTs('abierto','tecnico')" style="cursor:pointer">Nuevas</button>
+      <button class="badge badge-proceso" onclick="filterOTs('proceso','tecnico')" style="cursor:pointer">En proceso</button>
+      <button class="badge badge-espera" onclick="filterOTs('espera','tecnico')" style="cursor:pointer">En espera</button>
+    </div>
+    <div class="scroll-content">
+      <div class="list-pad" id="tec-ot-list"></div>
+      <div class="spacer"></div>
+    </div>
+    <nav class="tabbar">
+      <button class="tabbar-item active green" onclick="showScreen('tec-lista')">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Mis OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('tec-historial')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Historial
+      </button>
+      <button class="tabbar-item" onclick="showScreen('tec-perfil')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        Perfil
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Detalle OT técnico -->
+  <div id="tec-detalle" class="screen">
+    <div class="topbar topbar-green">
+      <button class="topbar-back" onclick="showScreen('tec-lista')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div>
+        <div class="topbar-title" id="tec-det-titulo">OT #—</div>
+        <div class="topbar-sub" id="tec-det-status">—</div>
+      </div>
+    </div>
+    <div class="scroll-content" id="tec-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Registrar actividad -->
+  <div id="tec-actividad" class="screen">
+    <div class="topbar topbar-green">
+      <button class="topbar-back" onclick="showScreen('tec-detalle')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Registrar actividad</div>
+    </div>
+    <div class="scroll-content">
+      <div class="section-head" id="act-ot-head">OT —</div>
+      <div class="field-row">
+        <div class="field-lbl">Fecha de actividad</div>
+        <input class="field-input" type="date" id="act-fecha">
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Hora inicio</div>
+        <input class="field-input" type="time" id="act-inicio">
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Hora fin</div>
+        <input class="field-input" type="time" id="act-fin">
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">% Avance de la OT — <span id="act-avance-lbl">50%</span></div>
+        <div class="range-wrap">
+          <input type="range" class="green" min="0" max="100" step="5" value="50" id="act-avance" oninput="document.getElementById('act-avance-lbl').textContent=this.value+'%'">
+          <div class="range-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+        </div>
+        <div class="progress-track"><div class="progress-fill green" id="act-avance-bar" style="width:50%"></div></div>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Acción realizada</div>
+        <textarea class="field-textarea" id="act-accion" placeholder="Describe detalladamente la acción realizada..."></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Observaciones</div>
+        <textarea class="field-textarea" id="act-obs" placeholder="Observaciones adicionales, partes revisadas, estado del equipo..."></textarea>
+      </div>
+      <div class="field-row" style="flex-direction:row;align-items:center;gap:10px">
+        <input type="checkbox" id="act-concluir" style="width:18px;height:18px;accent-color:var(--green)">
+        <label for="act-concluir" style="font-size:13px;color:var(--text)">Marcar OT como concluida (el usuario debe validar el cierre)</label>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-green btn-block" onclick="guardarActividad()">Guardar actividad</button>
+        <button class="btn btn-warn btn-block" onclick="showScreen('tec-espera')">Poner en espera en lugar de registrar actividad</button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Poner en espera -->
+  <div id="tec-espera" class="screen">
+    <div class="topbar topbar-green">
+      <button class="topbar-back" onclick="showScreen('tec-detalle')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Poner en espera</div>
+    </div>
+    <div class="scroll-content">
+      <div class="alert alert-warn" style="margin:12px">
+        <div class="alert-icon">
+          <svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div>El solicitante recibirá una notificación con el motivo y la fecha estimada. Podrás agregar comentarios mientras la OT esté en espera.</div>
+      </div>
+      <div class="section-head">Motivo de la espera</div>
+      <div class="chip-group" id="espera-motivo-chips">
+        <button class="chip" onclick="selectChip(this,'espera-motivo')">Sin refacción</button>
+        <button class="chip" onclick="selectChip(this,'espera-motivo')">Sin tiempo</button>
+        <button class="chip" onclick="selectChip(this,'espera-motivo')">Esperando paro de máquina</button>
+        <button class="chip" onclick="selectChip(this,'espera-motivo')">Falla reincidente</button>
+        <button class="chip" onclick="selectChip(this,'espera-motivo')">Esperando proveedor</button>
+        <button class="chip" onclick="selectChip(this,'espera-motivo')">Otro</button>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Detalle del motivo (obligatorio)</div>
+        <textarea class="field-textarea" id="espera-comentario" placeholder="Ej: Se solicitó rodamiento 6205 a almacén, número de requisición 4521..."></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Fecha estimada de reanudación</div>
+        <input class="field-input" type="date" id="espera-fecha">
+      </div>
+      <div style="padding:16px">
+        <button class="btn btn-primary btn-block" onclick="ponerEnEspera()">Confirmar — poner en espera</button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Historial técnico -->
+  <div id="tec-historial" class="screen">
+    <div class="topbar topbar-green"><div class="topbar-title">Historial</div></div>
+    <div class="scroll-content">
+      <div class="list-pad" id="tec-historial-list"></div>
+    </div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('tec-lista')">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Mis OT
+      </button>
+      <button class="tabbar-item active green" onclick="showScreen('tec-historial')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Historial
+      </button>
+      <button class="tabbar-item" onclick="showScreen('tec-perfil')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        Perfil
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Perfil técnico -->
+  <div id="tec-perfil" class="screen">
+    <div class="topbar topbar-green"><div class="topbar-title">Mi perfil</div></div>
+    <div class="scroll-content" id="tec-perfil-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('tec-lista')">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Mis OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('tec-historial')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Historial
+      </button>
+      <button class="tabbar-item active green" onclick="showScreen('tec-perfil')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        Perfil
+      </button>
+    </nav>
+  </div>
+</div>
+
+<!-- ==================== APP SUPERVISOR ==================== -->
+<div id="page-supervisor" class="page">
+  <!-- SCREEN: Dashboard -->
+  <div id="sup-dashboard" class="screen active">
+    <div class="topbar topbar-purple">
+      <div style="flex:1">
+        <div style="font-size:11px;opacity:.75" id="sup-greeting">Supervisor</div>
+        <div class="topbar-title">Panel de control</div>
+      </div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showNotifs('supervisor')" aria-label="Alertas">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot" id="sup-notif-dot" style="border-color:var(--purple)"></span>
+      </button>
+    </div>
+    <div class="scroll-content">
+      <div class="kpi-grid" id="sup-kpis"></div>
+      <div class="section-head">OT por tipo de falla — mes actual</div>
+      <div id="sup-bars" style="padding:6px 0 10px"></div>
+      <div class="section-head">Equipos con más fallas</div>
+      <div id="sup-equipos"></div>
+      <div class="spacer"></div>
+    </div>
+    <nav class="tabbar">
+      <button class="tabbar-item active purple" onclick="showScreen('sup-dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Panel
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Técnicos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Alertas
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Todas las OT -->
+  <div id="sup-ots" class="screen">
+    <div class="topbar topbar-purple"><div class="topbar-title">Todas las OT</div></div>
+    <div class="filter-bar">
+      <button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer" onclick="filterOTs('todas','supervisor')">Todas</button>
+      <button class="badge badge-abierto" onclick="filterOTs('abierto','supervisor')" style="cursor:pointer">Nuevas</button>
+      <button class="badge badge-proceso" onclick="filterOTs('proceso','supervisor')" style="cursor:pointer">Proceso</button>
+      <button class="badge badge-espera" onclick="filterOTs('espera','supervisor')" style="cursor:pointer">Espera</button>
+      <button class="badge badge-validar" onclick="filterOTs('validar','supervisor')" style="cursor:pointer">Validar</button>
+    </div>
+    <div class="scroll-content">
+      <div class="list-pad" id="sup-ot-list"></div>
+      <div class="spacer"></div>
+    </div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Panel
+      </button>
+      <button class="tabbar-item active purple" onclick="showScreen('sup-ots');renderSupOTs()">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Técnicos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Alertas
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Técnicos -->
+  <div id="sup-tecnicos" class="screen">
+    <div class="topbar topbar-purple"><div class="topbar-title">Técnicos</div></div>
+    <div class="scroll-content" id="sup-tecnicos-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Panel
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        OT
+      </button>
+      <button class="tabbar-item active purple" onclick="showScreen('sup-tecnicos');renderTecnicos()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Técnicos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Alertas
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Alertas -->
+  <div id="sup-alertas" class="screen">
+    <div class="topbar topbar-purple"><div class="topbar-title">Alertas</div></div>
+    <div class="scroll-content" id="sup-alertas-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Panel
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Técnicos
+      </button>
+      <button class="tabbar-item active purple" onclick="showScreen('sup-alertas');renderAlertas()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Alertas
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Detalle OT supervisor -->
+  <div id="sup-detalle" class="screen">
+    <div class="topbar topbar-purple">
+      <button class="topbar-back" onclick="showScreen('sup-ots')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div>
+        <div class="topbar-title" id="sup-det-titulo">OT #—</div>
+        <div class="topbar-sub" id="sup-det-status">—</div>
+      </div>
+    </div>
+    <div class="scroll-content" id="sup-detalle-content"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL REFACCIONES ==================== -->
+<div class="modal-overlay" id="modal-refaccion">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Agregar refacción</div>
+    <div class="field-row">
+      <div class="field-lbl">Tipo de refacción</div>
+      <select class="field-select" id="ref-tipo">
+        <option>Material consumible</option><option>Refacción mecánica</option><option>Componente eléctrico</option><option>Componente neumático</option><option>Lubricante</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Descripción</div>
+      <input class="field-input" type="text" id="ref-desc" placeholder="Ej: Rodamiento 6205, Manguera 8mm...">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Cantidad</div>
+      <input class="field-input" type="number" id="ref-qty" value="1" min="1">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Costo unitario ($)</div>
+      <input class="field-input" type="number" id="ref-costo" value="0" min="0" step="0.01">
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-refaccion')" style="flex:1">Cancelar</button>
+      <button class="btn btn-green" onclick="guardarRefaccion()" style="flex:2">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL ASIGNAR TÉCNICO ==================== -->
+<div class="modal-overlay" id="modal-asignar">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Asignar técnico</div>
+    <div class="field-row">
+      <div class="field-lbl">Selecciona el técnico</div>
+      <select class="field-select" id="asignar-tecnico" id="asignar-tecnico">
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-asignar')" style="flex:1">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAsignacion()" style="background:var(--purple);flex:2">Asignar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL RECHAZAR CIERRE ==================== -->
+<div class="modal-overlay" id="modal-rechazar">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Rechazar cierre</div>
+    <div class="alert alert-warn" style="margin:0 16px 12px">
+      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div>La OT volverá a estado "En proceso" y el técnico recibirá el motivo del rechazo.</div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Motivo del rechazo</div>
+      <textarea class="field-textarea" id="rechazar-motivo" placeholder="Describe qué problema persiste o qué falta por resolver..."></textarea>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-rechazar')" style="flex:1">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarRechazo()" style="flex:2">Rechazar cierre</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== DATA STORE ====================
+const USERS = {
+  solicitante:{nomina:'1869',nombre:'(nombre retirado)',role:'solicitante',turno:1,area:'Rotograbado'},
+  tecnico:{nomina:'2034',nombre:'(nombre retirado)',role:'tecnico',turno:2},
+  supervisor:{nomina:'1001',nombre:'(nombre retirado)',role:'supervisor'}
+};
+function getTecnicos(){
+  // Toma del catálogo real: depto MANTENIMIENTO, activos, con rol tecnico o supervisor
+  const cat = DB.personal || [];
+  const manto = cat.filter(p =>
+    p.depto === 'MANTENIMIENTO' && p.estatus === 'activo'
+  );
+  return manto;
+}
+// Compatibilidad: lista de nombres para selects heredados
+function getTecnicoNombres(){
+  return getTecnicos().map(p => p.nombre);
+}
+
+// ── Borrar datos anteriores de ejemplo si existen ──
+(function(){
+  var stored = localStorage.getItem('mantoDB');
+  if(stored){
+    try{
+      var d = JSON.parse(stored);
+      // Si tiene OTs de ejemplo (folios fijos de demo), limpiar y arrancar fresco
+      var demoIds = ['015361','015372','015388'];
+      var hasDemo = d.ots && d.ots.some(function(o){ return demoIds.indexOf(o.id)>=0; });
+      if(hasDemo){ localStorage.removeItem('mantoDB'); stored = null; }
+    }catch(e){ localStorage.removeItem('mantoDB'); stored = null; }
+  }
+})();
+
+let DB = JSON.parse(localStorage.getItem('mantoDB')||'null');
+if(!DB){
+  DB = {
+    ots: [],
+    notifs: [],
+    folioSig: 1
+  };
+  saveDB();
+}
+// Asegurar folioSig
+if(!DB.folioSig){ DB.folioSig = (DB.ots.length ? parseInt(DB.ots[DB.ots.length-1].id)+1 : 1); saveDB(); }
+// Nota: DB.personal se inicializa en initPersonal() que se llama tras declarar CATALOG_PERSONAL
+
+function saveDB(){localStorage.setItem('mantoDB',JSON.stringify(DB));}
+
+let currentUser = null;
+let currentOTId = null;
+let currentFilter = 'todas';
+
+// ==================== AUTH ====================
+function buscarNomina(val){
+  const preview = document.getElementById('login-nombre-preview');
+  const v = val.trim();
+  if(!v){ preview.style.display='none'; return; }
+  const cat = (DB && DB.personal) ? DB.personal : CATALOG_PERSONAL;
+  const persona = cat.find(function(p){ return p.nomina.toString()===v; });
+  if(persona){
+    var statusColor = persona.estatus==='baja'
+      ? 'background:#FCEBEB;border:1px solid #F09595;color:#791F1F'
+      : 'background:#EAF3DE;border:1px solid #97C459;color:#27500A';
+    preview.style.display='block';
+    preview.style.padding='10px 12px';
+    preview.innerHTML=
+      '<div style="display:flex;align-items:center;gap:10px">'
+        +'<div style="width:36px;height:36px;border-radius:50%;background:'+(persona.estatus==='baja'?'#FCEBEB':'#E6F1FB')+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:'+(persona.estatus==='baja'?'#791F1F':'#0C447C')+';flex-shrink:0">'+initials(persona.nombre)+'</div>'
+        +'<div style="min-width:0">'
+          +'<div style="font-size:13px;font-weight:600;color:#1A1A18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+toTitleCase(persona.nombre)+'</div>'
+          +'<div style="font-size:11px;color:#5F5E5A;margin-top:1px">'+toTitleCase(persona.puesto)+' · '+persona.depto+'</div>'
+          +'<div style="margin-top:4px"><span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:999px;'+statusColor+'">'+(persona.estatus==='activo'?'Activo':'Baja')+'</span></div>'
+        +'</div>'
+      +'</div>';
+  } else {
+    preview.style.display='block';
+    preview.style.padding='8px 0';
+    preview.innerHTML=
+      '<div style="display:flex;align-items:center;gap:8px;background:#FCEBEB;border:1px solid #F09595;border-radius:6px;padding:8px 10px">'
+        +'<svg style="width:15px;height:15px;stroke:#A32D2D;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+        +'<span style="font-size:12px;color:#791F1F">Nómina no encontrada en el catálogo</span>'
+      +'</div>';
+  }
+}
+
+function toTitleCase(str){
+  var min=['DE','DEL','LA','LAS','LOS','Y','A','EN'];
+  return str.split(' ').map(function(w,i){
+    return (i>0 && min.indexOf(w)>=0) ? w.toLowerCase() : w.charAt(0)+w.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+// Contraseñas por rol — la contraseña determina el perfil de acceso
+const PASSWORDS = { /* Retiradas del historial */ };
+
+function doLogin(){
+  const nomina = document.getElementById('login-nomina').value.trim();
+  const pass   = document.getElementById('login-pass').value;
+  if(!nomina){ alert('Ingresa tu número de nómina'); return; }
+  if(!pass)  { alert('Ingresa tu contraseña'); return; }
+
+  // Determinar rol por contraseña
+  const role = PASSWORDS[pass];
+  if(!role){
+    // Shake animation on password field
+    var pf = document.getElementById('login-pass');
+    pf.style.borderColor='var(--red)';
+    pf.style.animation='shake .35s ease';
+    setTimeout(function(){ pf.style.animation=''; pf.style.borderColor=''; }, 400);
+    alert('Contraseña incorrecta');
+    return;
+  }
+
+  // Buscar en catálogo
+  const cat = (DB && DB.personal) ? DB.personal : CATALOG_PERSONAL;
+  const persona = cat.find(function(p){ return p.nomina.toString()===nomina; });
+
+  if(persona && persona.estatus==='baja'){
+    alert('Esta nómina está registrada como baja. Contacta a Recursos Humanos.');
+    return;
+  }
+
+  const nombreReal = persona ? toTitleCase(persona.nombre) : ('Usuario '+nomina);
+  const puestoReal = persona ? persona.puesto : '';
+  const deptoReal  = persona ? persona.depto  : '';
+  const turnoReal  = persona ? persona.turno  : '';
+
+  currentUser = {nomina:nomina, nombre:nombreReal, puesto:puestoReal, depto:deptoReal, role:role, turno:turnoReal};
+
+  // Limpiar campos
+  document.getElementById('login-pass').value = '';
+
+  if(role==='admin'){
+    showPage('page-admin');
+    initAdmin();
+  } else if(role==='solicitante'){
+    showPage('page-solicitante');
+    initSolicitante();
+  } else if(role==='tecnico'){
+    showPage('page-tecnico');
+    initTecnico();
+  } else {
+    showPage('page-supervisor');
+    initSupervisor();
+  }
+}
+
+function logout(){
+  currentUser=null;
+  showPage('page-login');
+}
+
+// ==================== NAVIGATION ====================
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showScreen(id){
+  const page = document.getElementById(id).closest('.page');
+  page.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
+});
+
+// ==================== HELPERS ====================
+function fmt(iso){
+  if(!iso)return '—';
+  const d=new Date(iso);
+  return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDate(iso){
+  if(!iso)return '—';
+  const [y,m,d]=iso.split('-');
+  const months=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+}
+function statusLabel(s){
+  const map={abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Pendiente validación',cerrado:'Cerrada'};
+  return map[s]||s;
+}
+function statusBadge(s){
+  return `<span class="badge badge-${s}">${statusLabel(s)}</span>`;
+}
+function initials(name){return name.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();}
+function avatarColor(name){const colors=['av-blue','av-green','av-purple'];return colors[name.charCodeAt(0)%3];}
+
+function notifCount(role){return DB.notifs.filter(n=>n.para===role&&!n.leida).length;}
+
+function selectChip(el,group){
+  el.closest('.chip-group').querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ==================== SOLICITANTE ====================
+function initSolicitante(){
+  document.getElementById('sol-greeting').textContent = `Hola, ${currentUser.nombre.split(' ')[0]}`;
+  document.getElementById('nueva-nomina-display').textContent = currentUser.nomina;
+  document.getElementById('nueva-nombre-display').textContent = currentUser.nombre;
+  updateNotifDot('sol-notif-dot','solicitante');
+  renderSolOTs('todas');
+  renderPerfilSol();
+  renderNotifsSol();
+}
+
+function updateNotifDot(id,role){
+  const dot=document.getElementById(id);
+  if(dot) dot.style.display=notifCount(role)>0?'block':'none';
+}
+
+function filterOTs(f,role){
+  currentFilter=f;
+  if(role==='solicitante') renderSolOTs(f);
+  else if(role==='tecnico') renderTecOTs(f);
+  else renderSupOTs(f);
+}
+
+function getMyOTs(role){
+  if(role==='solicitante') return DB.ots.filter(o=>o.nomina===currentUser.nomina);
+  if(role==='tecnico'){ var cn=currentUser.nombre.toLowerCase(); return DB.ots.filter(function(o){ return (!o.tecnico&&o.status==='abierto')||(o.tecnico&&o.tecnico.toLowerCase()===cn&&o.status!=='cerrado'); }); }
+  return DB.ots;
+}
+
+function renderSolOTs(filter){
+  filter=filter||currentFilter;
+  let ots = getMyOTs('solicitante');
+  if(filter!=='todas') ots=ots.filter(o=>o.status===filter);
+  const el=document.getElementById('sol-ot-list');
+  if(!ots.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">No tienes OT en este estado</div></div>`;
+    return;
+  }
+  el.innerHTML=ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSol(ot)).join('');
+}
+
+function otCardSol(ot){
+  const urgClass = ot.prioridad==='urgente'?'urgente-line':'';
+  return `<div class="card ${urgClass}" onclick="verOTSol('${ot.id}')">
+    <div class="card-header">
+      <span class="card-folio">${ot.folio}</span>
+      ${statusBadge(ot.status)}
+    </div>
+    <div class="card-desc">${ot.desc}</div>
+    <div class="card-tags">
+      <span class="tag">${ot.equipo} · ${ot.area}</span>
+      ${ot.tecnico?`<span class="tag">${ot.tecnico}</span>`:'<span class="tag">Sin asignar</span>'}
+      ${ot.espera?`<span class="tag" style="background:var(--red-light);color:var(--red-dark)">Est. ${fmtDate(ot.espera.fechaEst)}</span>`:''}
+      ${ot.prioridad==='urgente'?'<span class="badge badge-urgente">Urgente</span>':''}
+    </div>
+  </div>`;
+}
+
+function verOTSol(id){
+  currentOTId=id;
+  const ot=DB.ots.find(o=>o.id===id);
+  document.getElementById('sol-det-titulo').textContent=ot.folio;
+  document.getElementById('sol-det-status').textContent=statusLabel(ot.status);
+  document.getElementById('sol-detalle-content').innerHTML=buildDetalleSol(ot);
+  showScreen('sol-detalle');
+}
+
+function buildDetalleSol(ot){
+  const steps=[
+    {label:'Abierta',done:true},
+    {label:'Asignada',done:!!ot.tecnico},
+    {label:'En proceso',done:['proceso','espera','validar','cerrado'].includes(ot.status)},
+    {label:'Validar',done:ot.status==='cerrado'}
+  ];
+  const activeStep = ot.status==='abierto'?0:ot.status==='proceso'||ot.status==='espera'?2:ot.status==='validar'?3:4;
+
+  let stepHTML=`<div class="stepper">`;
+  steps.forEach((s,i)=>{
+    const cls = s.done&&i<activeStep?'done':i===activeStep?'active':'pending';
+    stepHTML+=`<div class="step-dot ${cls}">${i+1}</div>`;
+    if(i<steps.length-1) stepHTML+=`<div class="step-line ${s.done&&i<activeStep-1?'done':''}"></div>`;
+  });
+  stepHTML+=`</div><div class="step-labels">${steps.map(s=>`<span>${s.label}</span>`).join('')}</div>`;
+
+  let espera='';
+  if(ot.espera){
+    espera=`<div class="alert alert-warn">
+      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div><strong>En espera:</strong> ${ot.espera.motivo}<br>${ot.espera.comentario}<br><strong>Fecha estimada: ${fmtDate(ot.espera.fechaEst)}</strong></div>
+    </div>`;
+  }
+
+  let validar='';
+  if(ot.status==='validar'){
+    validar=`<div class="validate-box">
+      <div class="validate-title">¿El equipo quedó operando correctamente?</div>
+      <div class="validate-sub">Al confirmar, la OT se cierra definitivamente. Solo tú puedes hacer este cierre.</div>
+      <button class="btn btn-green btn-block" onclick="cerrarOT('${ot.id}')">Confirmar y cerrar OT</button>
+      <button class="btn btn-danger btn-block" style="margin-top:8px" onclick="openModal('modal-rechazar')">El problema persiste — rechazar cierre</button>
+    </div>`;
+  }
+
+  let acts='';
+  if(ot.actividades.length){
+    acts=`<div class="section-head">Actividades registradas</div>`;
+    acts+=ot.actividades.map(a=>`
+      <div class="comment-row">
+        <div class="comment-meta">${a.tecnico} · ${fmtDate(a.fecha)} ${a.inicio}–${a.fin} · Avance: ${a.avance}%</div>
+        <div class="comment-text">${a.accion}</div>
+        ${a.obs?`<div style="font-size:12px;color:var(--text3);margin-top:3px">${a.obs}</div>`:''}
+      </div>`).join('');
+  }
+
+  let refs='';
+  if(ot.refacciones.length){
+    refs=`<div class="section-head">Refacciones utilizadas</div>`;
+    refs+=ot.refacciones.map(r=>`
+      <div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">
+        <div><div class="field-lbl">${r.tipo}</div><div class="field-val" style="font-weight:400">${r.desc} × ${r.qty}</div></div>
+        <div class="field-val">$${(r.qty*r.costo).toFixed(2)}</div>
+      </div>`).join('');
+  }
+
+  let comms='';
+  if(ot.comentarios.length){
+    comms=`<div class="section-head">Comentarios del técnico</div>`;
+    comms+=ot.comentarios.map(c=>`
+      <div class="comment-row">
+        <div class="comment-meta">${c.autor} · ${fmt(c.fecha)}</div>
+        <div class="comment-text">${c.texto}</div>
+      </div>`).join('');
+  }
+
+  return `${stepHTML}${espera}
+    <div class="section-head">Datos de la solicitud</div>
+    <div class="field-row"><div class="field-lbl">Folio</div><div class="field-val">${ot.folio}</div></div>
+    <div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">${ot.tipo}</div></div>
+    <div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">${ot.equipo} — ${ot.nave} · ${ot.area}</div></div>
+    <div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">${ot.desc}</div></div>
+    <div class="field-row"><div class="field-lbl">Fecha de alta</div><div class="field-val">${fmt(ot.fechaAlta)}</div></div>
+    <div class="field-row"><div class="field-lbl">Técnico asignado</div><div class="field-val">${ot.tecnico||'Sin asignar'}</div></div>
+    ${acts}${refs}${comms}${validar}
+    <div class="spacer"></div>`;
+}
+
+function crearOT(){
+  const desc=document.getElementById('nueva-desc').value.trim();
+  if(!desc){alert('Describe el problema antes de enviar');return;}
+  const id=String(DB.folioSig).padStart(6,'0');
+  DB.folioSig++;
+  const ot={
+    id,folio:'#'+id,
+    tipo:document.getElementById('nueva-tipo').value,
+    nave:document.getElementById('nueva-nave').value,
+    area:document.getElementById('nueva-area').value,
+    equipo:document.getElementById('nueva-equipo').value,
+    desc,
+    prioridad:document.getElementById('nueva-prioridad').value,
+    status:'abierto',
+    solicitante:currentUser.nombre,
+    nomina:currentUser.nomina,
+    tecnico:null,
+    fechaAlta:new Date().toISOString(),
+    avance:0,actividades:[],refacciones:[],comentarios:[],espera:null
+  };
+  DB.ots.push(ot);
+  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'Nueva OT '+ot.folio+': '+ot.desc.substring(0,60)+' — '+ot.equipo,fecha:new Date().toISOString(),leida:false});
+  saveDB();
+  document.getElementById('nueva-desc').value='';
+  showScreen('sol-lista');
+  renderSolOTs('todas');
+  updateNotifDot('sup-notif-dot','supervisor');
+  alert('✓ OT '+ot.folio+' creada. El supervisor puede asignarla a un técnico.');
+}
+
+function cerrarOT(id){
+  const ot=DB.ots.find(o=>o.id===id);
+  ot.status='cerrado';
+  ot.fechaCierre=new Date().toISOString();
+  DB.notifs.push({id:'n'+Date.now(),para:'tecnico',texto:`OT ${ot.folio} fue cerrada y validada por el solicitante.`,fecha:new Date().toISOString(),leida:false});
+  saveDB();
+  alert('✓ OT cerrada correctamente. Gracias por validar.');
+  showScreen('sol-lista');
+  renderSolOTs('todas');
+}
+
+let otParaRechazar=null;
+function openRechazar(id){otParaRechazar=id;openModal('modal-rechazar');}
+function confirmarRechazo(){
+  const motivo=document.getElementById('rechazar-motivo').value.trim();
+  if(!motivo){alert('Escribe el motivo del rechazo');return;}
+  const ot=DB.ots.find(o=>o.id==(otParaRechazar||currentOTId));
+  ot.status='proceso';
+  ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:'Cierre rechazado: '+motivo});
+  DB.notifs.push({id:'n'+Date.now(),para:'tecnico',texto:`El solicitante rechazó el cierre de ${ot.folio}: ${motivo}`,fecha:new Date().toISOString(),leida:false});
+  saveDB();
+  closeModal('modal-rechazar');
+  document.getElementById('rechazar-motivo').value='';
+  alert('Cierre rechazado. El técnico fue notificado.');
+  showScreen('sol-lista');
+  renderSolOTs('todas');
+}
+
+function renderNotifsSol(){
+  const notifs=DB.notifs.filter(n=>n.para==='solicitante');
+  const el=document.getElementById('sol-notifs-content');
+  if(!notifs.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">Sin notificaciones</div></div>';return;}
+  el.innerHTML=notifs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(n=>`
+    <div class="notif-item" style="${!n.leida?'background:var(--blue-light)':''}">
+      <div class="notif-dot2" style="background:${!n.leida?'var(--blue)':'var(--border)'}"></div>
+      <div><div class="notif-text">${n.texto}</div><div class="notif-time">${fmt(n.fecha)}</div></div>
+    </div>`).join('');
+  DB.notifs.filter(n=>n.para==='solicitante').forEach(n=>n.leida=true);
+  saveDB();
+  updateNotifDot('sol-notif-dot','solicitante');
+}
+
+function renderPerfilSol(){
+  document.getElementById('sol-perfil-content').innerHTML=`
+    <div style="padding:24px 16px;text-align:center">
+      <div class="avatar av-blue" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">${initials(currentUser.nombre)}</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text)">${currentUser.nombre}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:4px">Nómina ${currentUser.nomina} · ${currentUser.area||'Producción'}</div>
+    </div>
+    <div class="section-head">Mi actividad</div>
+    <div class="field-row"><div class="field-lbl">OT creadas total</div><div class="field-val">${DB.ots.filter(o=>o.nomina===currentUser.nomina).length}</div></div>
+    <div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">${DB.ots.filter(o=>o.nomina===currentUser.nomina&&o.status==='cerrado').length}</div></div>
+    <div class="field-row"><div class="field-lbl">OT pendientes</div><div class="field-val">${DB.ots.filter(o=>o.nomina===currentUser.nomina&&o.status!=='cerrado').length}</div></div>
+    <div style="padding:16px;margin-top:8px">
+      <button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>
+    </div>`;
+}
+
+function showNotifs(role){
+  if(role==='solicitante'){showScreen('sol-notifs');renderNotifsSol();}
+  else if(role==='tecnico'){showScreen('tec-historial');renderNotifsTec();}
+  else {showScreen('sup-alertas');renderAlertas();}
+}
+
+// ==================== TÉCNICO ====================
+function initTecnico(){
+  document.getElementById('tec-greeting').textContent = `${currentUser.nombre} · Turno 2`;
+  updateNotifDot('tec-notif-dot','tecnico');
+  renderTecOTs('todas');
+  renderTecHistorial();
+  renderTecPerfil();
+}
+
+function renderTecOTs(filter){
+  filter=filter||currentFilter;
+  var cnNorm=currentUser.nombre.toLowerCase();
+  // OT disponibles: sin asignar (cualquier técnico puede tomarla)
+  var disponibles=DB.ots.filter(function(o){ return !o.tecnico && o.status==='abierto'; });
+  // OT propias: asignadas a este técnico y no cerradas
+  var propias=DB.ots.filter(function(o){ return o.tecnico&&o.tecnico.toLowerCase()===cnNorm&&o.status!=='cerrado'; });
+  const el=document.getElementById('tec-ot-list');
+  var html='';
+  if(filter==='todas'||filter==='abierto'){
+    if(disponibles.length){
+      html+='<div class="section-head" style="background:var(--amber-light);color:var(--amber-dark)">⚡ Disponibles — toca para tomar</div>';
+      html+=disponibles.map(function(ot){ return otCardTec(ot,true); }).join('');
+    }
+  }
+  var misFilt=propias;
+  if(filter!=='todas') misFilt=propias.filter(function(o){ return o.status===filter; });
+  if(misFilt.length){
+    html+='<div class="section-head">Mis órdenes activas</div>';
+    html+=misFilt.sort(function(a,b){
+      var order={abierto:0,proceso:1,espera:2,validar:3};
+      return order[a.status]-order[b.status];
+    }).map(function(ot){ return otCardTec(ot,false); }).join('');
+  }
+  if(!html){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sin órdenes pendientes</div><div class="empty-sub">No hay OT disponibles ni asignadas a ti en este momento</div></div>';
+    return;
+  }
+  el.innerHTML=html+'<div class="spacer"></div>';
+}
+
+function otCardTec(ot, disponible){
+  var urgClass = ot.prioridad==='urgente' ? 'urgente-line' : '';
+  var prog = ot.avance>0
+    ? '<div class="progress-track" style="margin-top:8px"><div class="progress-fill green" style="width:'+ot.avance+'%"></div></div>'
+    : '';
+  var dispBadge = disponible ? '<span class="badge" style="background:var(--amber-light);color:var(--amber-dark)">Sin tomar</span>' : '';
+  var urgBadge  = ot.prioridad==='urgente' ? '<span class="badge badge-urgente">Urgente</span>' : '';
+  var borderStyle = disponible ? 'border:1.5px solid var(--amber);' : '';
+  var apel = ot.solicitante ? ot.solicitante.split(' ').slice(-1)[0] : '';
+  var id = ot.id;
+  return '<div class="card '+urgClass+'" style="cursor:pointer;'+borderStyle+'" onclick="verOTTec(event.currentTarget.dataset.id)" data-id="'+id+'">'
+    +'<div class="card-header"><span class="card-folio">'+ot.folio+'</span>'+(disponible ? dispBadge : statusBadge(ot.status))+'</div>'
+    +'<div class="card-desc">'+ot.desc+'</div>'
+    +'<div class="card-tags">'
+      +'<span class="tag">'+ot.equipo+' · '+ot.nave+'</span>'
+      +urgBadge
+      +'<span class="tag">'+fmt(ot.fechaAlta).split(' ')[0]+'</span>'
+      +(apel ? '<span class="tag">'+apel+'</span>' : '')
+    +'</div>'
+    +prog
+    +'</div>';
+}
+
+function verOTTec(id){
+  if(!id){ console.error('verOTTec: id vacío'); return; }
+  currentOTId = id;
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot){ alert('OT no encontrada'); return; }
+  document.getElementById('tec-det-titulo').textContent = ot.folio;
+  document.getElementById('tec-det-status').textContent = statusLabel(ot.status);
+  document.getElementById('tec-detalle-content').innerHTML = buildDetalleTec(ot);
+  showScreen('tec-detalle');
+}
+
+function tomarOT(id){
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot){ alert('OT no encontrada'); return; }
+  if(ot.tecnico){ alert('Esta OT ya fue tomada por '+ot.tecnico+'. Recarga la pantalla.'); renderTecOTs('todas'); return; }
+  ot.tecnico = currentUser.nombre;
+  ot.nominaTecnico = currentUser.nomina;
+  ot.status = 'proceso';
+  ot.fechaTomada = new Date().toISOString();
+  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
+    texto:'OT '+ot.folio+' tomada por '+currentUser.nombre+' (Nóm. '+currentUser.nomina+') — '+ot.equipo,
+    fecha:new Date().toISOString(), leida:false});
+  saveDB();
+  currentOTId = id;
+  alert('✓ OT '+ot.folio+' tomada. Ya puedes registrar actividades.');
+  verOTTec(id);
+  renderTecOTs('todas');
+}
+
+function buildDetalleTec(ot){
+  var now=new Date();
+  var hh=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  var dd=now.toISOString().split('T')[0];
+
+  setTimeout(function(){
+    var fa=document.getElementById('act-fecha'); if(fa) fa.value=dd;
+    var fi=document.getElementById('act-inicio'); if(fi) fi.value=hh;
+    var ah=document.getElementById('act-ot-head'); if(ah) ah.textContent=ot.folio+' — '+ot.equipo;
+    var av=document.getElementById('act-avance'); if(av){ av.value=ot.avance; }
+    var avl=document.getElementById('act-avance-lbl'); if(avl) avl.textContent=ot.avance+'%';
+    var avb=document.getElementById('act-avance-bar'); if(avb) avb.style.width=ot.avance+'%';
+  },100);
+
+  var tipoFallas=['Mecánico','Eléctrico','Neumático','Electrónico','Hidráulico','Parámetros'];
+  var fallas=tipoFallas.map(function(t){ return '<button class="chip" onclick="selectChip(this,&quot;tipo-falla&quot;)">'+t+'</button>'; }).join('');
+
+  var refs='';
+  if(ot.refacciones && ot.refacciones.length){
+    refs=ot.refacciones.map(function(r){
+      return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">'
+        +'<div><div class="field-lbl">'+r.tipo+'</div><div class="field-val" style="font-weight:400">'+r.desc+' × '+r.qty+'</div></div>'
+        +'<div class="field-val">$'+(r.qty*r.costo).toFixed(2)+'</div>'
+        +'</div>';
+    }).join('');
+  }
+
+  var acts='';
+  if(ot.actividades && ot.actividades.length){
+    acts=ot.actividades.map(function(a){
+      return '<div class="comment-row">'
+        +'<div class="comment-meta">'+a.fecha+' '+a.inicio+'–'+a.fin+' · '+a.avance+'% avance · '+a.tecnico+'</div>'
+        +'<div class="comment-text">'+a.accion+'</div>'
+        +(a.obs?'<div style="font-size:12px;color:var(--text3);margin-top:3px">'+a.obs+'</div>':'')
+        +'</div>';
+    }).join('');
+  }
+
+  var sinAsignar = !ot.tecnico;
+  var canEdit = ot.status!=='cerrado' && ot.status!=='validar' && !sinAsignar;
+
+  var tomarSec='';
+  if(sinAsignar){
+    tomarSec='<div class="alert alert-warn" style="margin:12px">'
+      +'<div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
+      +'<div><strong>OT sin atender</strong><br>Toma esta orden para dejar registro de que tú la atiendes.</div>'
+      +'</div>'
+      +'<div class="section-head">Tomar orden de trabajo</div>'
+      +'<div class="field-row"><div class="field-lbl">Técnico que toma la orden</div>'
+      +'<div class="field-val">'+currentUser.nomina+' — '+currentUser.nombre+'</div></div>'
+      +'<div style="padding:12px 16px">'
+        +'<button class="btn btn-green btn-block" onclick="tomarOT(this.dataset.id)" data-id="'+ot.id+'">Tomar esta OT a mi nombre</button>'
+      +'</div>';
+  }
+
+  var espWarn = ot.espera
+    ? '<div class="alert alert-warn"><div class="alert-icon">⏸</div>'
+      +'<div>En espera: '+ot.espera.motivo+' — '+ot.espera.comentario+'</div></div>'
+    : '';
+
+  var acciones='';
+  if(canEdit){
+    var btnRef='<div style="padding:4px 16px 2px"><button class="btn btn-outline btn-block btn-sm" onclick="openModal(&quot;modal-refaccion&quot;)">+ Agregar refacción</button></div>';
+    var btnAct='<button class="btn btn-green btn-block" onclick="showScreen(&quot;tec-actividad&quot;)">Registrar actividad</button>';
+    var btnEsp=ot.status!=='espera'
+      ?'<button class="btn btn-warn btn-block" onclick="showScreen(&quot;tec-espera&quot;)">Poner en espera</button>'
+      :'<button class="btn btn-outline btn-block" onclick="showScreen(&quot;tec-actividad&quot;)">Reanudar y registrar actividad</button>';
+    acciones=btnRef+'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'+btnAct+btnEsp+'</div>';
+  } else if(ot.status==='validar'){
+    acciones='<div class="alert alert-ok" style="margin:12px"><div class="alert-icon">✓</div>'
+      +'<div>OT concluida — pendiente de validación por el solicitante.</div></div>';
+  }
+
+  return '<div class="section-head">Solicitud</div>'
+    +'<div class="field-row"><div class="field-lbl">Solicitante</div><div class="field-val">'+ot.solicitante+' · Nóm. '+ot.nomina+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">'+ot.tipo+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+' — '+ot.nave+' · '+ot.area+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Prioridad</div><div class="field-val">'+(ot.prioridad==='urgente'?'<span class="badge badge-urgente">Urgente</span>':'Normal')+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Técnico asignado</div><div class="field-val">'+(ot.tecnico||'<span style="color:var(--red)">Sin tomar</span>')+'</div></div>'
+    +espWarn
+    +tomarSec
+    +'<div class="section-head">Tipo de problema</div>'
+    +'<div class="chip-group" id="tipo-falla">'+fallas+'</div>'
+    +'<div class="section-head">Actividades registradas</div>'
+    +(acts||'<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin actividades aún</div>')
+    +'<div class="section-head">Refacciones</div>'
+    +(refs||'<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin refacciones</div>')
+    +acciones
+    +'<div class="spacer"></div>';
+}
+
+
+function guardarActividad(){
+  const ot=DB.ots.find(o=>o.id===currentOTId);
+  const accion=document.getElementById('act-accion').value.trim();
+  if(!accion){alert('Describe la acción realizada');return;}
+  const avance=parseInt(document.getElementById('act-avance').value);
+  const concluir=document.getElementById('act-concluir').checked;
+  ot.actividades.push({
+    fecha:document.getElementById('act-fecha').value,
+    inicio:document.getElementById('act-inicio').value,
+    fin:document.getElementById('act-fin').value,
+    avance,accion,
+    obs:document.getElementById('act-obs').value,
+    tecnico:currentUser.nombre
+  });
+  ot.avance=avance;
+  ot.status=concluir?'validar':'proceso';
+  if(concluir){
+    DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:`Tu OT ${ot.folio} fue concluida y está lista para que valides el cierre.`,fecha:new Date().toISOString(),leida:false});
+    DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:`OT ${ot.folio} concluida por ${currentUser.nombre}. Pendiente validación del solicitante.`,fecha:new Date().toISOString(),leida:false});
+  }
+  saveDB();
+  document.getElementById('act-accion').value='';
+  document.getElementById('act-obs').value='';
+  document.getElementById('act-concluir').checked=false;
+  alert('✓ Actividad guardada correctamente');
+  verOTTec(currentOTId);
+  renderTecOTs('todas');
+}
+
+function ponerEnEspera(){
+  const chip=document.querySelector('#espera-motivo-chips .chip.selected');
+  const motivo=chip?chip.textContent:'Sin especificar';
+  const comentario=document.getElementById('espera-comentario').value.trim();
+  const fechaEst=document.getElementById('espera-fecha').value;
+  if(!comentario){alert('Escribe el detalle del motivo');return;}
+  if(!fechaEst){alert('Selecciona la fecha estimada de reanudación');return;}
+  const ot=DB.ots.find(o=>o.id===currentOTId);
+  ot.status='espera';
+  ot.espera={motivo,comentario,fechaEst};
+  ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:`OT en espera: ${motivo} — ${comentario}. Fecha est. ${fmtDate(fechaEst)}`});
+  DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:`Tu OT ${ot.folio} está en espera: ${motivo}. ${comentario}. Fecha estimada: ${fmtDate(fechaEst)}`,fecha:new Date().toISOString(),leida:false});
+  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:`OT ${ot.folio} puesta en espera por ${currentUser.nombre}: ${motivo}.`,fecha:new Date().toISOString(),leida:false});
+  saveDB();
+  document.getElementById('espera-comentario').value='';
+  document.getElementById('espera-fecha').value='';
+  document.querySelectorAll('#espera-motivo-chips .chip').forEach(c=>c.classList.remove('selected'));
+  alert('✓ OT puesta en espera. El solicitante fue notificado.');
+  showScreen('tec-lista');
+  renderTecOTs('todas');
+}
+
+let otRefId=null;
+function guardarRefaccion(){
+  const desc=document.getElementById('ref-desc').value.trim();
+  if(!desc){alert('Describe la refacción');return;}
+  const ot=DB.ots.find(o=>o.id===currentOTId);
+  ot.refacciones.push({
+    tipo:document.getElementById('ref-tipo').value,
+    desc,
+    qty:parseInt(document.getElementById('ref-qty').value)||1,
+    costo:parseFloat(document.getElementById('ref-costo').value)||0
+  });
+  saveDB();
+  closeModal('modal-refaccion');
+  document.getElementById('ref-desc').value='';
+  document.getElementById('ref-qty').value='1';
+  document.getElementById('ref-costo').value='0';
+  verOTTec(currentOTId);
+}
+
+function renderTecHistorial(){
+  var cnH=currentUser.nombre.toLowerCase();
+  const ots=DB.ots.filter(o=>o.tecnico&&o.tecnico.toLowerCase()===cnH&&o.status==='cerrado');
+  const el=document.getElementById('tec-historial-list');
+  if(!ots.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">Sin órdenes cerradas aún</div></div>';return;}
+  el.innerHTML=ots.map(ot=>`<div class="card" onclick="verOTTec('${ot.id}')">
+    <div class="card-header"><span class="card-folio">${ot.folio}</span>${statusBadge(ot.status)}</div>
+    <div class="card-desc">${ot.desc}</div>
+    <div class="card-tags"><span class="tag">${ot.equipo}</span><span class="tag">${fmt(ot.fechaCierre||ot.fechaAlta)}</span></div>
+  </div>`).join('');
+}
+
+function renderNotifsTec(){
+  const notifs=DB.notifs.filter(n=>n.para==='tecnico');
+  const el=document.getElementById('tec-historial-list');
+  if(!notifs.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">Sin notificaciones</div></div>';return;}
+  el.innerHTML='<div class="section-head">Notificaciones</div>'+notifs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(n=>`
+    <div class="notif-item" style="${!n.leida?'background:var(--green-light)':''}">
+      <div class="notif-dot2" style="background:${!n.leida?'var(--green)':'var(--border)'}"></div>
+      <div><div class="notif-text">${n.texto}</div><div class="notif-time">${fmt(n.fecha)}</div></div>
+    </div>`).join('');
+  DB.notifs.filter(n=>n.para==='tecnico').forEach(n=>n.leida=true);
+  saveDB();
+  updateNotifDot('tec-notif-dot','tecnico');
+}
+
+function renderTecPerfil(){
+  var cnP=currentUser.nombre.toLowerCase();
+  const mis=DB.ots.filter(o=>o.tecnico&&o.tecnico.toLowerCase()===cnP);
+  document.getElementById('tec-perfil-content').innerHTML=`
+    <div style="padding:24px 16px;text-align:center">
+      <div class="avatar av-green" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">${initials(currentUser.nombre)}</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text)">${currentUser.nombre}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:4px">Técnico · Turno 2</div>
+    </div>
+    <div class="section-head">Mi productividad</div>
+    <div class="field-row"><div class="field-lbl">OT atendidas total</div><div class="field-val">${mis.length}</div></div>
+    <div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">${mis.filter(o=>o.status==='cerrado').length}</div></div>
+    <div class="field-row"><div class="field-lbl">OT activas</div><div class="field-val">${mis.filter(o=>o.status!=='cerrado').length}</div></div>
+    <div style="padding:16px;margin-top:8px">
+      <button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>
+    </div>`;
+}
+
+// ==================== SUPERVISOR ====================
+function initSupervisor(){
+  document.getElementById('sup-greeting').textContent=`${currentUser.nombre} · Supervisor`;
+  updateNotifDot('sup-notif-dot','supervisor');
+  renderDashboard();
+  renderSupOTs('todas');
+}
+
+function renderDashboard(){
+  const ots=DB.ots;
+  const abiertas=ots.filter(o=>o.status==='abierto').length;
+  const proceso=ots.filter(o=>o.status==='proceso').length;
+  const espera=ots.filter(o=>o.status==='espera').length;
+  const validar=ots.filter(o=>o.status==='validar').length;
+  const cerradas=ots.filter(o=>o.status==='cerrado').length;
+  const total=ots.length;
+
+  document.getElementById('sup-kpis').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Abiertas / nuevas</div><div class="kpi-val ${abiertas>5?'bad':abiertas>2?'warn':'good'}">${abiertas}</div><div class="kpi-sub">Sin técnico asignado</div></div>
+    <div class="kpi"><div class="kpi-label">En proceso</div><div class="kpi-val">${proceso}</div><div class="kpi-sub">Técnico trabajando</div></div>
+    <div class="kpi"><div class="kpi-label">En espera</div><div class="kpi-val ${espera>2?'bad':espera>0?'warn':'good'}">${espera}</div><div class="kpi-sub">Bloqueadas</div></div>
+    <div class="kpi"><div class="kpi-label">Por validar</div><div class="kpi-val ${validar>0?'warn':'good'}">${validar}</div><div class="kpi-sub">Esperando usuario</div></div>`;
+
+  const tiposCount={};
+  ots.forEach(o=>{o.actividades.forEach(()=>{});});
+
+  document.getElementById('sup-bars').innerHTML=`
+    <div class="bar-row"><span class="bar-label">Neumático</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,abiertas*20+30)}%"></div></div><span class="bar-count">${abiertas+3}</span></div>
+    <div class="bar-row"><span class="bar-label">Mecánico</span><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><span class="bar-count">${proceso+4}</span></div>
+    <div class="bar-row"><span class="bar-label">Eléctrico</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-count">7</span></div>
+    <div class="bar-row"><span class="bar-label">Hidráulico</span><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><span class="bar-count">3</span></div>`;
+
+  const equipoCount={};
+  ots.forEach(o=>{equipoCount[o.equipo]=(equipoCount[o.equipo]||0)+1;});
+  const equiposSorted=Object.entries(equipoCount).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  document.getElementById('sup-equipos').innerHTML=equiposSorted.map(([eq,n])=>`
+    <div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">
+      <div><div class="field-lbl">${eq}</div><div style="font-size:11px;color:var(--text3)">Historial de fallas</div></div>
+      <div class="field-val" style="color:${n>5?'var(--red)':n>2?'var(--amber)':'var(--text)'}">${n} OT</div>
+    </div>`).join('');
+}
+
+function renderSupOTs(filter){
+  filter=filter||currentFilter;
+  let ots=[...DB.ots];
+  if(filter!=='todas') ots=ots.filter(o=>o.status===filter);
+  const el=document.getElementById('sup-ot-list');
+  if(!ots.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sin órdenes</div></div>';return;}
+  el.innerHTML=ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSup(ot)).join('');
+}
+
+function otCardSup(ot){
+  var urgClass = ot.prioridad==='urgente' ? 'urgente-line' : '';
+  var tecTag   = ot.tecnico
+    ? '<span class="tag">'+ot.tecnico+'</span>'
+    : '<span class="tag" style="background:var(--red-light);color:var(--red)">Sin asignar</span>';
+  var urgTag   = ot.prioridad==='urgente' ? '<span class="badge badge-urgente">Urgente</span>' : '';
+  return '<div class="card '+urgClass+'" style="cursor:pointer" onclick="verOTSup(event.currentTarget.dataset.id)" data-id="'+ot.id+'">'
+    +'<div class="card-header"><span class="card-folio">'+ot.folio+'</span>'+statusBadge(ot.status)+'</div>'
+    +'<div class="card-desc">'+ot.desc+'</div>'
+    +'<div class="card-tags">'
+      +'<span class="tag">'+ot.equipo+' · '+ot.nave+'</span>'
+      +tecTag+urgTag
+    +'</div>'
+    +'</div>';
+}
+
+function verOTSup(id){
+  currentOTId=id;
+  const ot=DB.ots.find(o=>o.id===id);
+  document.getElementById('sup-det-titulo').textContent=ot.folio;
+  document.getElementById('sup-det-status').textContent=statusLabel(ot.status);
+  document.getElementById('sup-detalle-content').innerHTML=buildDetalleSup(ot);
+  showScreen('sup-detalle');
+}
+
+function buildDetalleSup(ot){
+  let acts='';
+  if(ot.actividades.length){
+    acts=`<div class="section-head">Actividades</div>`+ot.actividades.map(a=>`<div class="comment-row"><div class="comment-meta">${a.fecha} ${a.inicio}–${a.fin} · Avance: ${a.avance}%</div><div class="comment-text">${a.accion}</div></div>`).join('');
+  }
+  let refs='';
+  if(ot.refacciones.length){
+    const total=ot.refacciones.reduce((s,r)=>s+r.qty*r.costo,0);
+    refs=`<div class="section-head">Refacciones — Total: $${total.toFixed(2)}</div>`+ot.refacciones.map(r=>`<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center"><div><div class="field-lbl">${r.tipo}</div><div class="field-val" style="font-weight:400">${r.desc} × ${r.qty}</div></div><div class="field-val">$${(r.qty*r.costo).toFixed(2)}</div></div>`).join('');
+  }
+  let comms='';
+  if(ot.comentarios.length){
+    comms=`<div class="section-head">Comentarios</div>`+ot.comentarios.map(c=>`<div class="comment-row"><div class="comment-meta">${c.autor} · ${fmt(c.fecha)}</div><div class="comment-text">${c.texto}</div></div>`).join('');
+  }
+  // El técnico se auto-asigna — supervisor solo visualiza
+  var asignarSec = !ot.tecnico
+    ? '<div class="alert alert-warn" style="margin:8px 12px"><div class="alert-icon">⏳</div><div>OT pendiente de ser tomada por un técnico de mantenimiento.</div></div>'
+    : '';
+  return `
+    <div class="section-head">Datos de la OT</div>
+    <div class="field-row"><div class="field-lbl">Solicitante</div><div class="field-val">${ot.solicitante} · Nóm. ${ot.nomina}</div></div>
+    <div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">${ot.tipo}</div></div>
+    <div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">${ot.equipo} — ${ot.nave} · ${ot.area}</div></div>
+    <div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">${ot.desc}</div></div>
+    <div class="field-row"><div class="field-lbl">Fecha de alta</div><div class="field-val">${fmt(ot.fechaAlta)}</div></div>
+    <div class="field-row"><div class="field-lbl">Técnico</div><div class="field-val">${ot.tecnico||'Sin asignar'}</div></div>
+    <div class="field-row"><div class="field-lbl">Avance</div>
+      <div class="progress-track"><div class="progress-fill" style="width:${ot.avance}%;background:var(--purple)"></div></div>
+      <div class="field-val" style="font-size:12px">${ot.avance}%</div>
+    </div>
+    ${ot.espera?`<div class="alert alert-warn"><div class="alert-icon">⏸</div><div><strong>En espera:</strong> ${ot.espera.motivo}<br>${ot.espera.comentario}<br>Fecha est: ${fmtDate(ot.espera.fechaEst)}</div></div>`:''}
+    ${asignarSec}${acts}${refs}${comms}
+    <div class="spacer"></div>`;
+}
+
+function asignarOT(){
+  var sel = document.getElementById('sup-asignar-sel');
+  if(!sel || !sel.value){ alert('Selecciona un técnico de la lista'); return; }
+  var tecnico = toTitleCase(sel.value);  // normalizar a TitleCase para coincidir con currentUser.nombre
+  var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
+  ot.tecnico = tecnico;
+  if(ot.status==='abierto') ot.status = 'proceso';
+  DB.notifs.push({id:'n'+Date.now(), para:'tecnico',
+    texto:'Nueva OT '+ot.folio+' asignada por '+currentUser.nombre+': '+ot.desc.substring(0,60),
+    fecha:new Date().toISOString(), leida:false});
+  saveDB();
+  renderDashboard();
+  verOTSup(currentOTId);
+  alert('✓ OT asignada a '+toTitleCase(tecnico));
+}
+
+function renderTecnicos(){
+  const personal = getTecnicos();
+  if(!personal.length){
+    document.getElementById('sup-tecnicos-content').innerHTML=
+      '<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-title">Sin personal de mantenimiento</div><div class="empty-sub">El catálogo no tiene empleados activos en Mantenimiento.</div></div>';
+    return;
+  }
+  const puestoOrder = ['JEFE','INGENIERO','ANALISTA','TÉCNICO','AUXILIAR','APRENDIZ'];
+  const sorted = [...personal].sort((a,b)=>{
+    const ai = puestoOrder.findIndex(k=>a.puesto.toUpperCase().includes(k));
+    const bi = puestoOrder.findIndex(k=>b.puesto.toUpperCase().includes(k));
+    return (ai===-1?99:ai)-(bi===-1?99:bi) || a.nombre.localeCompare(b.nombre);
+  });
+  const tecs = sorted.map(p=>{
+    const n = p.nombre;
+    const activas  = DB.ots.filter(o=>o.tecnico===n && o.status!=='cerrado').length;
+    const cerradas = DB.ots.filter(o=>o.tecnico===n && o.status==='cerrado').length;
+    return Object.assign({},p,{activas,cerradas});
+  });
+  const maxC = Math.max.apply(null, tecs.map(t=>t.cerradas).concat([1]));
+  const avCls = ['av-blue','av-green','av-purple'];
+
+  function rowBadge(activas){
+    if(activas===0) return 'background:var(--green-light);color:var(--green-dark)';
+    if(activas<=2)  return 'background:var(--blue-light);color:var(--blue-dark)';
+    return 'background:var(--amber-light);color:var(--amber-dark)';
+  }
+  function rowLabel(activas){
+    if(activas===0) return 'Disponible';
+    if(activas<=2)  return 'Con OT';
+    return 'Ocupado';
+  }
+
+  var rows = tecs.map(function(t){
+    var cls = avCls[Math.abs(t.nombre.charCodeAt(0))%3];
+    var sub = (t.activas>0 ? t.activas+' OT activa'+(t.activas!==1?'s':'')+' · ' : '')
+            + t.cerradas+' cerrada'+(t.cerradas!==1?'s':'')
+            + (t.turno ? ' · T'+t.turno : '');
+    return '<div class="tec-row" onclick="verDetalleTecnico(\''+t.nomina+'\')" style="cursor:pointer">'
+      +'<div class="avatar '+cls+'">'+initials(t.nombre)+'</div>'
+      +'<div class="tec-info">'
+        +'<div class="tec-name">'+t.nombre+'</div>'
+        +'<div class="tec-sub">'+t.puesto+'</div>'
+        +'<div style="margin-top:3px;font-size:11px;color:var(--text3)">'+sub+'</div>'
+      +'</div>'
+      +'<span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:999px;'+rowBadge(t.activas)+'">'+rowLabel(t.activas)+'</span>'
+      +'</div>';
+  }).join('');
+
+  var actBar = tecs.filter(t=>t.activas>0).length===0
+    ? '<div style="padding:10px 16px;font-size:13px;color:var(--text3)">Ningún técnico tiene OT activas en este momento.</div>'
+    : tecs.filter(t=>t.activas>0).map(function(t){
+        var primer = t.nombre.split(' ')[0]+' '+t.nombre.split(' ')[1];
+        return '<div class="bar-row">'
+          +'<span class="bar-label" style="font-size:11px;width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+primer+'</span>'
+          +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(100,t.activas*25)+'%;background:var(--amber)"></div></div>'
+          +'<span class="bar-count">'+t.activas+'</span>'
+          +'</div>';
+      }).join('');
+
+  var cBar = tecs.map(function(t){
+    var primer = t.nombre.split(' ')[0]+' '+t.nombre.split(' ')[1];
+    return '<div class="bar-row">'
+      +'<span class="bar-label" style="font-size:11px;width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+primer+'</span>'
+      +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.round(t.cerradas/maxC*100)+'%;background:var(--purple)"></div></div>'
+      +'<span class="bar-count">'+t.cerradas+'</span>'
+      +'</div>';
+  }).join('');
+
+  document.getElementById('sup-tecnicos-content').innerHTML=
+    '<div style="padding:8px 12px 4px;font-size:11px;color:var(--text2)">'+personal.length+' personas activas en el depto. de Mantenimiento</div>'
+    +'<div class="section-head">Carga de trabajo actual</div>'
+    +rows
+    +'<div class="section-head" style="margin-top:8px">OT activas por persona</div>'
+    +'<div style="padding:6px 0 4px">'+actBar+'</div>'
+    +'<div class="section-head">OT cerradas — comparativo histórico</div>'
+    +'<div style="padding:6px 0 10px">'+cBar+'</div>'
+    +'<div class="spacer"></div>';
+}
+
+function verDetalleTecnico(nomina){
+  var p = (DB.personal||[]).find(x=>x.nomina===nomina);
+  if(!p) return;
+  var nombre   = p.nombre;
+  var todas    = DB.ots.filter(o=>o.tecnico===nombre);
+  var activas  = todas.filter(o=>o.status!=='cerrado');
+  var cerradas = todas.filter(o=>o.status==='cerrado');
+  var el = document.getElementById('sup-tecnicos-content');
+  var stMap = {abierto:'badge-abierto',proceso:'badge-proceso',espera:'badge-espera',validar:'badge-validar',cerrado:'badge-cerrado'};
+  var stLbl = {abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Validar',cerrado:'Cerrada'};
+  function sbadge(s){ return '<span class="badge '+(stMap[s]||'')+'">'+(stLbl[s]||s)+'</span>'; }
+
+  var otActHtml = activas.length===0 ? '' :
+    '<div class="section-head">OT activas</div>'
+    +activas.map(function(ot){
+      return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center;gap:8px">'
+        +'<div style="min-width:0">'
+          +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+ot.folio+' — '+ot.equipo+'</div>'
+          +'<div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ot.desc+'</div>'
+        +'</div>'+sbadge(ot.status)+'</div>';
+    }).join('');
+
+  var otCerHtml = cerradas.length===0 ? '' :
+    '<div class="section-head">Últimas OT cerradas</div>'
+    +cerradas.slice(-5).reverse().map(function(ot){
+      return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center;gap:8px">'
+        +'<div style="min-width:0">'
+          +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+ot.folio+' — '+ot.equipo+'</div>'
+          +'<div style="font-size:11px;color:var(--text2)">'+fmt(ot.fechaCierre||ot.fechaAlta)+'</div>'
+        +'</div>'+sbadge(ot.status)+'</div>';
+    }).join('');
+
+  var kvCls = activas.length>3?'bad':activas.length>1?'warn':'';
+  el.innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)">'
+      +'<button onclick="renderTecnicos()" style="background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:0">← Volver al listado</button>'
+    +'</div>'
+    +'<div style="padding:18px 16px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)">'
+      +'<div class="avatar av-blue" style="width:48px;height:48px;font-size:16px">'+initials(nombre)+'</div>'
+      +'<div>'
+        +'<div style="font-size:15px;font-weight:600;color:var(--text)">'+nombre+'</div>'
+        +'<div style="font-size:12px;color:var(--text2);margin-top:2px">'+p.puesto+'</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:2px">Nóm. '+p.nomina+(p.turno?' · Turno '+p.turno:'')+'</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">'
+      +'<div class="kpi"><div class="kpi-label">Activas</div><div class="kpi-val '+kvCls+'">'+activas.length+'</div></div>'
+      +'<div class="kpi"><div class="kpi-label">Cerradas</div><div class="kpi-val good">'+cerradas.length+'</div></div>'
+      +'<div class="kpi"><div class="kpi-label">Total</div><div class="kpi-val">'+todas.length+'</div></div>'
+    +'</div>'
+    +otActHtml+otCerHtml
+    +'<div class="spacer"></div>';
+}
+
+function abrirModalAsignar(){
+  const sel = document.getElementById('asignar-tecnico');
+  const nombres = getTecnicoNombres();
+  sel.innerHTML = nombres.map(n=>`<option value="${n}">${n}</option>`).join('');
+  openModal('modal-asignar');
+}
+
+
+// ── Admin module switcher ────────────────────────────────────────────────────
+let admPrevPage = null;   // which page was active before admin switched to it
+
+function switchAdmModule(mod){
+  admPrevPage = 'page-admin';
+  if(mod === 'personal'){
+    showScreen('adm-personal');
+    renderPersonal();
+    return;
+  }
+  // Temporarily switch to the target role page
+  // We need to initialise it with the admin user context
+  const saved = {...currentUser};
+  if(mod === 'solicitante'){
+    showPage('page-solicitante');
+    initSolicitante();
+    injectAdmBackBar('page-solicitante', 'sol-lista');
+  } else if(mod === 'tecnico'){
+    showPage('page-tecnico');
+    initTecnico();
+    injectAdmBackBar('page-tecnico', 'tec-lista');
+  } else if(mod === 'supervisor'){
+    showPage('page-supervisor');
+    initSupervisor();
+    injectAdmBackBar('page-supervisor', 'sup-dashboard');
+  }
+  currentUser = saved;  // keep admin identity
+}
+
+function injectAdmBackBar(pageId, firstScreenId){
+  // Inject "Volver al admin" button in ALL screens of this page
+  const page = document.getElementById(pageId);
+  if(!page) return;
+  const screens = page.querySelectorAll('.screen');
+  screens.forEach(function(screen){
+    const barId = 'adm-back-bar-' + screen.id;
+    if(document.getElementById(barId)) return;  // already injected
+    var bar = document.createElement('button');
+    bar.id = barId;
+    bar.className = 'adm-back-btn';
+    bar.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg> Volver al panel de administración';
+    bar.onclick = function(){ returnToAdmin(); };
+    screen.insertBefore(bar, screen.firstChild);
+  });
+}
+
+function returnToAdmin(){
+  showPage('page-admin');
+  showScreen('adm-hub');
+}
+
+function renderAlertas(){
+  const ots=DB.ots;
+  const sinAsignar=ots.filter(o=>!o.tecnico&&o.status==='abierto');
+  const esperaSinFecha=ots.filter(o=>o.status==='espera'&&(!o.espera?.fechaEst));
+  const notifs=DB.notifs.filter(n=>n.para==='supervisor');
+  let html='';
+  if(sinAsignar.length){
+    html+=`<div class="section-head">Sin técnico asignado</div>`;
+    html+=sinAsignar.map(ot=>`<div class="alert alert-red">
+      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div><strong>${ot.folio}</strong> — ${ot.desc.substring(0,60)}<br><span style="font-size:11px">${ot.equipo} · ${fmt(ot.fechaAlta)}</span></div>
+    </div>`).join('');
+  }
+  if(esperaSinFecha.length){
+    html+=`<div class="section-head">En espera sin fecha estimada</div>`;
+    html+=esperaSinFecha.map(ot=>`<div class="alert alert-warn">
+      <div class="alert-icon">⏸</div>
+      <div><strong>${ot.folio}</strong> — ${ot.desc.substring(0,50)}<br><span style="font-size:11px">Sin fecha de reanudación registrada</span></div>
+    </div>`).join('');
+  }
+  html+=`<div class="section-head">Notificaciones recientes</div>`;
+  if(!notifs.length){html+='<div style="padding:14px 16px;font-size:13px;color:var(--text3)">Sin notificaciones nuevas</div>';}
+  else{html+=notifs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(n=>`
+    <div class="notif-item" style="${!n.leida?'background:var(--purple-light)':''}">
+      <div class="notif-dot2" style="background:${!n.leida?'var(--purple)':'var(--border)'}"></div>
+      <div><div class="notif-text">${n.texto}</div><div class="notif-time">${fmt(n.fecha)}</div></div>
+    </div>`).join('');}
+  html+='<div class="spacer"></div>';
+  document.getElementById('sup-alertas-content').innerHTML=html;
+  DB.notifs.filter(n=>n.para==='supervisor').forEach(n=>n.leida=true);
+  saveDB();
+  updateNotifDot('sup-notif-dot','supervisor');
+}
+
+// Sync avance bar con slider
+document.getElementById('act-avance')?.addEventListener('input',function(){
+  document.getElementById('act-avance-bar').style.width=this.value+'%';
+});
+
+
+// ==================== ADMIN ====================
+const CATALOG_PERSONAL = [ /* Lista retirada del historial por privacidad */ ];
+
+// Inicializar catálogo de personal en DB para TODOS los roles
+function initPersonal(){
+  if(!DB.personal || DB.personal.length === 0){
+    DB.personal = JSON.parse(JSON.stringify(CATALOG_PERSONAL));
+    saveDB();
+  }
+}
+initPersonal();
+
+let admStatusFilter = 'activo';
+let personalEditar = null;
+let personalBajaId = null;
+
+function initAdmin(){
+  document.getElementById('adm-greeting').textContent = currentUser.nombre;
+  showScreen('adm-hub');
+  if(!DB.personal){
+    DB.personal = JSON.parse(JSON.stringify(CATALOG_PERSONAL));
+    saveDB();
+  }
+  // Populate dept filter
+  const deptos = [...new Set(DB.personal.map(p=>p.depto))].sort();
+  const sel = document.getElementById('adm-filter-dept');
+  sel.innerHTML = '<option value="">Todos los depto.</option>' +
+    deptos.map(d=>'<option value="'+d+'">'+d+'</option>').join('');
+
+  // Render user card in hub
+  const hubUser = document.getElementById('adm-hub-user');
+  if(hubUser){
+    const avBg   = 'background:var(--orange-light);color:var(--orange-dark)';
+    const total  = (DB.personal||[]).length;
+    const activos= (DB.personal||[]).filter(p=>p.estatus==='activo').length;
+    hubUser.innerHTML =
+      '<div class="avatar" style="width:48px;height:48px;font-size:16px;flex-shrink:0;'+avBg+'">'+initials(currentUser.nombre)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:15px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
+        +'<div style="font-size:12px;color:var(--text2);margin-top:2px">Administrador &nbsp;·&nbsp; '+activos+' activos / '+total+' en catálogo</div>'
+      +'</div>';
+  }
+
+  renderPersonal();
+  renderAdmPerfil();
+}
+
+function setStatusFilter(f){ admStatusFilter=f; renderPersonal(); }
+
+function renderPersonal(){
+  const q = (document.getElementById('adm-search')?.value||'').toLowerCase().trim();
+  const dept = document.getElementById('adm-filter-dept')?.value||'';
+  let list = DB.personal || [];
+  if(admStatusFilter !== 'todos') list = list.filter(p=>p.estatus===admStatusFilter);
+  if(dept) list = list.filter(p=>p.depto===dept);
+  if(q) list = list.filter(p=>
+    p.nombre.toLowerCase().includes(q) ||
+    p.nomina.toString().includes(q) ||
+    p.puesto.toLowerCase().includes(q) ||
+    p.depto.toLowerCase().includes(q)
+  );
+  list = list.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const el = document.getElementById('adm-personal-list');
+  const cnt = document.getElementById('adm-count');
+  if(cnt) cnt.textContent = list.length + ' resultado' + (list.length!==1?'s':'');
+  if(!list.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">👤</div><div class="empty-title">Sin resultados</div><div class="empty-sub">Intenta con otro filtro o búsqueda</div></div>';
+    return;
+  }
+  const rolLabel = {solicitante:'Solicitante',tecnico:'Técnico',supervisor:'Supervisor',admin:'Admin',ninguno:'Sin acceso'};
+  el.innerHTML = list.map(p=>`
+    <div class="person-row" onclick="verPersona('${p.nomina}')">
+      <div class="avatar ${p.estatus==='baja'?'av-purple':'av-blue'}" style="${p.estatus==='baja'?'opacity:.5':''}">
+        ${initials(p.nombre)}
+      </div>
+      <div class="person-info">
+        <div class="person-name">${p.nombre}</div>
+        <div class="person-sub">${p.puesto} · <span class="dept-pill">${p.depto}</span></div>
+        <div style="margin-top:3px;display:flex;gap:5px;align-items:center">
+          <span class="badge ${p.estatus==='activo'?'badge-activo':'badge-baja'}" style="font-size:10px;padding:1px 7px">${p.estatus==='activo'?'Activo':'Baja'}</span>
+          <span style="font-size:10px;color:var(--text3)">${rolLabel[p.rol]||p.rol}</span>
+          ${p.turno?`<span style="font-size:10px;color:var(--text3)">· T${p.turno}</span>`:''}
+        </div>
+      </div>
+      <span class="person-nomina">${p.nomina}</span>
+    </div>`).join('');
+}
+
+function verPersona(nomina){
+  const p = DB.personal.find(x=>x.nomina===nomina);
+  if(!p) return;
+  document.getElementById('adm-det-titulo').textContent = 'Nóm. '+p.nomina;
+  const rolLabel = {solicitante:'Solicitante (producción)',tecnico:'Técnico de mantenimiento',supervisor:'Supervisor',admin:'Administrador',ninguno:'Sin acceso a la app'};
+  document.getElementById('adm-detalle-content').innerHTML = `
+    <div style="padding:20px 16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border)">
+      <div class="avatar av-blue" style="width:56px;height:56px;font-size:18px;${p.estatus==='baja'?'opacity:.4':''}">
+        ${initials(p.nombre)}
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">${p.nombre}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${p.puesto}</div>
+        <div style="margin-top:5px;display:flex;gap:6px">
+          <span class="badge ${p.estatus==='activo'?'badge-activo':'badge-baja'}">${p.estatus==='activo'?'Activo':'Baja'}</span>
+          <span class="dept-pill">${p.depto}</span>
+        </div>
+      </div>
+    </div>
+    <div class="section-head">Datos del empleado</div>
+    <div class="field-row"><div class="field-lbl">Nómina</div><div class="field-val">${p.nomina}</div></div>
+    <div class="field-row"><div class="field-lbl">Nombre</div><div class="field-val">${p.nombre}</div></div>
+    <div class="field-row"><div class="field-lbl">Puesto</div><div class="field-val">${p.puesto}</div></div>
+    <div class="field-row"><div class="field-lbl">Departamento</div><div class="field-val">${p.depto}</div></div>
+    <div class="field-row"><div class="field-lbl">Rol en la app</div><div class="field-val">${rolLabel[p.rol]||p.rol}</div></div>
+    <div class="field-row"><div class="field-lbl">Turno</div><div class="field-val">${p.turno?'Turno '+p.turno:'No aplica'}</div></div>
+    ${p.obs?`<div class="field-row"><div class="field-lbl">Observaciones</div><div class="field-val" style="font-weight:400;font-size:13px">${p.obs}</div></div>`:''}
+    <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-orange btn-block" onclick="abrirFormPersonal('${p.nomina}')">
+        <svg style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-right:4px" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Modificar datos
+      </button>
+      ${p.estatus==='activo'
+        ? `<button class="btn btn-danger btn-block" onclick="abrirBaja('${p.nomina}')">Dar de baja</button>`
+        : `<button class="btn btn-outline btn-block" onclick="reactivarPersona('${p.nomina}')">Reactivar empleado</button>`
+      }
+      <button class="btn btn-outline btn-block" onclick="showScreen('adm-personal');renderPersonal()">Volver al listado</button>
+    </div>
+    <div class="spacer"></div>`;
+  showScreen('adm-detalle-persona');
+}
+
+function abrirFormPersonal(nomina){
+  personalEditar = nomina;
+  const titulo = nomina ? 'Modificar datos' : 'Alta de personal';
+  document.getElementById('adm-form-titulo').textContent = titulo;
+  if(nomina){
+    const p = DB.personal.find(x=>x.nomina===nomina);
+    if(!p) return;
+    document.getElementById('frm-nomina').value = p.nomina;
+    document.getElementById('frm-nomina').disabled = true;
+    document.getElementById('frm-nombre').value = p.nombre;
+    document.getElementById('frm-puesto').value = p.puesto;
+    document.getElementById('frm-depto').value = p.depto;
+    document.getElementById('frm-rol').value = p.rol;
+    document.getElementById('frm-turno').value = p.turno||'';
+    document.getElementById('frm-estatus').value = p.estatus;
+    document.getElementById('frm-obs').value = p.obs||'';
+  } else {
+    document.getElementById('frm-nomina').value = '';
+    document.getElementById('frm-nomina').disabled = false;
+    document.getElementById('frm-nombre').value = '';
+    document.getElementById('frm-puesto').value = '';
+    document.getElementById('frm-depto').value = '';
+    document.getElementById('frm-rol').value = 'solicitante';
+    document.getElementById('frm-turno').value = '';
+    document.getElementById('frm-estatus').value = 'activo';
+    document.getElementById('frm-obs').value = '';
+  }
+  showScreen('adm-form-persona');
+}
+
+function guardarPersona(){
+  const nomina = document.getElementById('frm-nomina').value.toString().trim();
+  const nombre = document.getElementById('frm-nombre').value.trim().toUpperCase();
+  const puesto = document.getElementById('frm-puesto').value.trim().toUpperCase();
+  const depto  = document.getElementById('frm-depto').value.trim();
+  const rol    = document.getElementById('frm-rol').value;
+  const turno  = document.getElementById('frm-turno').value;
+  const estatus= document.getElementById('frm-estatus').value;
+  const obs    = document.getElementById('frm-obs').value.trim();
+  if(!nomina||!nombre||!puesto||!depto){alert('Nómina, nombre, puesto y departamento son obligatorios.');return;}
+  if(personalEditar){
+    const idx = DB.personal.findIndex(x=>x.nomina===personalEditar);
+    if(idx>=0) DB.personal[idx]={...DB.personal[idx],nombre,puesto,depto,rol,turno,estatus,obs};
+    saveDB();
+    alert('✓ Datos actualizados correctamente.');
+    verPersona(personalEditar);
+  } else {
+    if(DB.personal.find(x=>x.nomina===nomina)){alert('Ya existe un empleado con esa nómina.');return;}
+    DB.personal.push({nomina,nombre,puesto,depto,rol,turno,estatus,obs});
+    saveDB();
+    document.getElementById('frm-nomina').disabled = false;
+    alert('✓ Empleado dado de alta correctamente.');
+    showScreen('adm-personal');
+    renderPersonal();
+  }
+}
+
+function abrirBaja(nomina){
+  personalBajaId = nomina;
+  const p = DB.personal.find(x=>x.nomina===nomina);
+  document.getElementById('modal-baja-texto').textContent =
+    '¿Confirmas la baja de ' + p.nombre + ' (Nóm. '+p.nomina+')?';
+  document.getElementById('baja-motivo').value = '';
+  openModal('modal-baja');
+}
+
+function confirmarBaja(){
+  const motivo = document.getElementById('baja-motivo').value.trim();
+  const p = DB.personal.find(x=>x.nomina===personalBajaId);
+  if(!p) return;
+  p.estatus = 'baja';
+  p.obs = motivo ? ('Baja: ' + motivo + (p.obs?' — '+p.obs:'')) : p.obs;
+  p.fechaBaja = new Date().toISOString();
+  saveDB();
+  closeModal('modal-baja');
+  alert('✓ Empleado dado de baja: ' + p.nombre);
+  showScreen('adm-personal');
+  renderPersonal();
+}
+
+function reactivarPersona(nomina){
+  const p = DB.personal.find(x=>x.nomina===nomina);
+  if(!p) return;
+  if(!confirm('¿Reactivar a ' + p.nombre + '?')) return;
+  p.estatus = 'activo';
+  p.fechaBaja = null;
+  saveDB();
+  alert('✓ Empleado reactivado.');
+  verPersona(nomina);
+}
+
+function renderEstadisticas(){
+  const personal = DB.personal || [];
+  const activos = personal.filter(p=>p.estatus==='activo');
+  const bajas = personal.filter(p=>p.estatus==='baja');
+  const deptos = {};
+  activos.forEach(p=>{ deptos[p.depto]=(deptos[p.depto]||0)+1; });
+  const deptosSorted = Object.entries(deptos).sort((a,b)=>b[1]-a[1]);
+  const maxD = deptosSorted[0]?.[1]||1;
+  const roles = {solicitante:0,tecnico:0,supervisor:0,admin:0,ninguno:0};
+  activos.forEach(p=>{ if(roles[p.rol]!==undefined) roles[p.rol]++; });
+
+  document.getElementById('adm-stats-content').innerHTML = `
+    <div class="stat-row">
+      <div class="stat-chip"><div class="stat-chip-val" style="color:var(--green)">${activos.length}</div><div class="stat-chip-lbl">Activos</div></div>
+      <div class="stat-chip"><div class="stat-chip-val" style="color:var(--red)">${bajas.length}</div><div class="stat-chip-lbl">Bajas</div></div>
+      <div class="stat-chip"><div class="stat-chip-val">${personal.length}</div><div class="stat-chip-lbl">Total</div></div>
+    </div>
+    <div class="section-head">Roles en la app (activos)</div>
+    <div style="padding:6px 0 10px">
+      <div class="bar-row"><span class="bar-label">Solicitantes</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.solicitante/activos.length*100)}%;background:var(--blue)"></div></div><span class="bar-count">${roles.solicitante}</span></div>
+      <div class="bar-row"><span class="bar-label">Técnicos</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.tecnico/activos.length*100)}%;background:var(--green)"></div></div><span class="bar-count">${roles.tecnico}</span></div>
+      <div class="bar-row"><span class="bar-label">Supervisores</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.supervisor/activos.length*100)}%;background:var(--purple)"></div></div><span class="bar-count">${roles.supervisor}</span></div>
+      <div class="bar-row"><span class="bar-label">Admin</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.admin/activos.length*100)}%;background:var(--orange)"></div></div><span class="bar-count">${roles.admin}</span></div>
+      <div class="bar-row"><span class="bar-label">Sin acceso</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.ninguno/activos.length*100)}%;background:var(--gray)"></div></div><span class="bar-count">${roles.ninguno}</span></div>
+    </div>
+    <div class="section-head">Personal por departamento</div>
+    <div style="padding:6px 0 10px">
+      ${deptosSorted.map(([d,n])=>`
+        <div class="bar-row">
+          <span class="bar-label" style="font-size:11px;width:96px">${d}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxD*100)}%;background:var(--orange)"></div></div>
+          <span class="bar-count">${n}</span>
+        </div>`).join('')}
+    </div>
+    <div class="spacer"></div>`;
+}
+
+function renderAdmPerfil(){
+  const total   = (DB.personal||[]).length;
+  const activos = (DB.personal||[]).filter(p=>p.estatus==='activo').length;
+  const bajas   = total - activos;
+  const ots     = DB.ots||[];
+  document.getElementById('adm-perfil-content').innerHTML =
+    '<div style="padding:20px 16px 12px;text-align:center;border-bottom:1px solid var(--border)">'
+      +'<div class="avatar" style="width:56px;height:56px;font-size:18px;margin:0 auto 10px;background:var(--orange-light);color:var(--orange-dark)">'+initials(currentUser.nombre)+'</div>'
+      +'<div style="font-size:16px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-top:3px">'+currentUser.puesto+' &nbsp;·&nbsp; '+currentUser.depto+'</div>'
+      +'<div style="margin-top:6px"><span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--orange-light);color:var(--orange-dark)">Administrador</span></div>'
+    +'</div>'
+    +'<div class="section-head">Catálogo de personal</div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">Total en catálogo</div><div class="field-val">'+total+'</div></div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">Activos</div><div class="field-val" style="color:var(--green)">'+activos+'</div></div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">Bajas</div><div class="field-val" style="color:var(--red)">'+bajas+'</div></div>'
+    +'<div class="section-head">Módulos con acceso</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'personal\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--orange);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Catálogo de personal</div><div class="field-lbl" style="margin-top:1px">Alta, baja y modificación</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'solicitante\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Órdenes de trabajo</div><div class="field-lbl" style="margin-top:1px">Vista solicitante · '+ots.length+' OT en sistema</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'tecnico\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--green);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Ejecución de mantenimiento</div><div class="field-lbl" style="margin-top:1px">Vista técnico · Actividades y refacciones</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'supervisor\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--purple);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Panel de supervisión</div><div class="field-lbl" style="margin-top:1px">Dashboard, técnicos y alertas</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div style="padding:16px;margin-top:4px">'
+      +'<button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>'
+    +'</div>'
+    +'<div class="spacer"></div>';
+}
+
+</script>
+
+<!-- ==================== APP ADMINISTRADOR ==================== -->
+<div id="page-admin" class="page">
+
+  <!-- SCREEN: Hub / selector de módulo -->
+  <div id="adm-hub" class="screen active">
+    <div class="topbar topbar-orange">
+      <div style="flex:1">
+        <div style="font-size:11px;opacity:.75" id="adm-greeting">Administrador</div>
+        <div class="topbar-title">Panel de administración</div>
+      </div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+    <div id="adm-hub-user" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)"></div>
+    <div class="scroll-content">
+      <div style="padding:16px 14px 8px;font-size:13px;font-weight:500;color:var(--text)">Módulos disponibles</div>
+
+      <!-- Catálogo de personal -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Administración</div>
+        <div class="card" onclick="switchAdmModule('personal')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo de personal</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de empleados</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Solicitante -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista solicitante</div>
+        <div class="card" onclick="switchAdmModule('solicitante')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--blue);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Órdenes de trabajo</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Solicitudes, seguimiento y cierre</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Técnico -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista técnico de mantenimiento</div>
+        <div class="card" onclick="switchAdmModule('tecnico')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Ejecución de mantenimiento</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Actividades, refacciones y esperas</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Supervisor -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista supervisor / jefe de mantenimiento</div>
+        <div class="card" onclick="switchAdmModule('supervisor')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--purple);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Panel de supervisión</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Dashboard, técnicos, asignaciones y alertas</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Catálogo personal -->
+  <div id="adm-personal" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="flex:1">
+        <div class="topbar-title">Catálogo de personal</div>
+      </div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showScreen('adm-estadisticas');renderEstadisticas()" aria-label="Resumen">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </button>
+    </div>
+    <div class="search-box">
+      <input class="search-input" type="search" id="adm-search" placeholder="Buscar por nombre, nómina o puesto..." oninput="renderPersonal()">
+      <select id="adm-filter-dept" style="padding:8px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text)" onchange="renderPersonal()">
+        <option value="">Todos los depto.</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;padding:8px 12px 4px;border-bottom:1px solid var(--border)">
+      <button class="badge badge-activo" style="cursor:pointer" onclick="setStatusFilter('activo')">Activos</button>
+      <button class="badge badge-baja" style="cursor:pointer" onclick="setStatusFilter('baja')">Bajas</button>
+      <button class="badge" style="background:var(--gray-light);color:var(--gray-dark);cursor:pointer" onclick="setStatusFilter('todos')">Todos</button>
+      <span id="adm-count" style="margin-left:auto;font-size:12px;color:var(--text2);align-self:center"></span>
+    </div>
+    <div class="scroll-content">
+      <div id="adm-personal-list"></div>
+      <div class="spacer"></div>
+    </div>
+    <button class="fab fab-orange" onclick="abrirFormPersonal(null)" aria-label="Alta de personal">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <nav class="adm-tabbar">
+      <button class="adm-tab active" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Personal
+      </button>
+      <button class="adm-tab" onclick="showScreen('adm-estadisticas');renderEstadisticas()">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Resumen
+      </button>
+      <button class="adm-tab" onclick="showScreen('adm-hub')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Inicio
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Detalle / edición de persona -->
+  <div id="adm-detalle-persona" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title" id="adm-det-titulo">Detalle</div>
+    </div>
+    <div class="scroll-content" id="adm-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Formulario alta / modificación -->
+  <div id="adm-form-persona" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title" id="adm-form-titulo">Alta de personal</div>
+    </div>
+    <div class="scroll-content">
+      <div class="section-head">Datos del empleado</div>
+      <div class="field-row"><div class="field-lbl">Nómina <span style="color:var(--red)">*</span></div><input class="field-input" type="number" id="frm-nomina" placeholder="Ej. 2430" min="1"></div>
+      <div class="field-row"><div class="field-lbl">Nombre completo <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-nombre" placeholder="Apellido Paterno Materno Nombre(s)"></div>
+      <div class="field-row"><div class="field-lbl">Puesto <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-puesto" placeholder="Ej. Técnico de Mantenimiento"></div>
+      <div class="field-row">
+        <div class="field-lbl">Departamento <span style="color:var(--red)">*</span></div>
+        <select class="field-select" id="frm-depto">
+          <option value="">— Selecciona —</option>
+          <option>ACONDICIONADO</option><option>ADMINISTRACIÓN</option><option>CALIDAD</option>
+          <option>DIGITAL</option><option>FLEXOGRAFÍA</option><option>LOGÍSTICA</option>
+          <option>MANTENIMIENTO</option><option>OPERACIONES</option><option>PREPRENSA</option>
+          <option>RECURSOS HUMANOS</option><option>ROTOGRABADO</option><option>TINTAS</option><option>VENTAS</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Rol en la app</div>
+        <select class="field-select" id="frm-rol">
+          <option value="solicitante">Solicitante (producción)</option>
+          <option value="tecnico">Técnico de mantenimiento</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Administrador</option>
+          <option value="ninguno">Sin acceso a la app</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Turno</div>
+        <select class="field-select" id="frm-turno">
+          <option value="">— No aplica —</option>
+          <option value="1">Turno 1</option><option value="2">Turno 2</option><option value="3">Turno 3</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Estatus</div>
+        <select class="field-select" id="frm-estatus"><option value="activo">Activo</option><option value="baja">Baja</option></select>
+      </div>
+      <div class="field-row"><div class="field-lbl">Observaciones</div><textarea class="field-textarea" id="frm-obs" placeholder="Notas adicionales, motivo de baja, etc..."></textarea></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-orange btn-block" onclick="guardarPersona()">Guardar</button>
+        <button class="btn btn-outline btn-block" onclick="showScreen('adm-personal');renderPersonal()">Cancelar</button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Estadísticas -->
+  <div id="adm-estadisticas" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Resumen de personal</div>
+    </div>
+    <div class="scroll-content" id="adm-stats-content"></div>
+  </div>
+
+</div>
+
+<!-- MODAL CONFIRMAR BAJA -->
+<div class="modal-overlay" id="modal-baja">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Confirmar baja</div>
+    <div class="alert alert-red" style="margin:0 16px 12px">
+      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div id="modal-baja-texto">¿Confirmas la baja de este empleado?</div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Motivo de baja (opcional)</div>
+      <textarea class="field-textarea" id="baja-motivo" placeholder="Renuncia voluntaria, término de contrato, etc..."></textarea>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-baja')" style="flex:1">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarBaja()" style="flex:2">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
