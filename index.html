@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MantoApp — Órdenes de Trabajo</title>
 <style>
@@ -243,6 +244,27 @@ input[type=range].green{accent-color:var(--green)}
   60%{transform:translateX(-4px)}
   80%{transform:translateX(4px)}
 }
+
+/* ===== LÍNEA DE TIEMPO ===== */
+.timeline{padding:12px 16px;display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:12px;position:relative}
+.tl-item:not(:last-child) .tl-line{position:absolute;left:15px;top:32px;bottom:-4px;width:2px;background:var(--border);z-index:0}
+.tl-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;z-index:1;border:2px solid var(--surface)}
+.tl-dot-blue{background:var(--blue);color:#fff}
+.tl-dot-green{background:var(--green);color:#fff}
+.tl-dot-amber{background:var(--amber);color:#fff}
+.tl-dot-red{background:var(--red);color:#fff}
+.tl-dot-gray{background:var(--gray);color:#fff}
+.tl-dot-purple{background:var(--purple);color:#fff}
+.tl-body{flex:1;padding-bottom:16px}
+.tl-time{font-size:11px;color:var(--text3);margin-bottom:2px}
+.tl-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.tl-sub{font-size:12px;color:var(--text2);line-height:1.5}
+.tl-tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--gray-light);color:var(--text2);margin-top:4px;margin-right:4px}
+.tl-tag-green{background:var(--green-light);color:var(--green-dark)}
+.tl-tag-amber{background:var(--amber-light);color:var(--amber-dark)}
+.tl-tag-red{background:var(--red-light);color:var(--red-dark)}
+.tl-tag-blue{background:var(--blue-light);color:var(--blue-dark)}
 </style>
 </head>
 <body>
@@ -653,12 +675,22 @@ input[type=range].green{accent-color:var(--green)}
         <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
         Alertas
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        Perfil
+      </button>
     </nav>
   </div>
 
   <!-- SCREEN: Todas las OT -->
   <div id="sup-ots" class="screen">
-    <div class="topbar topbar-purple"><div class="topbar-title">Todas las OT</div></div>
+    <div class="topbar topbar-purple">
+      <div class="topbar-title">Todas las OT</div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15);width:auto;padding:0 10px;border-radius:8px;font-size:12px;font-weight:500;gap:5px;display:flex;align-items:center" onclick="exportarExcelOTs()" title="Exportar a Excel">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        Excel
+      </button>
+    </div>
     <div class="filter-bar">
       <button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer" onclick="filterOTs('todas','supervisor')">Todas</button>
       <button class="badge badge-abierto" onclick="filterOTs('abierto','supervisor')" style="cursor:pointer">Nuevas</button>
@@ -750,6 +782,29 @@ input[type=range].green{accent-color:var(--green)}
       </div>
     </div>
     <div class="scroll-content" id="sup-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Perfil supervisor -->
+  <div id="sup-perfil" class="screen">
+    <div class="topbar topbar-purple"><div class="topbar-title">Mi perfil</div></div>
+    <div class="scroll-content" id="sup-perfil-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Panel
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Técnicos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>Alertas
+      </button>
+      <button class="tabbar-item active purple" onclick="showScreen('sup-perfil');renderSupPerfil()">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>Perfil
+      </button>
+    </nav>
   </div>
 </div>
 
@@ -867,7 +922,42 @@ if(!DB){
 if(!DB.folioSig){ DB.folioSig = (DB.ots.length ? parseInt(DB.ots[DB.ots.length-1].id)+1 : 1); saveDB(); }
 // Nota: DB.personal se inicializa en initPersonal() que se llama tras declarar CATALOG_PERSONAL
 
-function saveDB(){localStorage.setItem('mantoDB',JSON.stringify(DB));}
+function saveDB(){
+  localStorage.setItem('mantoDB', JSON.stringify(DB));
+}
+
+// Recarga DB desde localStorage (por si otro perfil/pestaña hizo cambios)
+function reloadDB(){
+  var stored = localStorage.getItem('mantoDB');
+  if(stored){
+    try{ DB = JSON.parse(stored); } catch(e){}
+  }
+}
+
+// Escuchar cambios de localStorage desde otras pestañas
+window.addEventListener('storage', function(e){
+  if(e.key === 'mantoDB' && e.newValue){
+    try{
+      DB = JSON.parse(e.newValue);
+      // Re-renderizar la pantalla activa según el rol
+      if(currentUser){
+        var role = currentUser.role;
+        if(role === 'solicitante'){
+          renderSolOTs(currentFilter);
+          renderNotifsSol();
+          updateNotifDot('sol-notif-dot','solicitante');
+        } else if(role === 'tecnico'){
+          renderTecOTs(currentFilter);
+          updateNotifDot('tec-notif-dot','tecnico');
+        } else if(role === 'supervisor'){
+          renderDashboard();
+          renderSupOTs(currentFilter);
+          updateNotifDot('sup-notif-dot','supervisor');
+        }
+      }
+    } catch(e2){}
+  }
+});
 
 let currentUser = null;
 let currentOTId = null;
@@ -1051,6 +1141,7 @@ function getMyOTs(role){
 }
 
 function renderSolOTs(filter){
+  reloadDB();
   filter=filter||currentFilter;
   let ots = getMyOTs('solicitante');
   if(filter!=='todas') ots=ots.filter(o=>o.status===filter);
@@ -1079,6 +1170,106 @@ function otCardSol(ot){
   </div>`;
 }
 
+function crearOT(){
+  var desc = document.getElementById('nueva-desc').value.trim();
+  if(!desc){ alert('Describe el problema antes de enviar'); return; }
+  var id = String(DB.folioSig).padStart(6,'0');
+  DB.folioSig++;
+  var ot = {
+    id:         id,
+    folio:      '#'+id,
+    tipo:       document.getElementById('nueva-tipo').value,
+    nave:       document.getElementById('nueva-nave').value,
+    area:       document.getElementById('nueva-area').value,
+    equipo:     document.getElementById('nueva-equipo').value,
+    desc:       desc,
+    prioridad:  document.getElementById('nueva-prioridad').value,
+    status:     'abierto',
+    solicitante: currentUser.nombre,
+    nomina:     currentUser.nomina,
+    tecnico:    null,
+    tecnicos:   [],
+    fechaAlta:  new Date().toISOString(),
+    avance:     0,
+    actividades: [],
+    refacciones: [],
+    comentarios: [],
+    espera:     null
+  };
+  DB.ots.push(ot);
+  DB.notifs.push({
+    id:     'n'+Date.now(),
+    para:   'supervisor',
+    texto:  'Nueva OT '+ot.folio+': '+ot.desc.substring(0,60)+' — '+ot.equipo,
+    fecha:  new Date().toISOString(),
+    leida:  false
+  });
+  saveDB();
+  document.getElementById('nueva-desc').value = '';
+  showScreen('sol-lista');
+  renderSolOTs('todas');
+  updateNotifDot('sup-notif-dot','supervisor');
+  alert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
+}
+
+
+var otParaRechazar = null;
+
+function cerrarOT(id){
+  // id puede venir de data-id del botón
+  var oid = id || currentOTId;
+  var ot = DB.ots.find(function(o){ return o.id===oid; });
+  if(!ot){ alert('OT no encontrada'); return; }
+  ot.status = 'cerrado';
+  ot.fechaCierre = new Date().toISOString();
+  DB.notifs.push({
+    id:'n'+Date.now(), para:'tecnico',
+    texto:'OT '+ot.folio+' fue cerrada y validada por el solicitante.',
+    fecha:new Date().toISOString(), leida:false
+  });
+  DB.notifs.push({
+    id:'n'+Date.now(), para:'supervisor',
+    texto:'OT '+ot.folio+' cerrada y validada por '+currentUser.nombre+'.',
+    fecha:new Date().toISOString(), leida:false
+  });
+  saveDB();
+  alert('✓ OT cerrada correctamente. Gracias por validar.');
+  showScreen('sol-lista');
+  renderSolOTs('todas');
+}
+
+function confirmarRechazo(){
+  var motivo = document.getElementById('rechazar-motivo').value.trim();
+  if(!motivo){ alert('Escribe el motivo del rechazo'); return; }
+  var oid = otParaRechazar || currentOTId;
+  var ot = DB.ots.find(function(o){ return o.id===oid; });
+  if(!ot){ closeModal('modal-rechazar'); return; }
+  ot.status = 'proceso';
+  ot.comentarios.push({
+    autor: currentUser.nombre,
+    fecha: new Date().toISOString(),
+    texto: 'Cierre rechazado por el solicitante: '+motivo
+  });
+  DB.notifs.push({
+    id:'n'+Date.now(), para:'tecnico',
+    texto:'El solicitante rechazó el cierre de '+ot.folio+': '+motivo,
+    fecha:new Date().toISOString(), leida:false
+  });
+  DB.notifs.push({
+    id:'n'+Date.now(), para:'supervisor',
+    texto:'OT '+ot.folio+' rechazada por '+currentUser.nombre+': '+motivo,
+    fecha:new Date().toISOString(), leida:false
+  });
+  saveDB();
+  closeModal('modal-rechazar');
+  document.getElementById('rechazar-motivo').value = '';
+  otParaRechazar = null;
+  alert('Cierre rechazado. El técnico fue notificado.');
+  showScreen('sol-lista');
+  renderSolOTs('todas');
+}
+
+
 function verOTSol(id){
   currentOTId=id;
   const ot=DB.ots.find(o=>o.id===id);
@@ -1089,171 +1280,149 @@ function verOTSol(id){
 }
 
 function buildDetalleSol(ot){
-  const steps=[
-    {label:'Abierta',done:true},
-    {label:'Asignada',done:!!ot.tecnico},
+  var steps=[
+    {label:'Abierta',  done:true},
+    {label:'Asignada', done:!!ot.tecnico},
     {label:'En proceso',done:['proceso','espera','validar','cerrado'].includes(ot.status)},
-    {label:'Validar',done:ot.status==='cerrado'}
+    {label:'Validar',  done:ot.status==='cerrado'}
   ];
-  const activeStep = ot.status==='abierto'?0:ot.status==='proceso'||ot.status==='espera'?2:ot.status==='validar'?3:4;
-
-  let stepHTML=`<div class="stepper">`;
-  steps.forEach((s,i)=>{
-    const cls = s.done&&i<activeStep?'done':i===activeStep?'active':'pending';
-    stepHTML+=`<div class="step-dot ${cls}">${i+1}</div>`;
-    if(i<steps.length-1) stepHTML+=`<div class="step-line ${s.done&&i<activeStep-1?'done':''}"></div>`;
+  var activeStep=ot.status==='abierto'?0:ot.status==='proceso'||ot.status==='espera'?2:ot.status==='validar'?3:4;
+  var stepHTML='<div class="stepper">';
+  steps.forEach(function(s,i){
+    var cls=s.done&&i<activeStep?'done':i===activeStep?'active':'pending';
+    stepHTML+='<div class="step-dot '+cls+'">'+(i+1)+'</div>';
+    if(i<steps.length-1) stepHTML+='<div class="step-line '+(s.done&&i<activeStep-1?'done':'')+'"></div>';
   });
-  stepHTML+=`</div><div class="step-labels">${steps.map(s=>`<span>${s.label}</span>`).join('')}</div>`;
+  stepHTML+='</div><div class="step-labels">'+steps.map(function(s){return '<span>'+s.label+'</span>';}).join('')+'</div>';
 
-  let espera='';
+  var espera='';
   if(ot.espera){
-    espera=`<div class="alert alert-warn">
-      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-      <div><strong>En espera:</strong> ${ot.espera.motivo}<br>${ot.espera.comentario}<br><strong>Fecha estimada: ${fmtDate(ot.espera.fechaEst)}</strong></div>
-    </div>`;
+    espera='<div class="alert alert-warn">'
+      +'<div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
+      +'<div><strong>En espera:</strong> '+ot.espera.motivo+'<br>'+ot.espera.comentario+'<br><strong>Fecha estimada: '+fmtDate(ot.espera.fechaEst)+'</strong></div>'
+      +'</div>';
   }
 
-  let validar='';
+  var validar='';
   if(ot.status==='validar'){
-    validar=`<div class="validate-box">
-      <div class="validate-title">¿El equipo quedó operando correctamente?</div>
-      <div class="validate-sub">Al confirmar, la OT se cierra definitivamente. Solo tú puedes hacer este cierre.</div>
-      <button class="btn btn-green btn-block" onclick="cerrarOT('${ot.id}')">Confirmar y cerrar OT</button>
-      <button class="btn btn-danger btn-block" style="margin-top:8px" onclick="openModal('modal-rechazar')">El problema persiste — rechazar cierre</button>
-    </div>`;
+    validar='<div class="validate-box">'
+      +'<div class="validate-title">¿El equipo quedó operando correctamente?</div>'
+      +'<div class="validate-sub">Al confirmar, la OT se cierra definitivamente. Solo tú puedes hacer este cierre.</div>'
+      +'<button class="btn btn-green btn-block" onclick="cerrarOT(this.dataset.id)" data-id="'+ot.id+'">Confirmar y cerrar OT</button>'
+      +'<button class="btn btn-danger btn-block" style="margin-top:8px" onclick="openModal(&quot;modal-rechazar&quot;)">El problema persiste — rechazar cierre</button>'
+      +'</div>';
   }
 
-  let acts='';
-  if(ot.actividades.length){
-    acts=`<div class="section-head">Actividades registradas</div>`;
-    acts+=ot.actividades.map(a=>`
-      <div class="comment-row">
-        <div class="comment-meta">${a.tecnico} · ${fmtDate(a.fecha)} ${a.inicio}–${a.fin} · Avance: ${a.avance}%</div>
-        <div class="comment-text">${a.accion}</div>
-        ${a.obs?`<div style="font-size:12px;color:var(--text3);margin-top:3px">${a.obs}</div>`:''}
-      </div>`).join('');
+  var acts='';
+  if(ot.actividades && ot.actividades.length){
+    acts='<div class="section-head">Actividades registradas</div>'
+      +ot.actividades.map(function(a){
+        return '<div class="comment-row">'
+          +'<div class="comment-meta">'+(a.tecnico||'')+' · '+fmtDate(a.fecha)+' '+a.inicio+'–'+a.fin+' · Avance: '+a.avance+'%</div>'
+          +'<div class="comment-text">'+a.accion+'</div>'
+          +(a.obs?'<div style="font-size:12px;color:var(--text3);margin-top:3px">'+a.obs+'</div>':'')
+          +'</div>';
+      }).join('');
   }
 
-  let refs='';
-  if(ot.refacciones.length){
-    refs=`<div class="section-head">Refacciones utilizadas</div>`;
-    refs+=ot.refacciones.map(r=>`
-      <div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">
-        <div><div class="field-lbl">${r.tipo}</div><div class="field-val" style="font-weight:400">${r.desc} × ${r.qty}</div></div>
-        <div class="field-val">$${(r.qty*r.costo).toFixed(2)}</div>
-      </div>`).join('');
+  var refs='';
+  if(ot.refacciones && ot.refacciones.length){
+    refs='<div class="section-head">Refacciones utilizadas</div>'
+      +ot.refacciones.map(function(r){
+        return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">'
+          +'<div><div class="field-lbl">'+r.tipo+'</div><div class="field-val" style="font-weight:400">'+r.desc+' × '+r.qty+'</div></div>'
+          +'<div class="field-val">$'+(r.qty*r.costo).toFixed(2)+'</div>'
+          +'</div>';
+      }).join('');
   }
 
-  let comms='';
-  if(ot.comentarios.length){
-    comms=`<div class="section-head">Comentarios del técnico</div>`;
-    comms+=ot.comentarios.map(c=>`
-      <div class="comment-row">
-        <div class="comment-meta">${c.autor} · ${fmt(c.fecha)}</div>
-        <div class="comment-text">${c.texto}</div>
-      </div>`).join('');
+  var comms='';
+  if(ot.comentarios && ot.comentarios.length){
+    comms='<div class="section-head">Comentarios del técnico</div>'
+      +ot.comentarios.map(function(c){
+        return '<div class="comment-row">'
+          +'<div class="comment-meta">'+c.autor+' · '+fmt(c.fecha)+'</div>'
+          +'<div class="comment-text">'+c.texto+'</div>'
+          +'</div>';
+      }).join('');
   }
 
-  return `${stepHTML}${espera}
-    <div class="section-head">Datos de la solicitud</div>
-    <div class="field-row"><div class="field-lbl">Folio</div><div class="field-val">${ot.folio}</div></div>
-    <div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">${ot.tipo}</div></div>
-    <div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">${ot.equipo} — ${ot.nave} · ${ot.area}</div></div>
-    <div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">${ot.desc}</div></div>
-    <div class="field-row"><div class="field-lbl">Fecha de alta</div><div class="field-val">${fmt(ot.fechaAlta)}</div></div>
-    <div class="field-row"><div class="field-lbl">Técnico asignado</div><div class="field-val">${ot.tecnico||'Sin asignar'}</div></div>
-    ${acts}${refs}${comms}${validar}
-    <div class="spacer"></div>`;
+  return stepHTML+espera
+    +'<div class="section-head">Datos de la solicitud</div>'
+    +'<div class="field-row"><div class="field-lbl">Folio</div><div class="field-val">'+ot.folio+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">'+ot.tipo+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+' — '+ot.nave+' · '+ot.area+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Fecha de alta</div><div class="field-val">'+fmt(ot.fechaAlta)+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Técnico asignado</div><div class="field-val">'+(ot.tecnico||'Sin asignar')+'</div></div>'
+    +acts+refs+comms+validar
+    +'<div class="spacer"></div>';
 }
 
-function crearOT(){
-  const desc=document.getElementById('nueva-desc').value.trim();
-  if(!desc){alert('Describe el problema antes de enviar');return;}
-  const id=String(DB.folioSig).padStart(6,'0');
-  DB.folioSig++;
-  const ot={
-    id,folio:'#'+id,
-    tipo:document.getElementById('nueva-tipo').value,
-    nave:document.getElementById('nueva-nave').value,
-    area:document.getElementById('nueva-area').value,
-    equipo:document.getElementById('nueva-equipo').value,
-    desc,
-    prioridad:document.getElementById('nueva-prioridad').value,
-    status:'abierto',
-    solicitante:currentUser.nombre,
-    nomina:currentUser.nomina,
-    tecnico:null,
-    fechaAlta:new Date().toISOString(),
-    avance:0,actividades:[],refacciones:[],comentarios:[],espera:null
-  };
-  DB.ots.push(ot);
-  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'Nueva OT '+ot.folio+': '+ot.desc.substring(0,60)+' — '+ot.equipo,fecha:new Date().toISOString(),leida:false});
+
+function confirmarAsignacion(){
+  var sel = document.getElementById('asignar-tecnico');
+  if(!sel || !sel.value){ alert('Selecciona un técnico'); return; }
+  var tecnico = toTitleCase(sel.value);
+  var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
+  if(!ot){ closeModal('modal-asignar'); return; }
+  if(!ot.tecnicos) ot.tecnicos = [];
+  ot.tecnico = tecnico;
+  if(ot.status==='abierto') ot.status = 'proceso';
+  DB.notifs.push({
+    id:'n'+Date.now(), para:'tecnico',
+    texto:'Nueva OT '+ot.folio+' asignada: '+ot.desc.substring(0,60),
+    fecha:new Date().toISOString(), leida:false
+  });
   saveDB();
-  document.getElementById('nueva-desc').value='';
-  showScreen('sol-lista');
-  renderSolOTs('todas');
-  updateNotifDot('sup-notif-dot','supervisor');
-  alert('✓ OT '+ot.folio+' creada. El supervisor puede asignarla a un técnico.');
+  closeModal('modal-asignar');
+  renderDashboard();
+  renderSupOTs(currentFilter);
+  alert('✓ OT '+ot.folio+' asignada a '+tecnico);
 }
 
-function cerrarOT(id){
-  const ot=DB.ots.find(o=>o.id===id);
-  ot.status='cerrado';
-  ot.fechaCierre=new Date().toISOString();
-  DB.notifs.push({id:'n'+Date.now(),para:'tecnico',texto:`OT ${ot.folio} fue cerrada y validada por el solicitante.`,fecha:new Date().toISOString(),leida:false});
-  saveDB();
-  alert('✓ OT cerrada correctamente. Gracias por validar.');
-  showScreen('sol-lista');
-  renderSolOTs('todas');
-}
-
-let otParaRechazar=null;
-function openRechazar(id){otParaRechazar=id;openModal('modal-rechazar');}
-function confirmarRechazo(){
-  const motivo=document.getElementById('rechazar-motivo').value.trim();
-  if(!motivo){alert('Escribe el motivo del rechazo');return;}
-  const ot=DB.ots.find(o=>o.id==(otParaRechazar||currentOTId));
-  ot.status='proceso';
-  ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:'Cierre rechazado: '+motivo});
-  DB.notifs.push({id:'n'+Date.now(),para:'tecnico',texto:`El solicitante rechazó el cierre de ${ot.folio}: ${motivo}`,fecha:new Date().toISOString(),leida:false});
-  saveDB();
-  closeModal('modal-rechazar');
-  document.getElementById('rechazar-motivo').value='';
-  alert('Cierre rechazado. El técnico fue notificado.');
-  showScreen('sol-lista');
-  renderSolOTs('todas');
-}
 
 function renderNotifsSol(){
+  reloadDB();
   const notifs=DB.notifs.filter(n=>n.para==='solicitante');
   const el=document.getElementById('sol-notifs-content');
   if(!notifs.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">Sin notificaciones</div></div>';return;}
-  el.innerHTML=notifs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(n=>`
-    <div class="notif-item" style="${!n.leida?'background:var(--blue-light)':''}">
-      <div class="notif-dot2" style="background:${!n.leida?'var(--blue)':'var(--border)'}"></div>
-      <div><div class="notif-text">${n.texto}</div><div class="notif-time">${fmt(n.fecha)}</div></div>
-    </div>`).join('');
+  el.innerHTML=notifs.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);}).map(function(n){
+    return '<div class="notif-item" style="'+(n.leida?'':'background:var(--blue-light)')+'">'
+      +'<div class="notif-dot2" style="background:'+(n.leida?'var(--border)':'var(--blue)')+'"></div>'
+      +'<div><div class="notif-text">'+n.texto+'</div><div class="notif-time">'+fmt(n.fecha)+'</div></div>'
+      +'</div>';
+  }).join('');
   DB.notifs.filter(n=>n.para==='solicitante').forEach(n=>n.leida=true);
   saveDB();
   updateNotifDot('sol-notif-dot','solicitante');
 }
 
 function renderPerfilSol(){
-  document.getElementById('sol-perfil-content').innerHTML=`
-    <div style="padding:24px 16px;text-align:center">
-      <div class="avatar av-blue" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">${initials(currentUser.nombre)}</div>
-      <div style="font-size:18px;font-weight:600;color:var(--text)">${currentUser.nombre}</div>
-      <div style="font-size:13px;color:var(--text2);margin-top:4px">Nómina ${currentUser.nomina} · ${currentUser.area||'Producción'}</div>
-    </div>
-    <div class="section-head">Mi actividad</div>
-    <div class="field-row"><div class="field-lbl">OT creadas total</div><div class="field-val">${DB.ots.filter(o=>o.nomina===currentUser.nomina).length}</div></div>
-    <div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">${DB.ots.filter(o=>o.nomina===currentUser.nomina&&o.status==='cerrado').length}</div></div>
-    <div class="field-row"><div class="field-lbl">OT pendientes</div><div class="field-val">${DB.ots.filter(o=>o.nomina===currentUser.nomina&&o.status!=='cerrado').length}</div></div>
-    <div style="padding:16px;margin-top:8px">
-      <button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>
-    </div>`;
+  var bioReg2 = JSON.parse(localStorage.getItem('mantoBio')||'{}')[currentUser.nomina];
+  var totSol  = DB.ots.filter(function(o){return o.nomina===currentUser.nomina;}).length;
+  var cerSol  = DB.ots.filter(function(o){return o.nomina===currentUser.nomina&&o.status==='cerrado';}).length;
+  document.getElementById('sol-perfil-content').innerHTML =
+    '<div style="padding:24px 16px;text-align:center">'
+      +'<div class="avatar av-blue" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">'+initials(currentUser.nombre)+'</div>'
+      +'<div style="font-size:18px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
+      +'<div style="font-size:13px;color:var(--text2);margin-top:4px">Nómina '+currentUser.nomina+' · '+(currentUser.area||'Producción')+'</div>'
+    +'</div>'
+    +'<div class="section-head">Mi actividad</div>'
+    +'<div class="field-row"><div class="field-lbl">OT creadas total</div><div class="field-val">'+totSol+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">'+cerSol+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">OT pendientes</div><div class="field-val">'+(totSol-cerSol)+'</div></div>'
+    +'<div class="section-head">Acceso biométrico</div>'
+    +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
+      +(bioReg2
+        ?'<div class="alert alert-ok" style="margin:0"><div class="alert-icon">✓</div><div>Face ID / Huella activado</div></div>'
+        :'<button class="btn btn-outline btn-block" onclick="registrarBiometria()">'
+          +'<svg style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>'
+          +'Activar Face ID / Huella</button>')
+      +'<button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>'
+    +'</div>'
+    +'<div class="spacer"></div>';
 }
-
 function showNotifs(role){
   if(role==='solicitante'){showScreen('sol-notifs');renderNotifsSol();}
   else if(role==='tecnico'){showScreen('tec-historial');renderNotifsTec();}
@@ -1262,7 +1431,7 @@ function showNotifs(role){
 
 // ==================== TÉCNICO ====================
 function initTecnico(){
-  document.getElementById('tec-greeting').textContent = `${currentUser.nombre} · Turno 2`;
+  document.getElementById('tec-greeting').textContent = currentUser.nombre + '  ·  ' + turnoLabel();
   updateNotifDot('tec-notif-dot','tecnico');
   renderTecOTs('todas');
   renderTecHistorial();
@@ -1270,6 +1439,7 @@ function initTecnico(){
 }
 
 function renderTecOTs(filter){
+  reloadDB();
   filter=filter||currentFilter;
   var cnNorm=currentUser.nombre.toLowerCase();
   // OT disponibles: abiertas sin nadie o en proceso (el técnico puede unirse)
@@ -1342,10 +1512,21 @@ function verOTTec(id){
 
 // Helper — turno según hora actual
 function turnoActual(){
-  var h = new Date().getHours() + new Date().getMinutes()/60;
-  if(h >= 6  && h < 14)   return 'T1 (06:00–14:00)';
-  if(h >= 14 && h < 21.5) return 'T2 (14:00–21:30)';
+  var now  = new Date();
+  var mins = now.getHours() * 60 + now.getMinutes(); // minutos desde medianoche
+  // T1: 06:00 (360) a 14:00 (840)
+  if(mins >= 360 && mins < 840)  return 'T1 (06:00–14:00)';
+  // T2: 14:00 (840) a 21:30 (1290)
+  if(mins >= 840 && mins < 1290) return 'T2 (14:00–21:30)';
+  // T3: 21:30 (1290) a 06:00 del día siguiente (360)
   return 'T3 (21:30–07:00)';
+}
+
+function turnoLabel(){
+  var t = turnoActual();
+  if(t.startsWith('T1')) return 'Turno 1  ·  06:00–14:00';
+  if(t.startsWith('T2')) return 'Turno 2  ·  14:00–21:30';
+  return 'Turno 3  ·  21:30–07:00';
 }
 
 // Helper — ¿este técnico ya está en la OT?
@@ -1563,8 +1744,8 @@ function guardarActividad(){
   ot.avance=avance;
   ot.status=concluir?'validar':'proceso';
   if(concluir){
-    DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:`Tu OT ${ot.folio} fue concluida y está lista para que valides el cierre.`,fecha:new Date().toISOString(),leida:false});
-    DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:`OT ${ot.folio} concluida por ${currentUser.nombre}. Pendiente validación del solicitante.`,fecha:new Date().toISOString(),leida:false});
+    DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' fue concluida y está lista para que valides el cierre.',fecha:new Date().toISOString(),leida:false});
+    DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' concluida por '+currentUser.nombre+'. Pendiente validación del solicitante.',fecha:new Date().toISOString(),leida:false});
   }
   saveDB();
   document.getElementById('act-accion').value='';
@@ -1585,9 +1766,9 @@ function ponerEnEspera(){
   const ot=DB.ots.find(o=>o.id===currentOTId);
   ot.status='espera';
   ot.espera={motivo,comentario,fechaEst};
-  ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:`OT en espera: ${motivo} — ${comentario}. Fecha est. ${fmtDate(fechaEst)}`});
-  DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:`Tu OT ${ot.folio} está en espera: ${motivo}. ${comentario}. Fecha estimada: ${fmtDate(fechaEst)}`,fecha:new Date().toISOString(),leida:false});
-  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:`OT ${ot.folio} puesta en espera por ${currentUser.nombre}: ${motivo}.`,fecha:new Date().toISOString(),leida:false});
+  ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:'OT en espera: '+motivo+' — '+comentario+'. Fecha est. '+fmtDate(fechaEst)});
+  DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' está en espera: '+motivo+'. '+comentario+'. Fecha estimada: '+fmtDate(fechaEst),fecha:new Date().toISOString(),leida:false});
+  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' puesta en espera por '+currentUser.nombre+': '+motivo+'.',fecha:new Date().toISOString(),leida:false});
   saveDB();
   document.getElementById('espera-comentario').value='';
   document.getElementById('espera-fecha').value='';
@@ -1621,22 +1802,26 @@ function renderTecHistorial(){
   const ots=DB.ots.filter(function(o){ return o.status==='cerrado' && (tecnicoEnOT(o,currentUser.nombre)||(o.tecnico&&o.tecnico.toLowerCase()===cnH)); });
   const el=document.getElementById('tec-historial-list');
   if(!ots.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">Sin órdenes cerradas aún</div></div>';return;}
-  el.innerHTML=ots.map(ot=>`<div class="card" onclick="verOTTec('${ot.id}')">
-    <div class="card-header"><span class="card-folio">${ot.folio}</span>${statusBadge(ot.status)}</div>
-    <div class="card-desc">${ot.desc}</div>
-    <div class="card-tags"><span class="tag">${ot.equipo}</span><span class="tag">${fmt(ot.fechaCierre||ot.fechaAlta)}</span></div>
-  </div>`).join('');
+  el.innerHTML=ots.map(function(ot){
+    return '<div class="card" style="cursor:pointer" onclick="verOTTec(event.currentTarget.dataset.id)" data-id="'+ot.id+'">'
+      +'<div class="card-header"><span class="card-folio">'+ot.folio+'</span>'+statusBadge(ot.status)+'</div>'
+      +'<div class="card-desc">'+ot.desc+'</div>'
+      +'<div class="card-tags"><span class="tag">'+ot.equipo+'</span><span class="tag">'+fmt(ot.fechaCierre||ot.fechaAlta)+'</span></div>'
+      +'</div>';
+  }).join('');
 }
 
 function renderNotifsTec(){
+  reloadDB();
   const notifs=DB.notifs.filter(n=>n.para==='tecnico');
   const el=document.getElementById('tec-historial-list');
   if(!notifs.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">Sin notificaciones</div></div>';return;}
-  el.innerHTML='<div class="section-head">Notificaciones</div>'+notifs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(n=>`
-    <div class="notif-item" style="${!n.leida?'background:var(--green-light)':''}">
-      <div class="notif-dot2" style="background:${!n.leida?'var(--green)':'var(--border)'}"></div>
-      <div><div class="notif-text">${n.texto}</div><div class="notif-time">${fmt(n.fecha)}</div></div>
-    </div>`).join('');
+  el.innerHTML='<div class="section-head">Notificaciones</div>'+notifs.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);}).map(function(n){
+    return '<div class="notif-item" style="'+(n.leida?'':'background:var(--green-light)')+'">'
+      +'<div class="notif-dot2" style="background:'+(n.leida?'var(--border)':'var(--green)')+'"></div>'
+      +'<div><div class="notif-text">'+n.texto+'</div><div class="notif-time">'+fmt(n.fecha)+'</div></div>'
+      +'</div>';
+  }).join('');
   DB.notifs.filter(n=>n.para==='tecnico').forEach(n=>n.leida=true);
   saveDB();
   updateNotifDot('tec-notif-dot','tecnico');
@@ -1644,30 +1829,39 @@ function renderNotifsTec(){
 
 function renderTecPerfil(){
   const mis=DB.ots.filter(function(o){ return tecnicoEnOT(o,currentUser.nombre)||(o.tecnico&&o.tecnico.toLowerCase()===currentUser.nombre.toLowerCase()); });
-  document.getElementById('tec-perfil-content').innerHTML=`
-    <div style="padding:24px 16px;text-align:center">
-      <div class="avatar av-green" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">${initials(currentUser.nombre)}</div>
-      <div style="font-size:18px;font-weight:600;color:var(--text)">${currentUser.nombre}</div>
-      <div style="font-size:13px;color:var(--text2);margin-top:4px">Técnico · Turno 2</div>
-    </div>
-    <div class="section-head">Mi productividad</div>
-    <div class="field-row"><div class="field-lbl">OT atendidas total</div><div class="field-val">${mis.length}</div></div>
-    <div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">${mis.filter(o=>o.status==='cerrado').length}</div></div>
-    <div class="field-row"><div class="field-lbl">OT activas</div><div class="field-val">${mis.filter(o=>o.status!=='cerrado').length}</div></div>
-    <div style="padding:16px;margin-top:8px">
-      <button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>
-    </div>`;
+  var bioReg = JSON.parse(localStorage.getItem('mantoBio')||'{}')[currentUser.nomina];
+  document.getElementById('tec-perfil-content').innerHTML =
+    '<div style="padding:24px 16px;text-align:center">'
+      +'<div class="avatar av-green" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">'+initials(currentUser.nombre)+'</div>'
+      +'<div style="font-size:18px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
+      +'<div style="font-size:13px;color:var(--text2);margin-top:4px">Técnico · '+turnoLabel()+'</div>'
+    +'</div>'
+    +'<div class="section-head">Mi productividad</div>'
+    +'<div class="field-row"><div class="field-lbl">OT atendidas total</div><div class="field-val">'+mis.length+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">'+mis.filter(function(o){return o.status==='cerrado';}).length+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">OT activas</div><div class="field-val">'+mis.filter(function(o){return o.status!=='cerrado';}).length+'</div></div>'
+    +'<div class="section-head">Acceso biométrico</div>'
+    +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
+      +(bioReg
+        ?'<div class="alert alert-ok" style="margin:0"><div class="alert-icon">✓</div><div>Face ID / Huella activado</div></div>'
+        :'<button class="btn btn-outline btn-block" onclick="registrarBiometria()">'
+          +'<svg style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>'
+          +'Activar Face ID / Huella</button>')
+      +'<button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>'
+    +'</div>'
+    +'<div class="spacer"></div>';
 }
 
 // ==================== SUPERVISOR ====================
 function initSupervisor(){
-  document.getElementById('sup-greeting').textContent=`${currentUser.nombre} · Supervisor`;
+  document.getElementById('sup-greeting').textContent = currentUser.nombre + '  ·  Supervisor';
   updateNotifDot('sup-notif-dot','supervisor');
   renderDashboard();
   renderSupOTs('todas');
 }
 
 function renderDashboard(){
+  reloadDB();
   const ots=DB.ots;
   const abiertas=ots.filter(o=>o.status==='abierto').length;
   const proceso=ots.filter(o=>o.status==='proceso').length;
@@ -1676,32 +1870,231 @@ function renderDashboard(){
   const cerradas=ots.filter(o=>o.status==='cerrado').length;
   const total=ots.length;
 
-  document.getElementById('sup-kpis').innerHTML=`
-    <div class="kpi"><div class="kpi-label">Abiertas / nuevas</div><div class="kpi-val ${abiertas>5?'bad':abiertas>2?'warn':'good'}">${abiertas}</div><div class="kpi-sub">Sin técnico asignado</div></div>
-    <div class="kpi"><div class="kpi-label">En proceso</div><div class="kpi-val">${proceso}</div><div class="kpi-sub">Técnico trabajando</div></div>
-    <div class="kpi"><div class="kpi-label">En espera</div><div class="kpi-val ${espera>2?'bad':espera>0?'warn':'good'}">${espera}</div><div class="kpi-sub">Bloqueadas</div></div>
-    <div class="kpi"><div class="kpi-label">Por validar</div><div class="kpi-val ${validar>0?'warn':'good'}">${validar}</div><div class="kpi-sub">Esperando usuario</div></div>`;
+  var kpiCls = function(v,h,m){ return v>h?'bad':v>m?'warn':'good'; };
+  document.getElementById('sup-kpis').innerHTML =
+    '<div class="kpi"><div class="kpi-label">Abiertas / nuevas</div><div class="kpi-val '+kpiCls(abiertas,5,2)+'">'+abiertas+'</div><div class="kpi-sub">Sin técnico asignado</div></div>'
+    +'<div class="kpi"><div class="kpi-label">En proceso</div><div class="kpi-val">'+proceso+'</div><div class="kpi-sub">Técnico trabajando</div></div>'
+    +'<div class="kpi"><div class="kpi-label">En espera</div><div class="kpi-val '+kpiCls(espera,2,0)+'">'+espera+'</div><div class="kpi-sub">Bloqueadas</div></div>'
+    +'<div class="kpi"><div class="kpi-label">Por validar</div><div class="kpi-val '+(validar>0?'warn':'good')+'">'+validar+'</div><div class="kpi-sub">Esperando usuario</div></div>';
 
-  const tiposCount={};
-  ots.forEach(o=>{o.actividades.forEach(()=>{});});
+  document.getElementById('sup-bars').innerHTML=
+    '<div class="bar-row"><span class="bar-label">Neumático</span><div class="bar-track"><div class="bar-fill" style="width:'+Math.min(100,abiertas*20+30)+'%"></div></div><span class="bar-count">'+(abiertas+3)+'</span></div>'
+    +'<div class="bar-row"><span class="bar-label">Mecánico</span><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><span class="bar-count">'+(proceso+4)+'</span></div>'
+    +'<div class="bar-row"><span class="bar-label">Eléctrico</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-count">7</span></div>'
+    +'<div class="bar-row"><span class="bar-label">Hidráulico</span><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><span class="bar-count">3</span></div>';
 
-  document.getElementById('sup-bars').innerHTML=`
-    <div class="bar-row"><span class="bar-label">Neumático</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,abiertas*20+30)}%"></div></div><span class="bar-count">${abiertas+3}</span></div>
-    <div class="bar-row"><span class="bar-label">Mecánico</span><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><span class="bar-count">${proceso+4}</span></div>
-    <div class="bar-row"><span class="bar-label">Eléctrico</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-count">7</span></div>
-    <div class="bar-row"><span class="bar-label">Hidráulico</span><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><span class="bar-count">3</span></div>`;
-
-  const equipoCount={};
-  ots.forEach(o=>{equipoCount[o.equipo]=(equipoCount[o.equipo]||0)+1;});
-  const equiposSorted=Object.entries(equipoCount).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  document.getElementById('sup-equipos').innerHTML=equiposSorted.map(([eq,n])=>`
-    <div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">
-      <div><div class="field-lbl">${eq}</div><div style="font-size:11px;color:var(--text3)">Historial de fallas</div></div>
-      <div class="field-val" style="color:${n>5?'var(--red)':n>2?'var(--amber)':'var(--text)'}">${n} OT</div>
-    </div>`).join('');
+  var equipoCount={};
+  ots.forEach(function(o){equipoCount[o.equipo]=(equipoCount[o.equipo]||0)+1;});
+  var equiposSorted=Object.entries(equipoCount).sort(function(a,b){return b[1]-a[1];}).slice(0,4);
+  document.getElementById('sup-equipos').innerHTML=equiposSorted.map(function(entry){
+    var eq=entry[0], n=entry[1];
+    return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">'
+      +'<div><div class="field-lbl">'+eq+'</div><div style="font-size:11px;color:var(--text3)">Historial de fallas</div></div>'
+      +'<div class="field-val" style="color:'+(n>5?'var(--red)':n>2?'var(--amber)':'var(--text)')+'">'+n+' OT</div>'
+      +'</div>';
+  }).join('');
 }
 
+function secsToHHMMSS(secs){
+  if(!secs || secs < 0) return '--:--:--';
+  var h = Math.floor(secs/3600);
+  var m = Math.floor((secs%3600)/60);
+  var s = Math.floor(secs%60);
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+function diffSecs(isoA, isoB){
+  if(!isoA||!isoB) return null;
+  var diff = (new Date(isoB)-new Date(isoA))/1000;
+  return diff >= 0 ? diff : null;
+}
+
+function exportarExcelOTs(){
+  reloadDB();
+  var ots = DB.ots || [];
+  if(!ots.length){ alert('No hay OT para exportar.'); return; }
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+  function diffSecs2(isoA, isoB){
+    return Math.max(0, Math.floor((new Date(isoB)-new Date(isoA))/1000));
+  }
+  function toHHMMSS(secs){
+    if(isNaN(secs)||secs<0) return '--:--:--';
+    var h=Math.floor(secs/3600);
+    var m=Math.floor((secs%3600)/60);
+    var s=secs%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+  function fLocal(iso){
+    if(!iso) return '';
+    var d=new Date(iso);
+    return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  }
+  function hLocal(iso){
+    if(!iso) return '';
+    var d=new Date(iso);
+    return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  }
+
+  // ── Columnas exactas solicitadas ────────────────────────────────────────
+  var headers = [
+    'OT',
+    'Fecha de solicitud',
+    'Hora de solicitud',
+    'Solicitante',
+    'Nómina Solicitante',
+    'Equipo',
+    'Nave',
+    'Área',
+    'Descripción de la falla',
+    'Tipo de mantenimiento',
+    'Prioridad',
+    'Técnico que toma orden',
+    'Fecha en que se toma orden',
+    'Hora en que se toma orden',
+    'Tiempo de encuentro (HH:MM:SS)',
+    'Tiempo de intervención (HH:MM:SS)',
+    'Tiempo total de orden (HH:MM:SS)'
+  ];
+
+  var rows = ots.map(function(ot){
+    // Datos del solicitante
+    var dAlta    = ot.fechaAlta ? new Date(ot.fechaAlta) : null;
+    var fechaSol = fLocal(ot.fechaAlta);
+    var horaSol  = hLocal(ot.fechaAlta);
+
+    // Primer técnico que tomó la OT
+    var primer    = (ot.tecnicos && ot.tecnicos.length) ? ot.tecnicos[0] : null;
+    var nomTec    = primer ? primer.nombre : (ot.tecnico||'Sin asignar');
+    var fechaToma = primer ? primer.fecha  : (ot.fechaTomada||null);
+    var fechaTomStr = fLocal(fechaToma);
+    var horaTomStr  = hLocal(fechaToma);
+
+    // Cálculos de tiempo
+    var tEncuentro   = (ot.fechaAlta && fechaToma)
+      ? toHHMMSS(diffSecs2(ot.fechaAlta, fechaToma))
+      : '--:--:--';
+
+    var tIntervencion = (fechaToma && ot.fechaCierre)
+      ? toHHMMSS(diffSecs2(fechaToma, ot.fechaCierre))
+      : '--:--:--';
+
+    var tTotal = (ot.fechaAlta && ot.fechaCierre)
+      ? toHHMMSS(diffSecs2(ot.fechaAlta, ot.fechaCierre))
+      : '--:--:--';
+
+    var prioridad = ot.prioridad==='urgente' ? 'Urgente — Máquina parada' : 'Normal';
+
+    return [
+      ot.folio,          // OT
+      fechaSol,          // Fecha solicitud
+      horaSol,           // Hora solicitud
+      ot.solicitante,    // Solicitante
+      ot.nomina,         // Nómina
+      ot.equipo,         // Equipo
+      ot.nave,           // Nave
+      ot.area,           // Área
+      ot.desc,           // Descripción
+      ot.tipo,           // Tipo mantenimiento
+      prioridad,         // Prioridad
+      nomTec,            // Técnico
+      fechaTomStr,       // Fecha toma
+      horaTomStr,        // Hora toma
+      tEncuentro,        // Tiempo encuentro
+      tIntervencion,     // Tiempo intervención
+      tTotal             // Tiempo total
+    ];
+  });
+
+  // ── Build workbook ──────────────────────────────────────────────────────
+  var wb = XLSX.utils.book_new();
+  var wsData = [headers].concat(rows);
+  var ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths (characters)
+  var colW = [10, 16, 16, 28, 14, 10, 12, 14, 42, 24, 22, 28, 18, 18, 26, 26, 22];
+  ws['!cols'] = colW.map(function(w){ return {wch:w}; });
+
+  // Freeze first row
+  ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2', activePane:'bottomLeft', state:'frozen'};
+
+  // Style header row (purple background, white bold text)
+  var range = XLSX.utils.decode_range(ws['!ref']);
+  for(var c = range.s.c; c <= range.e.c; c++){
+    var cell = ws[XLSX.utils.encode_cell({r:0, c:c})];
+    if(!cell) continue;
+    cell.s = {
+      font:    { bold:true, color:{rgb:'FFFFFF'}, name:'Arial', sz:10 },
+      fill:    { fgColor:{rgb:'3C3489'}, patternType:'solid' },
+      alignment: { horizontal:'center', vertical:'center', wrapText:true },
+      border: {
+        bottom:{style:'medium', color:{rgb:'FFFFFF'}}
+      }
+    };
+  }
+
+  // Style data rows — alternate row colors + center time columns
+  for(var r = 1; r <= range.e.r; r++){
+    var bg = r%2===0 ? 'EEEDFE' : 'FFFFFF';
+    for(var c2 = range.s.c; c2 <= range.e.c; c2++){
+      var addr = XLSX.utils.encode_cell({r:r, c:c2});
+      var dc = ws[addr];
+      if(!dc){ ws[addr] = {t:'s', v:''}; dc = ws[addr]; }
+      var isTimeCol = c2 >= 14; // cols 14-16 = tiempos
+      dc.s = {
+        font:  { name:'Arial', sz:10 },
+        fill:  { fgColor:{rgb:bg}, patternType:'solid' },
+        alignment: { horizontal: isTimeCol?'center':'left', vertical:'center' },
+        border: {
+          bottom:{style:'thin', color:{rgb:'D0CEED'}},
+          right: {style:'thin', color:{rgb:'D0CEED'}}
+        }
+      };
+    }
+  }
+
+  // Auto-filter on header row
+  ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:0,c:range.e.c}})};
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Órdenes de Trabajo');
+
+  // ── Summary sheet ───────────────────────────────────────────────────────
+  var total   = ots.length;
+  var cerradas= ots.filter(function(o){return o.status==='cerrado';}).length;
+  var abiertas= ots.filter(function(o){return o.status==='abierto';}).length;
+  var proceso = ots.filter(function(o){return o.status==='proceso';}).length;
+  var espera  = ots.filter(function(o){return o.status==='espera';}).length;
+  var validar = ots.filter(function(o){return o.status==='validar';}).length;
+
+  var now = new Date();
+  var wsSumData = [
+    ['Reporte de Órdenes de Trabajo — Mantenimiento IMPREDIMEX'],
+    ['Generado el: '+now.toLocaleDateString('es-MX')+' a las '+now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})],
+    [''],
+    ['Resumen ejecutivo', ''],
+    ['Total de OT', total],
+    ['Cerradas', cerradas],
+    ['Abiertas / Sin tomar', abiertas],
+    ['En proceso', proceso],
+    ['En espera', espera],
+    ['Pendiente validación', validar],
+    [''],
+    ['Tasa de cierre', cerradas+'/'+total]
+  ];
+  var wsSum = XLSX.utils.aoa_to_sheet(wsSumData);
+  wsSum['!cols'] = [{wch:30},{wch:20}];
+  if(wsSum['A1']) wsSum['A1'].s = {font:{bold:true,sz:13,name:'Arial',color:{rgb:'3C3489'}}};
+  if(wsSum['A4']) wsSum['A4'].s = {font:{bold:true,sz:11,name:'Arial'}};
+  XLSX.utils.book_append_sheet(wb, wsSum, 'Resumen');
+
+  // ── Download ─────────────────────────────────────────────────────────────
+  var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb, 'OT_Mantenimiento_IMPREDIMEX_'+stamp+'.xlsx', {bookType:'xlsx', type:'binary', cellStyles:true});
+}
+
+
 function renderSupOTs(filter){
+  reloadDB();
   filter=filter||currentFilter;
   let ots=[...DB.ots];
   if(filter!=='todas') ots=ots.filter(o=>o.status===filter);
@@ -1736,38 +2129,187 @@ function verOTSup(id){
 }
 
 function buildDetalleSup(ot){
-  let acts='';
-  if(ot.actividades.length){
-    acts=`<div class="section-head">Actividades</div>`+ot.actividades.map(a=>`<div class="comment-row"><div class="comment-meta">${a.fecha} ${a.inicio}–${a.fin} · Avance: ${a.avance}%</div><div class="comment-text">${a.accion}</div></div>`).join('');
+
+  // ── Helper: build timeline events ──────────────────────────────────────
+  var events = [];
+
+  // 1. Creación de OT
+  events.push({
+    tipo:'creacion', fecha:ot.fechaAlta,
+    dot:'tl-dot-blue', icon:'📋',
+    titulo:'OT creada',
+    sub:'Solicitante: '+ot.solicitante+' (Nóm. '+ot.nomina+')<br>'
+       +'Equipo: '+ot.equipo+' — '+ot.nave+' · '+ot.area+'<br>'
+       +'Tipo: '+ot.tipo+' · Prioridad: '+(ot.prioridad==='urgente'?'<span class="tl-tag tl-tag-red">Urgente</span>':'Normal'),
+    tags:[]
+  });
+
+  // 2. Intervenciones de técnicos (toma de OT)
+  if(ot.tecnicos && ot.tecnicos.length){
+    ot.tecnicos.forEach(function(t, i){
+      events.push({
+        tipo:'tecnico', fecha:t.fecha,
+        dot:'tl-dot-green', icon:'👷',
+        titulo:(i===0?'OT tomada por primera vez':'Técnico se unió al turno siguiente'),
+        sub:t.nombre+' (Nóm. '+t.nomina+')<br>'+t.turno,
+        tags:[]
+      });
+    });
+  } else if(ot.tecnico && ot.fechaTomada){
+    events.push({
+      tipo:'tecnico', fecha:ot.fechaTomada,
+      dot:'tl-dot-green', icon:'👷',
+      titulo:'OT tomada',
+      sub:ot.tecnico,
+      tags:[]
+    });
   }
-  let refs='';
-  if(ot.refacciones.length){
-    const total=ot.refacciones.reduce((s,r)=>s+r.qty*r.costo,0);
-    refs=`<div class="section-head">Refacciones — Total: $${total.toFixed(2)}</div>`+ot.refacciones.map(r=>`<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center"><div><div class="field-lbl">${r.tipo}</div><div class="field-val" style="font-weight:400">${r.desc} × ${r.qty}</div></div><div class="field-val">$${(r.qty*r.costo).toFixed(2)}</div></div>`).join('');
+
+  // 3. Actividades registradas
+  if(ot.actividades && ot.actividades.length){
+    ot.actividades.forEach(function(a){
+      var fechaISO = a.fecha+'T'+(a.inicio||'00:00')+':00';
+      events.push({
+        tipo:'actividad', fecha:fechaISO,
+        dot:'tl-dot-purple', icon:'🔧',
+        titulo:'Actividad registrada',
+        sub:(a.tecnico||'Técnico')+' · '+a.fecha+' '+a.inicio+'–'+a.fin+'<br>'+a.accion
+           +(a.obs?'<br><em style="color:var(--text3)">'+a.obs+'</em>':''),
+        tags:['Avance: '+a.avance+'%']
+      });
+    });
   }
-  let comms='';
-  if(ot.comentarios.length){
-    comms=`<div class="section-head">Comentarios</div>`+ot.comentarios.map(c=>`<div class="comment-row"><div class="comment-meta">${c.autor} · ${fmt(c.fecha)}</div><div class="comment-text">${c.texto}</div></div>`).join('');
+
+  // 4. Refacciones utilizadas
+  if(ot.refacciones && ot.refacciones.length){
+    var total = ot.refacciones.reduce(function(s,r){return s+r.qty*r.costo;},0);
+    var refDesc = ot.refacciones.map(function(r){
+      return r.desc+' ('+r.qty+' u. · $'+(r.qty*r.costo).toFixed(2)+')';
+    }).join('<br>');
+    events.push({
+      tipo:'refaccion', fecha:ot.actividades&&ot.actividades.length?ot.actividades[ot.actividades.length-1].fecha+'T00:00:00':ot.fechaAlta,
+      dot:'tl-dot-amber', icon:'🔩',
+      titulo:'Refacciones utilizadas',
+      sub:refDesc,
+      tags:['Total: $'+total.toFixed(2)]
+    });
   }
-  // El técnico se auto-asigna — supervisor solo visualiza
+
+  // 5. Espera
+  if(ot.espera){
+    events.push({
+      tipo:'espera', fecha:null,
+      dot:'tl-dot-amber', icon:'⏸',
+      titulo:'OT puesta en espera',
+      sub:'Motivo: '+ot.espera.motivo+'<br>'+ot.espera.comentario,
+      tags:['Fecha est. reanudación: '+fmtDate(ot.espera.fechaEst)]
+    });
+  }
+
+  // 6. Comentarios
+  if(ot.comentarios && ot.comentarios.length){
+    ot.comentarios.forEach(function(c){
+      events.push({
+        tipo:'comentario', fecha:c.fecha,
+        dot:'tl-dot-gray', icon:'💬',
+        titulo:'Comentario',
+        sub:'<strong>'+c.autor+'</strong><br>'+c.texto,
+        tags:[]
+      });
+    });
+  }
+
+  // 7. Solicitud de cierre por técnico (cuando avance = 100 y status fue validar)
+  if(ot.status==='validar'||ot.status==='cerrado'){
+    var lastAct = ot.actividades&&ot.actividades.length ? ot.actividades[ot.actividades.length-1] : null;
+    if(lastAct && lastAct.avance===100){
+      var fechaSolCierre = lastAct.fecha+'T'+(lastAct.fin||'00:00')+':00';
+      events.push({
+        tipo:'sol-cierre', fecha:fechaSolCierre,
+        dot:'tl-dot-green', icon:'✅',
+        titulo:'Trabajo concluido — solicitando cierre',
+        sub:(lastAct.tecnico||'Técnico')+' marcó la OT como concluida al 100%',
+        tags:[]
+      });
+    }
+  }
+
+  // 8. Cierre validado por usuario
+  if(ot.status==='cerrado' && ot.fechaCierre){
+    events.push({
+      tipo:'cierre', fecha:ot.fechaCierre,
+      dot:'tl-dot-green', icon:'🔒',
+      titulo:'OT cerrada y validada',
+      sub:'El solicitante confirmó que el equipo quedó operando correctamente.',
+      tags:['<span class="tl-tag tl-tag-green">Cierre exitoso</span>']
+    });
+  }
+
+  // Sort events by date (nulls go at end)
+  events.sort(function(a,b){
+    if(!a.fecha) return 1;
+    if(!b.fecha) return -1;
+    return new Date(a.fecha)-new Date(b.fecha);
+  });
+
+  // Build timeline HTML
+  var tlHtml = '<div class="timeline">'
+    +events.map(function(e, idx){
+      var timeStr = e.fecha ? fmt(e.fecha) : '—';
+      var tagsHtml = e.tags.map(function(t){
+        return t.startsWith('<')?t:'<span class="tl-tag">'+t+'</span>';
+      }).join('');
+      return '<div class="tl-item">'
+        +'<div class="tl-line"></div>'
+        +'<div class="tl-dot '+e.dot+'" style="font-size:14px">'+e.icon+'</div>'
+        +'<div class="tl-body">'
+          +'<div class="tl-time">'+timeStr+'</div>'
+          +'<div class="tl-title">'+e.titulo+'</div>'
+          +'<div class="tl-sub">'+e.sub+'</div>'
+          +(tagsHtml?'<div style="margin-top:5px">'+tagsHtml+'</div>':'')
+        +'</div>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+
+  // ── Datos generales ─────────────────────────────────────────────────────
+  var stMap={abierto:'badge-abierto',proceso:'badge-proceso',espera:'badge-espera',validar:'badge-validar',cerrado:'badge-cerrado'};
+  var stLbl={abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Pendiente validación',cerrado:'Cerrada'};
+
   var asignarSec = !ot.tecnico
     ? '<div class="alert alert-warn" style="margin:8px 12px"><div class="alert-icon">⏳</div><div>OT pendiente de ser tomada por un técnico de mantenimiento.</div></div>'
     : '';
-  return `
-    <div class="section-head">Datos de la OT</div>
-    <div class="field-row"><div class="field-lbl">Solicitante</div><div class="field-val">${ot.solicitante} · Nóm. ${ot.nomina}</div></div>
-    <div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">${ot.tipo}</div></div>
-    <div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">${ot.equipo} — ${ot.nave} · ${ot.area}</div></div>
-    <div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">${ot.desc}</div></div>
-    <div class="field-row"><div class="field-lbl">Fecha de alta</div><div class="field-val">${fmt(ot.fechaAlta)}</div></div>
-    <div class="field-row"><div class="field-lbl">Técnico</div><div class="field-val">${ot.tecnico||'Sin asignar'}</div></div>
-    <div class="field-row"><div class="field-lbl">Avance</div>
-      <div class="progress-track"><div class="progress-fill" style="width:${ot.avance}%;background:var(--purple)"></div></div>
-      <div class="field-val" style="font-size:12px">${ot.avance}%</div>
-    </div>
-    ${ot.espera?`<div class="alert alert-warn"><div class="alert-icon">⏸</div><div><strong>En espera:</strong> ${ot.espera.motivo}<br>${ot.espera.comentario}<br>Fecha est: ${fmtDate(ot.espera.fechaEst)}</div></div>`:''}
-    ${asignarSec}${acts}${refs}${comms}
-    <div class="spacer"></div>`;
+
+  var esperaWarn = ot.espera && ot.status==='espera'
+    ? '<div class="alert alert-warn" style="margin:8px 12px"><div class="alert-icon">⏸</div><div><strong>En espera:</strong> '+ot.espera.motivo+'<br>'+ot.espera.comentario+'<br>Fecha est: '+fmtDate(ot.espera.fechaEst)+'</div></div>'
+    : '';
+
+  var refs='';
+  if(ot.refacciones && ot.refacciones.length){
+    var total2=ot.refacciones.reduce(function(s,r){return s+r.qty*r.costo;},0);
+    refs='<div class="section-head">Refacciones — Total: $'+total2.toFixed(2)+'</div>'
+      +ot.refacciones.map(function(r){
+        return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">'
+          +'<div><div class="field-lbl">'+r.tipo+'</div><div class="field-val" style="font-weight:400">'+r.desc+' × '+r.qty+'</div></div>'
+          +'<div class="field-val">$'+(r.qty*r.costo).toFixed(2)+'</div></div>';
+      }).join('');
+  }
+
+  return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center;padding:12px 16px">'
+    +'<div><div style="font-size:16px;font-weight:600;color:var(--text)">'+ot.folio+'</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-top:2px">'+ot.tipo+'</div></div>'
+    +'<span class="badge '+(stMap[ot.status]||'')+'">'+( stLbl[ot.status]||ot.status)+'</span>'
+    +'</div>'
+    +'<div class="field-row"><div class="field-lbl">Solicitante</div><div class="field-val">'+ot.solicitante+' · Nóm. '+ot.nomina+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+' — '+ot.nave+' · '+ot.area+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Avance general</div>'
+    +'<div class="progress-track"><div class="progress-fill" style="width:'+ot.avance+'%;background:var(--purple)"></div></div>'
+    +'<div class="field-val" style="font-size:12px">'+ot.avance+'%</div></div>'
+    +asignarSec+esperaWarn+refs
+    +'<div class="section-head">Historial completo de la OT</div>'
+    +tlHtml
+    +'<div class="spacer"></div>';
 }
 
 function asignarOT(){
@@ -1787,6 +2329,7 @@ function asignarOT(){
 }
 
 function renderTecnicos(){
+  reloadDB();
   const personal = getTecnicos();
   if(!personal.length){
     document.getElementById('sup-tecnicos-content').innerHTML=
@@ -1923,7 +2466,7 @@ function verDetalleTecnico(nomina){
 function abrirModalAsignar(){
   const sel = document.getElementById('asignar-tecnico');
   const nombres = getTecnicoNombres();
-  sel.innerHTML = nombres.map(n=>`<option value="${n}">${n}</option>`).join('');
+  sel.innerHTML = nombres.map(function(n){return '<option value="'+n+'">'+ n +'</option>';}).join('');
   openModal('modal-asignar');
 }
 
@@ -1980,32 +2523,33 @@ function returnToAdmin(){
 }
 
 function renderAlertas(){
+  reloadDB();
   const ots=DB.ots;
   const sinAsignar=ots.filter(o=>!o.tecnico&&o.status==='abierto');
   const esperaSinFecha=ots.filter(o=>o.status==='espera'&&(!o.espera?.fechaEst));
   const notifs=DB.notifs.filter(n=>n.para==='supervisor');
   let html='';
   if(sinAsignar.length){
-    html+=`<div class="section-head">Sin técnico asignado</div>`;
-    html+=sinAsignar.map(ot=>`<div class="alert alert-red">
-      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-      <div><strong>${ot.folio}</strong> — ${ot.desc.substring(0,60)}<br><span style="font-size:11px">${ot.equipo} · ${fmt(ot.fechaAlta)}</span></div>
-    </div>`).join('');
+    html+='<div class="section-head">Sin técnico asignado</div>';
+    html+=sinAsignar.map(function(ot){return '<div class="alert alert-red">'
+      +'<div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
+      +'<div><strong>'+ot.folio+'</strong> — '+ot.desc.substring(0,60)+'<br><span style="font-size:11px">'+ot.equipo+' · '+fmt(ot.fechaAlta)+'</span></div>'
+      +'</div>';}).join('');
   }
   if(esperaSinFecha.length){
-    html+=`<div class="section-head">En espera sin fecha estimada</div>`;
-    html+=esperaSinFecha.map(ot=>`<div class="alert alert-warn">
-      <div class="alert-icon">⏸</div>
-      <div><strong>${ot.folio}</strong> — ${ot.desc.substring(0,50)}<br><span style="font-size:11px">Sin fecha de reanudación registrada</span></div>
-    </div>`).join('');
+    html+='<div class="section-head">En espera sin fecha estimada</div>';
+    html+=esperaSinFecha.map(function(ot){return '<div class="alert alert-warn">'
+      +'<div class="alert-icon">⏸</div>'
+      +'<div><strong>'+ot.folio+'</strong> — '+ot.desc.substring(0,50)+'<br><span style="font-size:11px">Sin fecha de reanudación registrada</span></div>'
+      +'</div>';}).join('');
   }
-  html+=`<div class="section-head">Notificaciones recientes</div>`;
+  html+='<div class="section-head">Notificaciones recientes</div>';
   if(!notifs.length){html+='<div style="padding:14px 16px;font-size:13px;color:var(--text3)">Sin notificaciones nuevas</div>';}
-  else{html+=notifs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(n=>`
-    <div class="notif-item" style="${!n.leida?'background:var(--purple-light)':''}">
-      <div class="notif-dot2" style="background:${!n.leida?'var(--purple)':'var(--border)'}"></div>
-      <div><div class="notif-text">${n.texto}</div><div class="notif-time">${fmt(n.fecha)}</div></div>
-    </div>`).join('');}
+  else{html+=notifs.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);}).map(function(n){
+    return '<div class="notif-item" style="'+(n.leida?'':'background:var(--purple-light)')+'">'
+      +'<div class="notif-dot2" style="background:'+(n.leida?'var(--border)':'var(--purple)')+'"></div>'
+      +'<div><div class="notif-text">'+n.texto+'</div><div class="notif-time">'+fmt(n.fecha)+'</div></div>'
+      +'</div>';}).join('');}
   html+='<div class="spacer"></div>';
   document.getElementById('sup-alertas-content').innerHTML=html;
   DB.notifs.filter(n=>n.para==='supervisor').forEach(n=>n.leida=true);
@@ -2018,6 +2562,159 @@ document.getElementById('act-avance')?.addEventListener('input',function(){
   document.getElementById('act-avance-bar').style.width=this.value+'%';
 });
 
+
+
+// ══════════════════════════════════════
+// AJUSTE 2 — Perfil supervisor
+// ══════════════════════════════════════
+function renderSupPerfil(){
+  var ots = DB.ots || [];
+  document.getElementById('sup-perfil-content').innerHTML =
+    '<div style="padding:20px 16px 12px;text-align:center;border-bottom:1px solid var(--border)">'
+      +'<div class="avatar av-purple" style="width:56px;height:56px;font-size:18px;margin:0 auto 10px">'+initials(currentUser.nombre)+'</div>'
+      +'<div style="font-size:16px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-top:3px">'+currentUser.puesto+'</div>'
+      +'<div style="margin-top:6px"><span class="badge" style="background:var(--purple-light);color:var(--purple-dark)">Supervisor / Jefe Mantenimiento</span></div>'
+    +'</div>'
+    +'<div class="section-head">Resumen del sistema</div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">OT totales</div><div class="field-val">'+ots.length+'</div></div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">OT activas</div><div class="field-val">'+ots.filter(function(o){return o.status!=='cerrado';}).length+'</div></div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">OT cerradas</div><div class="field-val" style="color:var(--green)">'+ots.filter(function(o){return o.status==='cerrado';}).length+'</div></div>'
+    +'<div class="section-head">Acceso biométrico</div>'
+    +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
+      +'<button class="btn btn-outline btn-block" onclick="registrarBiometria()" id="btn-bio-sup">'
+        +'<svg style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>'
+        +'Activar Face ID / Huella'
+      +'</button>'
+    +'</div>'
+    +'<div style="padding:0 16px 16px">'
+      +'<button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>'
+    +'</div>'
+    +'<div class="spacer"></div>';
+}
+
+// ══════════════════════════════════════
+// AJUSTE 1 — Admin: gestión de OT
+// ══════════════════════════════════════
+function renderAdmOTs(){
+  reloadDB();
+  var ots = [...(DB.ots||[])].sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
+  var el = document.getElementById('adm-ots-list');
+  if(!el) return;
+  if(!ots.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes de trabajo</div></div>';
+    return;
+  }
+  var stMap={abierto:'badge-abierto',proceso:'badge-proceso',espera:'badge-espera',validar:'badge-validar',cerrado:'badge-cerrado'};
+  var stLbl={abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Validar',cerrado:'Cerrada'};
+  el.innerHTML = ots.map(function(ot){
+    return '<div class="card" style="margin-bottom:8px">'
+      +'<div class="card-header"><span class="card-folio">'+ot.folio+'</span><span class="badge '+stMap[ot.status]+'">'+stLbl[ot.status]+'</span></div>'
+      +'<div class="card-desc">'+ot.desc+'</div>'
+      +'<div class="card-tags" style="margin-bottom:8px"><span class="tag">'+ot.equipo+' · '+ot.nave+'</span><span class="tag">'+(ot.tecnico||'Sin asignar')+'</span></div>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-outline btn-sm" style="flex:1" onclick="admEditarOT(this.dataset.id)" data-id="'+ot.id+'">✏️ Modificar</button>'
+        +'<button class="btn btn-danger btn-sm" style="flex:1" onclick="admEliminarOT(this.dataset.id)" data-id="'+ot.id+'">🗑 Eliminar</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function admEditarOT(id){
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot) return;
+  // Mostrar modal de edición
+  var modal = document.getElementById('modal-adm-edit-ot');
+  document.getElementById('adm-edit-ot-id').value = ot.id;
+  document.getElementById('adm-edit-ot-desc').value = ot.desc;
+  document.getElementById('adm-edit-ot-status').value = ot.status;
+  document.getElementById('adm-edit-ot-tecnico').value = ot.tecnico||'';
+  document.getElementById('adm-edit-ot-prioridad').value = ot.prioridad||'normal';
+  openModal('modal-adm-edit-ot');
+}
+
+function admGuardarEditOT(){
+  var id = document.getElementById('adm-edit-ot-id').value;
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot){ closeModal('modal-adm-edit-ot'); return; }
+  ot.desc      = document.getElementById('adm-edit-ot-desc').value.trim() || ot.desc;
+  ot.status    = document.getElementById('adm-edit-ot-status').value;
+  ot.tecnico   = document.getElementById('adm-edit-ot-tecnico').value.trim() || null;
+  ot.prioridad = document.getElementById('adm-edit-ot-prioridad').value;
+  saveDB();
+  closeModal('modal-adm-edit-ot');
+  renderAdmOTs();
+  alert('✓ OT '+ot.folio+' actualizada.');
+}
+
+function admEliminarOT(id){
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot) return;
+  if(!confirm('¿Eliminar permanentemente la OT '+ot.folio+'? '+ot.desc+' Esta acción no se puede deshacer.')) return;
+  DB.ots = DB.ots.filter(function(o){ return o.id!==id; });
+  saveDB();
+  renderAdmOTs();
+  alert('✓ OT '+ot.folio+' eliminada.');
+}
+
+// ══════════════════════════════════════
+// AJUSTE 3 — WebAuthn (Face ID / Huella)
+// ══════════════════════════════════════
+function base64urlEncode(buffer){
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function registrarBiometria(){
+  if(!window.PublicKeyCredential){
+    alert('Tu navegador o dispositivo no soporta autenticación biométrica.');
+    return;
+  }
+  try{
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    var userId = new TextEncoder().encode(currentUser.nomina);
+    var cred = await navigator.credentials.create({publicKey:{
+      challenge: challenge,
+      rp:{ name:'MantoApp', id: location.hostname },
+      user:{ id: userId, name: currentUser.nomina, displayName: currentUser.nombre },
+      pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
+      authenticatorSelection:{ userVerification:'required' },
+      timeout: 60000
+    }});
+    // Guardar ID de credencial vinculada a esta nómina
+    var credId = base64urlEncode(cred.rawId);
+    var bioMap = JSON.parse(localStorage.getItem('mantoBio')||'{}');
+    bioMap[currentUser.nomina] = credId;
+    localStorage.setItem('mantoBio', JSON.stringify(bioMap));
+    alert('✓ Biometría registrada. La próxima vez podrás entrar con Face ID o huella.');
+  } catch(e){
+    if(e.name==='NotAllowedError') alert('Registro cancelado.');
+    else alert('Error al registrar biometría: '+e.message);
+  }
+}
+
+async function autenticarBiometria(nomina){
+  if(!window.PublicKeyCredential) return false;
+  var bioMap = JSON.parse(localStorage.getItem('mantoBio')||'{}');
+  var credId = bioMap[nomina];
+  if(!credId) return false;
+  try{
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    // Decode stored credId
+    var bin = atob(credId.replace(/-/g,'+').replace(/_/g,'/'));
+    var arr = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    await navigator.credentials.get({publicKey:{
+      challenge: challenge,
+      allowCredentials:[{type:'public-key', id: arr}],
+      userVerification:'required',
+      timeout: 60000
+    }});
+    return true;
+  } catch(e){ return false; }
+}
 
 // ==================== ADMIN ====================
 const CATALOG_PERSONAL = [ /* Lista retirada del historial por privacidad */ ];
@@ -2069,6 +2766,7 @@ function initAdmin(){
 function setStatusFilter(f){ admStatusFilter=f; renderPersonal(); }
 
 function renderPersonal(){
+  reloadDB();
   const q = (document.getElementById('adm-search')?.value||'').toLowerCase().trim();
   const dept = document.getElementById('adm-filter-dept')?.value||'';
   let list = DB.personal || [];
@@ -2241,6 +2939,7 @@ function reactivarPersona(nomina){
 }
 
 function renderEstadisticas(){
+  reloadDB();
   const personal = DB.personal || [];
   const activos = personal.filter(p=>p.estatus==='activo');
   const bajas = personal.filter(p=>p.estatus==='baja');
@@ -2398,6 +3097,16 @@ function renderAdmPerfil(){
           </div>
           <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
+        <div class="card" onclick="showScreen('adm-ots-screen');renderAdmOTs()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:#FAEEDA;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--amber);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Gestión de OT</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Modificar y eliminar órdenes de trabajo</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
 
       <div class="spacer"></div>
@@ -2461,6 +3170,20 @@ function renderAdmPerfil(){
       <div class="topbar-title" id="adm-det-titulo">Detalle</div>
     </div>
     <div class="scroll-content" id="adm-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Gestión de OT -->
+  <div id="adm-ots-screen" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Gestión de OT</div>
+    </div>
+    <div class="scroll-content">
+      <div class="list-pad" id="adm-ots-list"></div>
+      <div class="spacer"></div>
+    </div>
   </div>
 
   <!-- SCREEN: Formulario alta / modificación -->
@@ -2545,6 +3268,45 @@ function renderAdmPerfil(){
     <div style="padding:16px;display:flex;gap:8px">
       <button class="btn btn-outline" onclick="closeModal('modal-baja')" style="flex:1">Cancelar</button>
       <button class="btn btn-danger" onclick="confirmarBaja()" style="flex:2">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL EDITAR OT (Admin) -->
+<div class="modal-overlay" id="modal-adm-edit-ot">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Modificar OT</div>
+    <input type="hidden" id="adm-edit-ot-id">
+    <div class="field-row">
+      <div class="field-lbl">Descripción</div>
+      <textarea class="field-textarea" id="adm-edit-ot-desc" style="min-height:60px"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="adm-edit-ot-status">
+        <option value="abierto">Abierta</option>
+        <option value="proceso">En proceso</option>
+        <option value="espera">En espera</option>
+        <option value="validar">Pendiente validación</option>
+        <option value="cerrado">Cerrada</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Técnico asignado</div>
+      <input class="field-input" type="text" id="adm-edit-ot-tecnico" placeholder="Nombre del técnico">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Prioridad</div>
+      <select class="field-select" id="adm-edit-ot-prioridad">
+        <option value="normal">Normal</option>
+        <option value="urgente">Urgente</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-adm-edit-ot')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="admGuardarEditOT()" style="flex:2">Guardar cambios</button>
     </div>
   </div>
 </div>
