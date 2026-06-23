@@ -353,15 +353,11 @@ input[type=range].green{accent-color:var(--green)}
       <div class="field-row">
         <div class="field-lbl">Tipo de servicio</div>
         <select class="field-select" id="nueva-tipo">
-          <option value="MTTO-MAQ-PROD">MTTO-MAQ-PROD</option>
-          <option value="MTTO-INFRAESTRUCTURA">MTTO-INFRAESTRUCTURA</option>
-          <option value="MTTO-ELECTRICO">MTTO-ELÉCTRICO</option>
         </select>
       </div>
       <div class="field-row">
         <div class="field-lbl">Nave</div>
         <select class="field-select" id="nueva-nave">
-          <option>NAVE A1</option><option>NAVE A2</option><option>NAVE B</option><option>NAVE C</option>
         </select>
       </div>
       <div class="field-row">
@@ -1113,6 +1109,7 @@ function selectChip(el,group){
 
 // ==================== SOLICITANTE ====================
 function initSolicitante(){
+  poblarSelectsNueva();
   document.getElementById('sol-greeting').textContent = `Hola, ${currentUser.nombre.split(' ')[0]}`;
   document.getElementById('nueva-nomina-display').textContent = currentUser.nomina;
   document.getElementById('nueva-nombre-display').textContent = currentUser.nombre;
@@ -1170,6 +1167,24 @@ function otCardSol(ot){
   </div>`;
 }
 
+function poblarSelectsNueva(){
+  reloadDB();
+  var tipos = (DB.tiposServicio||DEFAULT_TIPOS).filter(function(t){ return t.activo; });
+  var naves = (DB.naves||DEFAULT_NAVES).filter(function(n){ return n.activo; });
+  var selTipo = document.getElementById('nueva-tipo');
+  var selNave = document.getElementById('nueva-nave');
+  if(selTipo){
+    selTipo.innerHTML = tipos.map(function(t){
+      return '<option value="'+t.nombre+'">'+t.nombre+'</option>';
+    }).join('');
+  }
+  if(selNave){
+    selNave.innerHTML = naves.map(function(n){
+      return '<option value="'+n.nombre+'">NAVE '+n.nombre+'</option>';
+    }).join('');
+  }
+}
+
 function crearOT(){
   var desc = document.getElementById('nueva-desc').value.trim();
   if(!desc){ alert('Describe el problema antes de enviar'); return; }
@@ -1214,6 +1229,31 @@ function crearOT(){
 
 
 var otParaRechazar = null;
+
+function confirmarPrimerContacto(id){
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot){ alert('OT no encontrada'); return; }
+  if(ot.fechaPrimerContacto){
+    alert('El primer contacto ya fue registrado: '+fmt(ot.fechaPrimerContacto));
+    return;
+  }
+  ot.fechaPrimerContacto = new Date().toISOString();
+  DB.notifs.push({
+    id:'n'+Date.now(), para:'supervisor',
+    texto:'OT '+ot.folio+' — primer contacto confirmado por '+currentUser.nombre+' a las '+fmt(ot.fechaPrimerContacto),
+    fecha:new Date().toISOString(), leida:false
+  });
+  DB.notifs.push({
+    id:'n'+Date.now(), para:'tecnico',
+    texto:'El solicitante confirmó tu presencia en la máquina para OT '+ot.folio+'.',
+    fecha:new Date().toISOString(), leida:false
+  });
+  saveDB();
+  verOTSol(id);
+  renderSolOTs('todas');
+  alert('✓ Hora de primer contacto registrada: '+fmt(ot.fechaPrimerContacto));
+}
+
 
 function cerrarOT(id){
   // id puede venir de data-id del botón
@@ -1281,12 +1321,18 @@ function verOTSol(id){
 
 function buildDetalleSol(ot){
   var steps=[
-    {label:'Abierta',  done:true},
-    {label:'Asignada', done:!!ot.tecnico},
-    {label:'En proceso',done:['proceso','espera','validar','cerrado'].includes(ot.status)},
-    {label:'Validar',  done:ot.status==='cerrado'}
+    {label:'Abierta',        done:true},
+    {label:'Tomada',         done:!!ot.tecnico},
+    {label:'Primer contacto',done:!!ot.fechaPrimerContacto},
+    {label:'En proceso',     done:['proceso','espera','validar','cerrado'].includes(ot.status)},
+    {label:'Validar',        done:ot.status==='cerrado'}
   ];
-  var activeStep=ot.status==='abierto'?0:ot.status==='proceso'||ot.status==='espera'?2:ot.status==='validar'?3:4;
+  var activeStep = ot.status==='abierto' ? 0
+    : !ot.tecnico ? 0
+    : !ot.fechaPrimerContacto ? 1
+    : (ot.status==='proceso'||ot.status==='espera') ? 3
+    : ot.status==='validar' ? 4
+    : 5;
   var stepHTML='<div class="stepper">';
   steps.forEach(function(s,i){
     var cls=s.done&&i<activeStep?'done':i===activeStep?'active':'pending';
@@ -1301,6 +1347,16 @@ function buildDetalleSol(ot){
       +'<div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
       +'<div><strong>En espera:</strong> '+ot.espera.motivo+'<br>'+ot.espera.comentario+'<br><strong>Fecha estimada: '+fmtDate(ot.espera.fechaEst)+'</strong></div>'
       +'</div>';
+  }
+
+  // ── Caja "Técnico en máquina" ─────────────────────────────────────────
+  var primerContactoBox = '';
+  if(ot.tecnico && !ot.fechaPrimerContacto && ot.status!=='cerrado' && ot.status!=='validar'){
+    primerContactoBox =
+      '<div class="validate-box" style="background:var(--blue-light);border:1.5px solid var(--blue)">'      +'<div class="validate-title" style="color:var(--blue-dark)">'        +'Técnico asignado: '+ot.tecnico      +'</div>'      +'<div class="validate-sub" style="color:var(--blue)">'        +'Confirma cuando el técnico llegue a la máquina y comience a intervenir el problema.'      +'</div>'      +'<button class="btn btn-primary btn-block" '        +'onclick="confirmarPrimerContacto(this.dataset.id)" data-id="'+ot.id+'">'        +'✅ Técnico en máquina'      +'</button>'      +'</div>';
+  } else if(ot.fechaPrimerContacto){
+    primerContactoBox =
+      '<div class="field-row">'        +'<div class="field-lbl">Hora de primer contacto</div>'        +'<div class="field-val" style="color:var(--green)">'          +fmt(ot.fechaPrimerContacto)        +'</div>'      +'</div>';
   }
 
   var validar='';
@@ -1347,7 +1403,7 @@ function buildDetalleSol(ot){
       }).join('');
   }
 
-  return stepHTML+espera
+  return stepHTML+espera+primerContactoBox
     +'<div class="section-head">Datos de la solicitud</div>'
     +'<div class="field-row"><div class="field-lbl">Folio</div><div class="field-val">'+ot.folio+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">'+ot.tipo+'</div></div>'
@@ -1744,6 +1800,7 @@ function guardarActividad(){
   ot.avance=avance;
   ot.status=concluir?'validar':'proceso';
   if(concluir){
+    ot.fechaCierreMantenimiento = new Date().toISOString(); // Fecha exacta en que mantenimiento concluye
     DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' fue concluida y está lista para que valides el cierre.',fecha:new Date().toISOString(),leida:false});
     DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' concluida por '+currentUser.nombre+'. Pendiente validación del solicitante.',fecha:new Date().toISOString(),leida:false});
   }
@@ -1914,7 +1971,7 @@ function exportarExcelOTs(){
   var ots = DB.ots || [];
   if(!ots.length){ alert('No hay OT para exportar.'); return; }
 
-  // ── Helpers ────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
   function diffSecs2(isoA, isoB){
     return Math.max(0, Math.floor((new Date(isoB)-new Date(isoA))/1000));
   }
@@ -1927,18 +1984,22 @@ function exportarExcelOTs(){
   }
   function fLocal(iso){
     if(!iso) return '';
-    var d=new Date(iso);
-    return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+    return new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   }
   function hLocal(iso){
     if(!iso) return '';
-    var d=new Date(iso);
-    return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+    return new Date(iso).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
   }
+  var prioLabel = function(p){ return p==='urgente'?'Urgente — Máquina parada':'Normal'; };
+  var stLabel   = {abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Pendiente validación',cerrado:'Cerrada'};
 
-  // ── Columnas exactas solicitadas ────────────────────────────────────────
+  // ── Columnas ──────────────────────────────────────────────────────────────
+  // Columnas base de la OT (se repiten en cada fila de técnico)
+  // + columnas por técnico + tiempos calculados por técnico
   var headers = [
+    // OT
     'OT',
+    'Estatus',
     'Fecha de solicitud',
     'Hora de solicitud',
     'Solicitante',
@@ -1949,149 +2010,319 @@ function exportarExcelOTs(){
     'Descripción de la falla',
     'Tipo de mantenimiento',
     'Prioridad',
-    'Técnico que toma orden',
-    'Fecha en que se toma orden',
-    'Hora en que se toma orden',
-    'Tiempo de encuentro (HH:MM:SS)',
+    // Por técnico
+    'Nú de técnico en la OT',
+    'Técnico',
+    'Nómina Técnico',
+    'Turno',
+    'Fecha en que toma orden',
+    'Hora en que toma orden',
+    // Tiempos por técnico
+    'Hora de primer contacto',
+    'Actividades',
+    'Refacciones',
+    'Cant. Ref.',
+    'Precio',
+    'Tiempo de confirmación (HH:MM:SS)',
     'Tiempo de intervención (HH:MM:SS)',
-    'Tiempo total de orden (HH:MM:SS)'
+    // Tiempo total (solo en fila del último técnico)
+    'Tiempo total de orden (HH:MM:SS)',
+    'Fecha cierre Mantenimiento',
+    'Hora cierre Mantenimiento',
+    'Fecha cierre Usuario',
+    'Hora cierre Usuario'
   ];
 
-  var rows = ots.map(function(ot){
-    // Datos del solicitante
-    var dAlta    = ot.fechaAlta ? new Date(ot.fechaAlta) : null;
+  // ── Generar filas: una por técnico que intervino ──────────────────────────
+  var rows = [];
+
+  ots.forEach(function(ot){
     var fechaSol = fLocal(ot.fechaAlta);
     var horaSol  = hLocal(ot.fechaAlta);
+    var prioridad = prioLabel(ot.prioridad);
+    var status    = stLabel[ot.status]||ot.status;
 
-    // Primer técnico que tomó la OT
-    var primer    = (ot.tecnicos && ot.tecnicos.length) ? ot.tecnicos[0] : null;
-    var nomTec    = primer ? primer.nombre : (ot.tecnico||'Sin asignar');
-    var fechaToma = primer ? primer.fecha  : (ot.fechaTomada||null);
-    var fechaTomStr = fLocal(fechaToma);
-    var horaTomStr  = hLocal(fechaToma);
+    // Lista de técnicos — garantizamos al menos 1 fila por OT
+    var tecs = (ot.tecnicos && ot.tecnicos.length)
+      ? ot.tecnicos
+      : (ot.tecnico ? [{nombre:ot.tecnico, nomina:ot.nominaTecnico||'', turno:'', fecha:ot.fechaTomada||''}] : []);
 
-    // Cálculos de tiempo
-    var tEncuentro   = (ot.fechaAlta && fechaToma)
-      ? toHHMMSS(diffSecs2(ot.fechaAlta, fechaToma))
-      : '--:--:--';
+    if(!tecs.length){
+      // OT sin técnico todavía — una fila con columnas de técnico en blanco
+      rows.push([
+        ot.folio, status, fechaSol, horaSol,
+        ot.solicitante, ot.nomina,
+        ot.equipo, ot.nave, ot.area, ot.desc, ot.tipo, prioridad,
+        '', 'Sin asignar', '', '', '', '',
+        '',
+        '',
+        '', '', '',
+        '--:--:--', '--:--:--', '--:--:--',
+        '', '', '', ''
+      ]);
+      return;
+    }
 
-    var tIntervencion = (fechaToma && ot.fechaCierre)
-      ? toHHMMSS(diffSecs2(fechaToma, ot.fechaCierre))
-      : '--:--:--';
+    tecs.forEach(function(tec, idx){
+      var esPrimero = idx === 0;
+      var esUltimo  = idx === tecs.length - 1;
 
-    var tTotal = (ot.fechaAlta && ot.fechaCierre)
-      ? toHHMMSS(diffSecs2(ot.fechaAlta, ot.fechaCierre))
-      : '--:--:--';
+      // Tiempo de encuentro: solo aplica al primer técnico (creación → primer toma)
+      var tEncuentro = '--:--:--';
+      if(esPrimero && ot.fechaAlta && tec.fecha){
+        tEncuentro = toHHMMSS(diffSecs2(ot.fechaAlta, tec.fecha));
+      }
 
-    var prioridad = ot.prioridad==='urgente' ? 'Urgente — Máquina parada' : 'Normal';
+      // Tiempo de intervención de ESTE técnico:
+      // desde que este técnico toma hasta que el siguiente toma (o hasta cierre si es el último)
+      var tIntervencion = '--:--:--';
+      if(tec.fecha){
+        var finTec = esUltimo
+          ? (ot.fechaCierre || null)           // último: hasta cierre
+          : (tecs[idx+1] ? tecs[idx+1].fecha : null); // no último: hasta que el siguiente toma
+        if(finTec){
+          tIntervencion = toHHMMSS(diffSecs2(tec.fecha, finTec));
+        }
+      }
 
-    return [
-      ot.folio,          // OT
-      fechaSol,          // Fecha solicitud
-      horaSol,           // Hora solicitud
-      ot.solicitante,    // Solicitante
-      ot.nomina,         // Nómina
-      ot.equipo,         // Equipo
-      ot.nave,           // Nave
-      ot.area,           // Área
-      ot.desc,           // Descripción
-      ot.tipo,           // Tipo mantenimiento
-      prioridad,         // Prioridad
-      nomTec,            // Técnico
-      fechaTomStr,       // Fecha toma
-      horaTomStr,        // Hora toma
-      tEncuentro,        // Tiempo encuentro
-      tIntervencion,     // Tiempo intervención
-      tTotal             // Tiempo total
-    ];
-  });
+      // Tiempo total: solo en la última fila de la OT (para no repetirlo)
+      var tTotal = '--:--:--';
+      if(esUltimo && ot.fechaAlta && ot.fechaCierre){
+        tTotal = toHHMMSS(diffSecs2(ot.fechaAlta, ot.fechaCierre));
+      }
 
-  // ── Build workbook ──────────────────────────────────────────────────────
+      // ── Actividades: solo las registradas por ESTE técnico, numeradas globalmente
+      var actividadesTexto = '';
+      if(ot.actividades && ot.actividades.length){
+        var actsDelTec = ot.actividades.filter(function(a){
+          return a.tecnico && a.tecnico.toLowerCase() === tec.nombre.toLowerCase();
+        });
+        if(actsDelTec.length){
+          // Numeración global dentro de la OT
+          var globalIdx = 0;
+          actividadesTexto = ot.actividades.map(function(a, i){
+            if(a.tecnico && a.tecnico.toLowerCase() === tec.nombre.toLowerCase()){
+              globalIdx++;
+              return globalIdx+'. '+a.accion+(a.obs?' ('+a.obs+')':'');
+            }
+            return null;
+          }).filter(function(x){ return x!==null; }).join('\n');
+        }
+      }
+
+      // ── Refacciones: se manejan abajo como filas adicionales ──────────
+      // En esta fila del técnico dejan las columnas en blanco si hay refacciones
+      // (se agregarán como filas separadas al final del grupo de técnicos)
+      var refNombres = '';
+      var refCants   = '';
+      var refPrecios = '';
+
+      // Cierre mantenimiento: fecha exacta guardada cuando el técnico marcó "concluida"
+      // Retrocompatibilidad: si no existe fechaCierreMantenimiento, buscar última actividad con avance 100
+      var cierreMantoISO = ot.fechaCierreMantenimiento || null;
+      if(!cierreMantoISO && ot.actividades && ot.actividades.length){
+        var acts100 = ot.actividades.filter(function(a){ return parseInt(a.avance)===100; });
+        if(acts100.length){
+          var last100 = acts100[acts100.length-1];
+          if(last100.fecha && last100.fin){
+            cierreMantoISO = last100.fecha+'T'+last100.fin+':00';
+          }
+        }
+      }
+      var cierreMantoF  = esUltimo && cierreMantoISO ? fLocal(cierreMantoISO) : '';
+      var cierreMantoH  = esUltimo && cierreMantoISO ? hLocal(cierreMantoISO) : '';
+      var cierreUsrF    = esUltimo && ot.fechaCierre  ? fLocal(ot.fechaCierre) : '';
+      var cierreUsrH    = esUltimo && ot.fechaCierre  ? hLocal(ot.fechaCierre) : '';
+
+      rows.push([
+        ot.folio,
+        status,
+        fechaSol,
+        horaSol,
+        ot.solicitante,
+        ot.nomina,
+        ot.equipo,
+        ot.nave,
+        ot.area,
+        ot.desc,
+        ot.tipo,
+        prioridad,
+        idx+1,
+        tec.nombre,
+        tec.nomina || '',
+        tec.turno  || '',
+        esPrimero ? fLocal(tec.fecha) : '',
+        esPrimero ? hLocal(tec.fecha) : '',
+        esPrimero ? hLocal(ot.fechaPrimerContacto||null) : '',
+        actividadesTexto,
+        '',
+        '',
+        '',
+        tEncuentro,
+        tIntervencion,
+        tTotal,
+        cierreMantoF,
+        cierreMantoH,
+        cierreUsrF,
+        cierreUsrH
+      ]);
+    }); // end tecs.forEach
+
+    // ── Filas adicionales: una por refacción ─────────────────────────────
+    if(ot.refacciones && ot.refacciones.length){
+      ot.refacciones.forEach(function(ref){
+        rows.push([
+          ot.folio,
+          stLabel[ot.status]||ot.status,
+          fLocal(ot.fechaAlta),
+          hLocal(ot.fechaAlta),
+          ot.solicitante,
+          ot.nomina,
+          ot.equipo,
+          ot.nave,
+          ot.area,
+          ot.desc,
+          ot.tipo,
+          prioLabel(ot.prioridad),
+          '',   // N° técnico
+          '',   // Técnico
+          '',   // Nómina técnico
+          '',   // Turno
+          '',   // Fecha toma
+          '',   // Hora toma
+          '',   // Hora primer contacto
+          '',   // Actividades
+          ref.desc,                                    // Refacción
+          ref.qty,                                     // Cantidad (número)
+          parseFloat((ref.qty * ref.costo).toFixed(2)),// Precio (número)
+          '',   // T. confirmación
+          '',   // T. intervención
+          '',   // T. total
+          '',   // Fecha cierre manto
+          '',   // Hora cierre manto
+          '',   // Fecha cierre usuario
+          ''    // Hora cierre usuario
+        ]);
+      });
+    }
+
+  }); // end ots.forEach
+
+  // ── Construir libro ───────────────────────────────────────────────────────
   var wb = XLSX.utils.book_new();
   var wsData = [headers].concat(rows);
   var ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // Column widths (characters)
-  var colW = [10, 16, 16, 28, 14, 10, 12, 14, 42, 24, 22, 28, 18, 18, 26, 26, 22];
+  // Anchos de columna
+  var colW = [10,18,16,16,28,14,10,12,14,40,24,22, 10,28,14,20,18,18, 16,50,30,10,14, 26,26,26, 22,16,22,16];
   ws['!cols'] = colW.map(function(w){ return {wch:w}; });
 
-  // Freeze first row
+  // Fila 1 congelada
   ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2', activePane:'bottomLeft', state:'frozen'};
 
-  // Style header row (purple background, white bold text)
+  // Estilos
   var range = XLSX.utils.decode_range(ws['!ref']);
-  for(var c = range.s.c; c <= range.e.c; c++){
-    var cell = ws[XLSX.utils.encode_cell({r:0, c:c})];
-    if(!cell) continue;
-    cell.s = {
-      font:    { bold:true, color:{rgb:'FFFFFF'}, name:'Arial', sz:10 },
-      fill:    { fgColor:{rgb:'3C3489'}, patternType:'solid' },
-      alignment: { horizontal:'center', vertical:'center', wrapText:true },
-      border: {
-        bottom:{style:'medium', color:{rgb:'FFFFFF'}}
-      }
+
+  // Encabezado — fondo morado
+  for(var c=range.s.c; c<=range.e.c; c++){
+    var hcell = ws[XLSX.utils.encode_cell({r:0,c:c})];
+    if(!hcell) continue;
+    hcell.s = {
+      font:      {bold:true, color:{rgb:'FFFFFF'}, name:'Arial', sz:10},
+      fill:      {fgColor:{rgb:'3C3489'}, patternType:'solid'},
+      alignment: {horizontal:'center', vertical:'center', wrapText:true},
+      border:    {bottom:{style:'medium',color:{rgb:'FFFFFF'}}}
     };
   }
 
-  // Style data rows — alternate row colors + center time columns
-  for(var r = 1; r <= range.e.r; r++){
-    var bg = r%2===0 ? 'EEEDFE' : 'FFFFFF';
-    for(var c2 = range.s.c; c2 <= range.e.c; c2++){
+  // ── Filas de datos con color por OT alternado ───────────────────────────
+  // Cada grupo de filas de la misma OT comparte el mismo color de fondo
+  // para distinguir visualmente qué filas pertenecen a la misma OT.
+  var otColorMap = {};
+  var colorA = 'FFFFFF'; // blanco
+  var colorB = 'EEEDFE'; // lila claro
+  var colorToggle = false;
+  var lastFolio = null;
+
+  rows.forEach(function(row){ // pre-build color map
+    var folio = row[0];
+    if(folio !== lastFolio){
+      colorToggle = !colorToggle;
+      otColorMap[folio] = colorToggle ? colorA : colorB;
+      lastFolio = folio;
+    }
+  });
+
+  // Fila de separación entre OTs — línea más gruesa
+  var prevFolio2 = null;
+  for(var r=1; r<=range.e.r; r++){
+    var rowFolio = rows[r-1] ? rows[r-1][0] : null;
+    var bg = otColorMap[rowFolio] || 'FFFFFF';
+    var isFirstOfGroup = rowFolio !== prevFolio2;
+    prevFolio2 = rowFolio;
+
+    for(var c2=range.s.c; c2<=range.e.c; c2++){
       var addr = XLSX.utils.encode_cell({r:r, c:c2});
       var dc = ws[addr];
-      if(!dc){ ws[addr] = {t:'s', v:''}; dc = ws[addr]; }
-      var isTimeCol = c2 >= 14; // cols 14-16 = tiempos
+      if(!dc){ ws[addr]={t:'s',v:''}; dc=ws[addr]; }
+      var isTimeCol = c2 >= 23 && c2 <= 25;
+      var isNumCol  = c2 === 12; // N° técnico
       dc.s = {
-        font:  { name:'Arial', sz:10 },
-        fill:  { fgColor:{rgb:bg}, patternType:'solid' },
-        alignment: { horizontal: isTimeCol?'center':'left', vertical:'center' },
+        font:      {name:'Arial', sz:10, bold: isFirstOfGroup && c2===0},
+        fill:      {fgColor:{rgb:bg}, patternType:'solid'},
+        alignment: {
+          horizontal: (isTimeCol||isNumCol) ? 'center' : 'left',
+          vertical:   'top',
+          wrapText:   true
+        },
         border: {
-          bottom:{style:'thin', color:{rgb:'D0CEED'}},
-          right: {style:'thin', color:{rgb:'D0CEED'}}
+          top:    isFirstOfGroup ? {style:'medium', color:{rgb:'3C3489'}} : {style:'thin', color:{rgb:'D0CEED'}},
+          bottom: {style:'thin', color:{rgb:'D0CEED'}},
+          right:  {style:'thin', color:{rgb:'D0CEED'}}
         }
       };
     }
   }
 
-  // Auto-filter on header row
+  // Autofilter
   ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:0,c:range.e.c}})};
 
   XLSX.utils.book_append_sheet(wb, ws, 'Órdenes de Trabajo');
 
-  // ── Summary sheet ───────────────────────────────────────────────────────
-  var total   = ots.length;
-  var cerradas= ots.filter(function(o){return o.status==='cerrado';}).length;
-  var abiertas= ots.filter(function(o){return o.status==='abierto';}).length;
-  var proceso = ots.filter(function(o){return o.status==='proceso';}).length;
-  var espera  = ots.filter(function(o){return o.status==='espera';}).length;
-  var validar = ots.filter(function(o){return o.status==='validar';}).length;
+  // ── Hoja de resumen ───────────────────────────────────────────────────────
+  var total    = ots.length;
+  var cerradas = ots.filter(function(o){return o.status==='cerrado';}).length;
+  var abiertas = ots.filter(function(o){return o.status==='abierto';}).length;
+  var proceso2 = ots.filter(function(o){return o.status==='proceso';}).length;
+  var espera2  = ots.filter(function(o){return o.status==='espera';}).length;
+  var validar2 = ots.filter(function(o){return o.status==='validar';}).length;
+  var now      = new Date();
 
-  var now = new Date();
   var wsSumData = [
     ['Reporte de Órdenes de Trabajo — Mantenimiento IMPREDIMEX'],
-    ['Generado el: '+now.toLocaleDateString('es-MX')+' a las '+now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})],
+    ['Generado: '+fLocal(now.toISOString())+' '+hLocal(now.toISOString())],
     [''],
     ['Resumen ejecutivo', ''],
     ['Total de OT', total],
     ['Cerradas', cerradas],
     ['Abiertas / Sin tomar', abiertas],
-    ['En proceso', proceso],
-    ['En espera', espera],
-    ['Pendiente validación', validar],
+    ['En proceso', proceso2],
+    ['En espera', espera2],
+    ['Pendiente validación', validar2],
     [''],
-    ['Tasa de cierre', cerradas+'/'+total]
+    ['Total de filas exportadas (por técnico)', rows.length],
+    ['Nota: OTs con múltiples técnicos generan una fila por técnico','']
   ];
   var wsSum = XLSX.utils.aoa_to_sheet(wsSumData);
-  wsSum['!cols'] = [{wch:30},{wch:20}];
-  if(wsSum['A1']) wsSum['A1'].s = {font:{bold:true,sz:13,name:'Arial',color:{rgb:'3C3489'}}};
-  if(wsSum['A4']) wsSum['A4'].s = {font:{bold:true,sz:11,name:'Arial'}};
+  wsSum['!cols'] = [{wch:40},{wch:16}];
+  if(wsSum['A1']) wsSum['A1'].s={font:{bold:true,sz:13,name:'Arial',color:{rgb:'3C3489'}}};
+  if(wsSum['A4']) wsSum['A4'].s={font:{bold:true,sz:11,name:'Arial'}};
   XLSX.utils.book_append_sheet(wb, wsSum, 'Resumen');
 
-  // ── Download ─────────────────────────────────────────────────────────────
+  // ── Descargar ─────────────────────────────────────────────────────────────
   var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
   XLSX.writeFile(wb, 'OT_Mantenimiento_IMPREDIMEX_'+stamp+'.xlsx', {bookType:'xlsx', type:'binary', cellStyles:true});
 }
-
 
 function renderSupOTs(filter){
   reloadDB();
@@ -2216,6 +2447,17 @@ function buildDetalleSup(ot){
         sub:'<strong>'+c.autor+'</strong><br>'+c.texto,
         tags:[]
       });
+    });
+  }
+
+  // 3b. Primer contacto confirmado por el solicitante
+  if(ot.fechaPrimerContacto){
+    events.push({
+      tipo:'primer-contacto', fecha:ot.fechaPrimerContacto,
+      dot:'tl-dot-blue', icon:'🤝',
+      titulo:'Técnico en máquina — primer contacto',
+      sub:'El solicitante confirmó que el técnico llegó a intervenir el problema.',
+      tags:[]
     });
   }
 
@@ -2716,8 +2958,127 @@ async function autenticarBiometria(nomina){
   } catch(e){ return false; }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// CATÁLOGO TIPO DE SERVICIO Y NAVE
+// ══════════════════════════════════════════════════════════════════
+function renderAdmCatalogos(){
+  reloadDB();
+  var tipos = DB.tiposServicio || DEFAULT_TIPOS;
+  var naves = DB.naves || DEFAULT_NAVES;
+
+  function renderLista(items, tipo){
+    return items.map(function(item){
+      var editBtn   = '<button class="btn btn-sm btn-outline" onclick="abrirFormCatalogo(this.dataset.t,this.dataset.i)" data-t="'+tipo+'" data-i="'+item.id+'" style="padding:4px 10px;font-size:11px">Editar</button>';
+      var statusBtn = item.activo
+        ? '<button class="btn btn-sm btn-danger" onclick="bajarCatalogo(this.dataset.t,this.dataset.i)" data-t="'+tipo+'" data-i="'+item.id+'" style="padding:4px 10px;font-size:11px">Baja</button>'
+        : '<button class="btn btn-sm btn-outline" onclick="activarCatalogo(this.dataset.t,this.dataset.i)" data-t="'+tipo+'" data-i="'+item.id+'" style="padding:4px 10px;font-size:11px">Activar</button>';
+      return '<div class="field-row" style="flex-direction:row;align-items:center;gap:10px">'
+        +'<div style="flex:1">'
+          +'<div class="field-val" style="font-size:13px'+(item.activo?'':';color:var(--text3);text-decoration:line-through')+'">'+item.nombre+'</div>'
+          +'<span class="badge '+(item.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 7px">'+(item.activo?'Activo':'Baja')+'</span>'
+        +'</div>'
+        +editBtn+statusBtn
+        +'</div>';
+    }).join('');
+  }
+
+  var elTipos = document.getElementById('adm-cat-tipos');
+  var elNaves = document.getElementById('adm-cat-naves');
+  if(elTipos) elTipos.innerHTML = tipos.length
+    ? renderLista(tipos,'tipo')
+    : '<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin tipos de servicio</div>';
+  if(elNaves) elNaves.innerHTML = naves.length
+    ? renderLista(naves,'nave')
+    : '<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin naves</div>';
+}
+
+function abrirFormCatalogo(tipo, id){
+  var esTipo = tipo==='tipo';
+  document.getElementById('modal-cat-titulo').textContent = id
+    ? ('Editar '+(esTipo?'tipo de servicio':'nave'))
+    : ('Nuevo '+(esTipo?'tipo de servicio':'nave'));
+  document.getElementById('cat-form-label').textContent = esTipo?'Nombre del tipo':'Nombre de la nave';
+  document.getElementById('cat-form-tipo').value = tipo;
+  document.getElementById('cat-form-id').value = id||'';
+
+  if(id){
+    var lista = esTipo ? (DB.tiposServicio||[]) : (DB.naves||[]);
+    var item = lista.find(function(x){ return x.id===id; });
+    if(item){
+      document.getElementById('cat-form-nombre').value = item.nombre;
+      document.getElementById('cat-form-activo').value = item.activo?'1':'0';
+    }
+  } else {
+    document.getElementById('cat-form-nombre').value = '';
+    document.getElementById('cat-form-activo').value = '1';
+  }
+  openModal('modal-cat-form');
+}
+
+function guardarCatalogo(){
+  var tipo   = document.getElementById('cat-form-tipo').value;
+  var id     = document.getElementById('cat-form-id').value;
+  var nombre = document.getElementById('cat-form-nombre').value.trim().toUpperCase();
+  var activo = document.getElementById('cat-form-activo').value==='1';
+  if(!nombre){ alert('El nombre no puede estar vacío'); return; }
+
+  var esTipo = tipo==='tipo';
+  if(!DB.tiposServicio) DB.tiposServicio = JSON.parse(JSON.stringify(DEFAULT_TIPOS));
+  if(!DB.naves) DB.naves = JSON.parse(JSON.stringify(DEFAULT_NAVES));
+  var lista = esTipo ? DB.tiposServicio : DB.naves;
+
+  if(id){
+    var item = lista.find(function(x){ return x.id===id; });
+    if(item){ item.nombre=nombre; item.activo=activo; }
+  } else {
+    var newId = tipo+'_'+Date.now();
+    lista.push({id:newId, nombre:nombre, activo:true});
+  }
+  saveDB();
+  closeModal('modal-cat-form');
+  renderAdmCatalogos();
+  poblarSelectsNueva(); // refrescar selects en Nueva Solicitud
+  alert('✓ Guardado correctamente.');
+}
+
+function bajarCatalogo(tipo, id){
+  var lista = tipo==='tipo' ? DB.tiposServicio : DB.naves;
+  var item = lista.find(function(x){ return x.id===id; });
+  if(!item) return;
+  if(!confirm('¿Dar de baja "'+item.nombre+'"? Ya no aparecerá en Nueva Solicitud.')) return;
+  item.activo = false;
+  saveDB();
+  renderAdmCatalogos();
+  poblarSelectsNueva();
+  alert('✓ Dado de baja.');
+}
+
+function activarCatalogo(tipo, id){
+  var lista = tipo==='tipo' ? DB.tiposServicio : DB.naves;
+  var item = lista.find(function(x){ return x.id===id; });
+  if(!item) return;
+  item.activo = true;
+  saveDB();
+  renderAdmCatalogos();
+  poblarSelectsNueva();
+  alert('✓ Activado.');
+}
+
 // ==================== ADMIN ====================
 const CATALOG_PERSONAL = [ /* Lista retirada del historial por privacidad */ ];
+
+// Catálogos de Tipo de Servicio y Nave — valores iniciales
+var DEFAULT_TIPOS = [
+  {id:'ts1', nombre:'MTTO-MAQ-PROD',       activo:true},
+  {id:'ts2', nombre:'MTTO-INFRAESTRUCTURA', activo:true},
+  {id:'ts3', nombre:'MTTO-SEGURIDAD',       activo:true}
+];
+var DEFAULT_NAVES = [
+  {id:'nv1', nombre:'A1',  activo:true},
+  {id:'nv2', nombre:'A2',  activo:true},
+  {id:'nv3', nombre:'B16', activo:true},
+  {id:'nv4', nombre:'B17', activo:true}
+];
 
 // Inicializar catálogo de personal en DB para TODOS los roles
 function initPersonal(){
@@ -2726,7 +3087,18 @@ function initPersonal(){
     saveDB();
   }
 }
+function initCatalogos(){
+  if(!DB.tiposServicio || !DB.tiposServicio.length){
+    DB.tiposServicio = JSON.parse(JSON.stringify(DEFAULT_TIPOS));
+    saveDB();
+  }
+  if(!DB.naves || !DB.naves.length){
+    DB.naves = JSON.parse(JSON.stringify(DEFAULT_NAVES));
+    saveDB();
+  }
+}
 initPersonal();
+initCatalogos();
 
 let admStatusFilter = 'activo';
 let personalEditar = null;
@@ -3008,6 +3380,7 @@ function renderAdmPerfil(){
       +'<div style="flex:1"><div class="field-val">Ejecución de mantenimiento</div><div class="field-lbl" style="margin-top:1px">Vista técnico · Actividades y refacciones</div></div>'
       +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
     +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="showScreen(\'adm-catalogos-screen\');renderAdmCatalogos()">'  +'<div style="width:30px;height:30px;border-radius:8px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--green);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>'  +'<div style="flex:1"><div class="field-val">Catálogo Tipo de Servicio y Nave</div><div class="field-lbl" style="margin-top:1px">Alta, baja y modificación</div></div>'  +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'  +'</div>'
     +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'supervisor\')">'
       +'<div style="width:30px;height:30px;border-radius:8px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--purple);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>'
       +'<div style="flex:1"><div class="field-val">Panel de supervisión</div><div class="field-lbl" style="margin-top:1px">Dashboard, técnicos y alertas</div></div>'
@@ -3107,6 +3480,16 @@ function renderAdmPerfil(){
           </div>
           <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
+        <div class="card" onclick="showScreen('adm-catalogos-screen');renderAdmCatalogos()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h.01M12 16h.01M8 12h.01M8 16h.01M16 12h.01"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo Tipo de Servicio y Nave</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de tipos y naves</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
 
       <div class="spacer"></div>
@@ -3170,6 +3553,31 @@ function renderAdmPerfil(){
       <div class="topbar-title" id="adm-det-titulo">Detalle</div>
     </div>
     <div class="scroll-content" id="adm-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Catálogo Tipo de Servicio y Nave -->
+  <div id="adm-catalogos-screen" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Tipos de Servicio y Naves</div>
+    </div>
+    <div class="scroll-content">
+      <!-- Tipos de Servicio -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px">
+        Tipos de Servicio
+        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('tipo',null)" style="font-size:11px;padding:4px 10px">+ Nuevo</button>
+      </div>
+      <div id="adm-cat-tipos"></div>
+      <!-- Naves -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Naves
+        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('nave',null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-naves"></div>
+      <div class="spacer"></div>
+    </div>
   </div>
 
   <!-- SCREEN: Gestión de OT -->
@@ -3311,5 +3719,29 @@ function renderAdmPerfil(){
   </div>
 </div>
 
+<!-- MODAL CATÁLOGO TIPO / NAVE -->
+<div class="modal-overlay" id="modal-cat-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-cat-titulo">Nuevo tipo de servicio</div>
+    <input type="hidden" id="cat-form-tipo">
+    <input type="hidden" id="cat-form-id">
+    <div class="field-row">
+      <div class="field-lbl" id="cat-form-label">Nombre</div>
+      <input class="field-input" type="text" id="cat-form-nombre" placeholder="Ej. MTTO-MAQ-PROD">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="cat-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-cat-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarCatalogo()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
