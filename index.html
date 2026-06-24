@@ -249,14 +249,22 @@ input,select,textarea{font-family:inherit;font-size:14px}
 input[type=range]{width:100%;accent-color:var(--blue)}
 input[type=range].green{accent-color:var(--green)}
 .filter-bar{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;scrollbar-width:none}
-.search-filters{display:flex;flex-direction:column;gap:0;border-bottom:1px solid var(--border)}
-.search-filters-row{display:flex;gap:6px;padding:8px 12px;align-items:center;border-bottom:0.5px solid var(--border)}
+.search-filters{display:flex;flex-direction:column;gap:0;border-bottom:1px solid var(--border);background:var(--surface)}
+.search-filters-row{display:flex;gap:8px;padding:8px 12px;align-items:center;border-bottom:0.5px solid var(--border);flex-wrap:wrap}
 .search-filters-row:last-child{border-bottom:none}
-.sf-input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--surface);color:var(--text)}
+/* Fila de búsqueda — siempre full width */
+.sf-search-row{display:flex;gap:8px;padding:8px 12px;align-items:center;border-bottom:0.5px solid var(--border)}
+/* Grid de filtros: en móvil 2 columnas, en desktop fila */
+.sf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px;border-bottom:0.5px solid var(--border)}
+@media(min-width:520px){.sf-grid{display:flex;flex-direction:row;align-items:center;gap:10px}}
+.sf-cell{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sf-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:var(--surface);color:var(--text);box-sizing:border-box;-webkit-appearance:none}
 .sf-input:focus{outline:none;border-color:var(--blue)}
-.sf-select{padding:7px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);min-width:0}
+.sf-select{width:100%;padding:8px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:26px}
 .sf-select:focus{outline:none;border-color:var(--blue)}
-.sf-label{font-size:11px;color:var(--text2);white-space:nowrap;flex-shrink:0}
+.sf-label{font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap;text-transform:uppercase;letter-spacing:.3px}
+.filter-chips-row{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;scrollbar-width:none;border-bottom:0;-webkit-overflow-scrolling:touch}
+.filter-chips-row::-webkit-scrollbar{display:none}
 .filter-bar::-webkit-scrollbar{display:none}
 .notif-item{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
 .notif-dot2{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
@@ -378,29 +386,26 @@ input[type=range].green{accent-color:var(--green)}
       </button>
     </div>
     <div class="search-filters" id="sol-search-filters">
-      <div class="search-filters-row">
-        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div class="sf-search-row">
+        <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input class="sf-input" type="search" id="sol-f-folio" placeholder="Buscar por # de orden..." oninput="renderSolOTs()">
       </div>
-      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
-        <span class="sf-label">Fecha:</span>
-        <input class="sf-input" type="date" id="sol-f-fecha" style="max-width:140px" onchange="renderSolOTs()">
-        <span class="sf-label">Prioridad:</span>
-        <select class="sf-select" id="sol-f-prioridad" onchange="renderSolOTs()">
-          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
-        </select>
-        <span class="sf-label">Tipo:</span>
-        <select class="sf-select" id="sol-f-tipo" onchange="renderSolOTs()">
-          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
-        </select>
+      <div class="sf-grid">
+        <div class="sf-cell"><span class="sf-label">Fecha</span>
+          <input class="sf-input" type="date" id="sol-f-fecha" onchange="renderSolOTs()"></div>
+        <div class="sf-cell"><span class="sf-label">Prioridad</span>
+          <select class="sf-select" id="sol-f-prioridad" onchange="renderSolOTs()">
+            <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+          </select></div>
+        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Tipo de servicio</span>
+          <select class="sf-select" id="sol-f-tipo" onchange="renderSolOTs()">
+            <option value="">Todos</option>
+            <option value="MTTO-MAQ-PROD">Maquinaria</option>
+            <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
+            <option value="MTTO-SEGURIDAD">Seguridad</option>
+          </select></div>
       </div>
-      <div class="filter-bar" id="sol-filter-bar" style="padding:6px 12px">
-        <button class="badge badge-proceso" onclick="setStatusFilter('todas','solicitante')" style="cursor:pointer">Todas</button>
-        <button class="badge badge-abierto" onclick="setStatusFilter('abierto','solicitante')" style="cursor:pointer">Abiertas</button>
-        <button class="badge badge-espera" onclick="setStatusFilter('espera','solicitante')" style="cursor:pointer">En espera</button>
-        <button class="badge badge-validar" onclick="setStatusFilter('validar','solicitante')" style="cursor:pointer">Validar</button>
-        <button class="badge badge-cerrado" onclick="setStatusFilter('cerrado','solicitante')" style="cursor:pointer">Cerradas</button>
-      </div>
+      <div class="filter-chips-row"><button class="badge badge-proceso" onclick="setStatusFilter('todas','solicitante')" style="cursor:pointer;flex-shrink:0">Todas</button><button class="badge badge-abierto" onclick="setStatusFilter('abierto','solicitante')" style="cursor:pointer;flex-shrink:0">Abiertas</button><button class="badge badge-espera" onclick="setStatusFilter('espera','solicitante')" style="cursor:pointer;flex-shrink:0">En espera</button><button class="badge badge-validar" onclick="setStatusFilter('validar','solicitante')" style="cursor:pointer;flex-shrink:0">Validar</button><button class="badge badge-cerrado" onclick="setStatusFilter('cerrado','solicitante')" style="cursor:pointer;flex-shrink:0">Cerradas</button></div>
     </div>
     <div class="scroll-content">
       <div class="list-pad" id="sol-ot-list"></div>
@@ -563,28 +568,26 @@ input[type=range].green{accent-color:var(--green)}
       </button>
     </div>
     <div class="search-filters">
-      <div class="search-filters-row">
-        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div class="sf-search-row">
+        <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input class="sf-input" type="search" id="tec-f-folio" placeholder="Buscar por # de orden..." oninput="renderTecOTs()">
       </div>
-      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
-        <span class="sf-label">Fecha:</span>
-        <input class="sf-input" type="date" id="tec-f-fecha" style="max-width:140px" onchange="renderTecOTs()">
-        <span class="sf-label">Prioridad:</span>
-        <select class="sf-select" id="tec-f-prioridad" onchange="renderTecOTs()">
-          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
-        </select>
-        <span class="sf-label">Tipo:</span>
-        <select class="sf-select" id="tec-f-tipo" onchange="renderTecOTs()">
-          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
-        </select>
+      <div class="sf-grid">
+        <div class="sf-cell"><span class="sf-label">Fecha</span>
+          <input class="sf-input" type="date" id="tec-f-fecha" onchange="renderTecOTs()"></div>
+        <div class="sf-cell"><span class="sf-label">Prioridad</span>
+          <select class="sf-select" id="tec-f-prioridad" onchange="renderTecOTs()">
+            <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+          </select></div>
+        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Tipo de servicio</span>
+          <select class="sf-select" id="tec-f-tipo" onchange="renderTecOTs()">
+            <option value="">Todos</option>
+            <option value="MTTO-MAQ-PROD">Maquinaria</option>
+            <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
+            <option value="MTTO-SEGURIDAD">Seguridad</option>
+          </select></div>
       </div>
-      <div class="filter-bar" style="padding:6px 12px">
-        <button class="badge badge-proceso" onclick="setStatusFilter('todas','tecnico')" style="cursor:pointer">Todas</button>
-        <button class="badge badge-abierto" onclick="setStatusFilter('abierto','tecnico')" style="cursor:pointer">Nuevas</button>
-        <button class="badge badge-proceso" onclick="setStatusFilter('proceso','tecnico')" style="cursor:pointer">En proceso</button>
-        <button class="badge badge-espera" onclick="setStatusFilter('espera','tecnico')" style="cursor:pointer">En espera</button>
-      </div>
+      <div class="filter-chips-row"><button class="badge badge-proceso" onclick="setStatusFilter('todas','tecnico')" style="cursor:pointer;flex-shrink:0">Todas</button><button class="badge badge-abierto" onclick="setStatusFilter('abierto','tecnico')" style="cursor:pointer;flex-shrink:0">Nuevas</button><button class="badge badge-proceso" onclick="setStatusFilter('proceso','tecnico')" style="cursor:pointer;flex-shrink:0">En proceso</button><button class="badge badge-espera" onclick="setStatusFilter('espera','tecnico')" style="cursor:pointer;flex-shrink:0">En espera</button></div>
     </div>
     <div class="scroll-content">
       <div class="list-pad" id="tec-ot-list"></div>
@@ -808,29 +811,26 @@ input[type=range].green{accent-color:var(--green)}
       </button>
     </div>
     <div class="search-filters">
-      <div class="search-filters-row">
-        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div class="sf-search-row">
+        <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input class="sf-input" type="search" id="sup-f-folio" placeholder="Buscar por # de orden..." oninput="renderSupOTs()">
       </div>
-      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
-        <span class="sf-label">Fecha:</span>
-        <input class="sf-input" type="date" id="sup-f-fecha" style="max-width:140px" onchange="renderSupOTs()">
-        <span class="sf-label">Prioridad:</span>
-        <select class="sf-select" id="sup-f-prioridad" onchange="renderSupOTs()">
-          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
-        </select>
-        <span class="sf-label">Tipo:</span>
-        <select class="sf-select" id="sup-f-tipo" onchange="renderSupOTs()">
-          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
-        </select>
+      <div class="sf-grid">
+        <div class="sf-cell"><span class="sf-label">Fecha</span>
+          <input class="sf-input" type="date" id="sup-f-fecha" onchange="renderSupOTs()"></div>
+        <div class="sf-cell"><span class="sf-label">Prioridad</span>
+          <select class="sf-select" id="sup-f-prioridad" onchange="renderSupOTs()">
+            <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+          </select></div>
+        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Tipo de servicio</span>
+          <select class="sf-select" id="sup-f-tipo" onchange="renderSupOTs()">
+            <option value="">Todos</option>
+            <option value="MTTO-MAQ-PROD">Maquinaria</option>
+            <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
+            <option value="MTTO-SEGURIDAD">Seguridad</option>
+          </select></div>
       </div>
-      <div class="filter-bar" style="padding:6px 12px">
-        <button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer" onclick="setStatusFilter('todas','supervisor')">Todas</button>
-        <button class="badge badge-abierto" onclick="setStatusFilter('abierto','supervisor')" style="cursor:pointer">Nuevas</button>
-        <button class="badge badge-proceso" onclick="setStatusFilter('proceso','supervisor')" style="cursor:pointer">Proceso</button>
-        <button class="badge badge-espera" onclick="setStatusFilter('espera','supervisor')" style="cursor:pointer">Espera</button>
-        <button class="badge badge-validar" onclick="setStatusFilter('validar','supervisor')" style="cursor:pointer">Validar</button>
-      </div>
+      <div class="filter-chips-row"><button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer;flex-shrink:0" onclick="setStatusFilter('todas','supervisor')">Todas</button><button class="badge badge-abierto" onclick="setStatusFilter('abierto','supervisor')" style="cursor:pointer;flex-shrink:0">Nuevas</button><button class="badge badge-proceso" onclick="setStatusFilter('proceso','supervisor')" style="cursor:pointer;flex-shrink:0">Proceso</button><button class="badge badge-espera" onclick="setStatusFilter('espera','supervisor')" style="cursor:pointer;flex-shrink:0">Espera</button><button class="badge badge-validar" onclick="setStatusFilter('validar','supervisor')" style="cursor:pointer;flex-shrink:0">Validar</button></div>
     </div>
     <div class="scroll-content">
       <div class="list-pad" id="sup-ot-list"></div>
@@ -4284,21 +4284,24 @@ function renderAdmPerfil(){
       <div class="topbar-title">Gestión de OT</div>
     </div>
     <div class="search-filters">
-      <div class="search-filters-row">
-        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div class="sf-search-row">
+        <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input class="sf-input" type="search" id="adm-f-folio" placeholder="Buscar por # de orden..." oninput="renderAdmOTs()">
       </div>
-      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
-        <span class="sf-label">Fecha:</span>
-        <input class="sf-input" type="date" id="adm-f-fecha" style="max-width:140px" onchange="renderAdmOTs()">
-        <span class="sf-label">Prioridad:</span>
-        <select class="sf-select" id="adm-f-prioridad" onchange="renderAdmOTs()">
-          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
-        </select>
-        <span class="sf-label">Tipo:</span>
-        <select class="sf-select" id="adm-f-tipo" onchange="renderAdmOTs()">
-          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
-        </select>
+      <div class="sf-grid">
+        <div class="sf-cell"><span class="sf-label">Fecha</span>
+          <input class="sf-input" type="date" id="adm-f-fecha" onchange="renderAdmOTs()"></div>
+        <div class="sf-cell"><span class="sf-label">Prioridad</span>
+          <select class="sf-select" id="adm-f-prioridad" onchange="renderAdmOTs()">
+            <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+          </select></div>
+        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Tipo de servicio</span>
+          <select class="sf-select" id="adm-f-tipo" onchange="renderAdmOTs()">
+            <option value="">Todos</option>
+            <option value="MTTO-MAQ-PROD">Maquinaria</option>
+            <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
+            <option value="MTTO-SEGURIDAD">Seguridad</option>
+          </select></div>
       </div>
     </div>
     <div class="scroll-content">
