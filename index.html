@@ -533,7 +533,7 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content" id="sol-perfil-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sol-lista')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
       <button class="tabbar-item" onclick="showScreen('sol-notifs')">
@@ -1010,100 +1010,6 @@ input[type=range].green{accent-color:var(--green)}
 </div>
 
 <script>
-// ============================================================
-// 🔗 CONFIGURACIÓN DEL BACKEND (cambia cuando esté en producción)
-// ============================================================
-const BACKEND_URL = 'http://localhost:3000'; // Cambia por la URL de tu backend en producción
-
-// ============================================================
-// 📲 FUNCIONES DE NOTIFICACIONES PUSH
-// ============================================================
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-async function registerSW() {
-  try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('✅ Service Worker registrado desde /sw.js');
-    return registration;
-  } catch (err) {
-    console.error('❌ Error al registrar SW:', err.message);
-    throw err;
-  }
-}
-
-async function subscribeUser() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    alert('Tu navegador no soporta notificaciones push. Usa Chrome, Edge o Firefox.');
-    return false;
-  }
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      alert('Debes aceptar las notificaciones para recibir alertas.');
-      return false;
-    }
-    const registration = await registerSW();
-    const res = await fetch(`${BACKEND_URL}/api/vapid-public-key`);
-    if (!res.ok) {
-      alert('Error al obtener la clave pública del servidor. Asegúrate de que el backend esté corriendo.');
-      return false;
-    }
-    const data = await res.json();
-    const vapidPublicKey = data.publicKey;
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-    });
-    const response = await fetch(`${BACKEND_URL}/api/subscribe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription)
-    });
-    if (response.ok) {
-      localStorage.setItem('pushSubscribed', 'true');
-      alert('✅ Suscripción activada. Recibirás notificaciones push.');
-      return true;
-    } else {
-      alert('❌ Error al suscribirse.');
-      return false;
-    }
-  } catch (err) {
-    console.error('❌ Error en suscripción:', err.message);
-    alert('Error al suscribirse: ' + err.message);
-    return false;
-  }
-}
-
-async function sendPushNotification(title, body, icon = '/icon.png') {
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/send-notification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body, icon })
-    });
-    if (!response.ok) console.error(`❌ Error al enviar notificación (${response.status})`);
-  } catch (err) {
-    console.error(`❌ No se pudo conectar al backend: ${err.message}`);
-  }
-}
-
-function isPushSubscribed() {
-  return localStorage.getItem('pushSubscribed') === 'true';
-}
-
-// ============================================================
-// ⬇️ A PARTIR DE AQUÍ, EL CÓDIGO ORIGINAL DE MANTOAPP (MODIFICADO)
-// ============================================================
-
 // ==================== DATA STORE ====================
 const USERS = {
   solicitante:{nomina:'1869',nombre:'(nombre retirado)',role:'solicitante',turno:1,area:'Rotograbado'},
@@ -1111,12 +1017,14 @@ const USERS = {
   supervisor:{nomina:'1001',nombre:'(nombre retirado)',role:'supervisor'}
 };
 function getTecnicos(){
+  // Toma del catálogo real: depto MANTENIMIENTO, activos, con rol tecnico o supervisor
   const cat = DB.personal || [];
   const manto = cat.filter(p =>
     p.depto === 'MANTENIMIENTO' && p.estatus === 'activo'
   );
   return manto;
 }
+// Compatibilidad: lista de nombres para selects heredados
 function getTecnicoNombres(){
   return getTecnicos().map(p => p.nombre);
 }
@@ -1127,6 +1035,7 @@ function getTecnicoNombres(){
   if(stored){
     try{
       var d = JSON.parse(stored);
+      // Si tiene OTs de ejemplo (folios fijos de demo), limpiar y arrancar fresco
       var demoIds = ['015361','015372','015388'];
       var hasDemo = d.ots && d.ots.some(function(o){ return demoIds.indexOf(o.id)>=0; });
       if(hasDemo){ localStorage.removeItem('mantoDB'); stored = null; }
@@ -1143,12 +1052,15 @@ if(!DB){
   };
   saveDB();
 }
+// Asegurar folioSig
 if(!DB.folioSig){ DB.folioSig = (DB.ots.length ? parseInt(DB.ots[DB.ots.length-1].id)+1 : 1); saveDB(); }
+// Nota: DB.personal se inicializa en initPersonal() que se llama tras declarar CATALOG_PERSONAL
 
 function saveDB(){
   localStorage.setItem('mantoDB', JSON.stringify(DB));
 }
 
+// Recarga DB desde localStorage (por si otro perfil/pestaña hizo cambios)
 function reloadDB(){
   var stored = localStorage.getItem('mantoDB');
   if(stored){
@@ -1156,10 +1068,12 @@ function reloadDB(){
   }
 }
 
+// Escuchar cambios de localStorage desde otras pestañas
 window.addEventListener('storage', function(e){
   if(e.key === 'mantoDB' && e.newValue){
     try{
       DB = JSON.parse(e.newValue);
+      // Re-renderizar la pantalla activa según el rol
       if(currentUser){
         var role = currentUser.role;
         if(role === 'solicitante'){
@@ -1223,6 +1137,7 @@ function toTitleCase(str){
   }).join(' ');
 }
 
+// Contraseñas por rol — la contraseña determina el perfil de acceso
 const PASSWORDS = { /* Retiradas del historial */ };
 
 function doLogin(){
@@ -1231,8 +1146,10 @@ function doLogin(){
   if(!nomina){ alert('Ingresa tu número de nómina'); return; }
   if(!pass)  { alert('Ingresa tu contraseña'); return; }
 
+  // Determinar rol por contraseña
   const role = PASSWORDS[pass];
   if(!role){
+    // Shake animation on password field
     var pf = document.getElementById('login-pass');
     pf.style.borderColor='var(--red)';
     pf.style.animation='shake .35s ease';
@@ -1241,6 +1158,7 @@ function doLogin(){
     return;
   }
 
+  // Buscar en catálogo
   const cat = (DB && DB.personal) ? DB.personal : CATALOG_PERSONAL;
   const persona = cat.find(function(p){ return p.nomina.toString()===nomina; });
 
@@ -1256,6 +1174,7 @@ function doLogin(){
 
   currentUser = {nomina:nomina, nombre:nombreReal, puesto:puestoReal, depto:deptoReal, role:role, turno:turnoReal};
 
+  // Limpiar campos
   document.getElementById('login-pass').value = '';
 
   if(role==='admin'){
@@ -1350,6 +1269,7 @@ function setStatusFilter(f, role){
   else if(role==='supervisor') renderSupOTs();
 }
 
+// Apply search panel filters to an OT array
 function applySearchFilters(ots, prefix){
   var folio    = (document.getElementById(prefix+'-f-folio')    ||{}).value||'';
   var fecha    = (document.getElementById(prefix+'-f-fecha')    ||{}).value||'';
@@ -1362,6 +1282,13 @@ function applySearchFilters(ots, prefix){
     if(tipo      && ot.tipo !== tipo) return false;
     return true;
   });
+}
+
+function filterOTs(f,role){
+  currentFilter=f;
+  if(role==='solicitante') renderSolOTs(f);
+  else if(role==='tecnico') renderTecOTs(f);
+  else renderSupOTs(f);
 }
 
 function getMyOTs(role){
@@ -1448,6 +1375,7 @@ function poblarSelectsNueva(){
     selNave.innerHTML = naves.map(function(n){
       return '<option value="'+n.nombre+'">NAVE '+n.nombre+'</option>';
     }).join('');
+    // filter equipos by nave on change
     selNave.onchange = function(){ filtrarEquiposPorNave(); };
   }
   if(selTipo){
@@ -1467,18 +1395,22 @@ function filtrarEquiposPorNave(){
   var esInfra  = tipo === 'MTTO-INFRAESTRUCTURA';
   var esSeguridad = tipo === 'MTTO-SEGURIDAD';
 
+  // ── Show/hide equipo vs riesgo casillas ───────────────────────────────
   var rowEquipo = document.getElementById('row-equipo');
   var rowRiesgo = document.getElementById('row-riesgo');
   if(rowEquipo) rowEquipo.style.display = esSeguridad ? 'none' : '';
   if(rowRiesgo) rowRiesgo.style.display = esSeguridad ? '' : 'none';
+  // Reset checkboxes when switching away from seguridad
   if(!esSeguridad){
     ['riesgo-maquinaria','riesgo-infraestructura','riesgo-personal','riesgo-robo'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.checked=false;
     });
   }
+  // If seguridad, skip equipo filtering
   if(esSeguridad){ selEquip.innerHTML='<option value="N/A">N/A</option>'; return; }
 
   if(esInfra){
+    // Usar catálogo de infraestructura filtrado por nave
     var infras    = (DB.infraestructura||DEFAULT_INFRAESTRUCTURA).filter(function(x){ return x.activo && x.nave===nave; });
     selEquip.innerHTML = infras.map(function(x){
       return '<option value="'+x.nombre+'">'+x.nombre+'</option>';
@@ -1487,6 +1419,7 @@ function filtrarEquiposPorNave(){
       selEquip.innerHTML = '<option value="">Sin áreas para esta nave</option>';
     }
   } else {
+    // Usar catálogo de máquinas filtrado por nave
     var maquinas  = (DB.maquinas||DEFAULT_MAQUINAS).filter(function(m){ return m.activo; });
     var filtradas = maquinas.filter(function(m){ return m.naves && m.naves.indexOf(nave)>=0; });
     selEquip.innerHTML = filtradas.map(function(m){
@@ -1502,6 +1435,7 @@ function filtrarEquiposPorNave(){
 function crearOT(){
   var desc = document.getElementById('nueva-desc').value.trim();
   if(!desc){ alert('Describe el problema antes de enviar'); return; }
+  // Validar que al menos una casilla de riesgo esté marcada para MTTO-SEGURIDAD
   if(document.getElementById('nueva-tipo').value==='MTTO-SEGURIDAD'){
     var alguno = ['riesgo-maquinaria','riesgo-infraestructura','riesgo-personal','riesgo-robo']
       .some(function(id){ var el=document.getElementById(id); return el&&el.checked; });
@@ -1547,14 +1481,13 @@ function crearOT(){
     leida:  false
   });
   saveDB();
-  // Enviar notificación push
-  sendPushNotification(`Nueva OT ${ot.folio}`, `${ot.desc} - Solicitante: ${currentUser.nombre}`, '/icon.png');
   document.getElementById('nueva-desc').value = '';
   showScreen('sol-lista');
   renderSolOTs('todas');
   updateNotifDot('sup-notif-dot','supervisor');
   alert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
 }
+
 
 var otParaRechazar = null;
 
@@ -1582,7 +1515,9 @@ function confirmarPrimerContacto(id){
   alert('✓ Hora de primer contacto registrada: '+fmt(ot.fechaPrimerContacto));
 }
 
+
 function cerrarOT(id){
+  // id puede venir de data-id del botón
   var oid = id || currentOTId;
   var ot = DB.ots.find(function(o){ return o.id===oid; });
   if(!ot){ alert('OT no encontrada'); return; }
@@ -1599,8 +1534,6 @@ function cerrarOT(id){
     fecha:new Date().toISOString(), leida:false
   });
   saveDB();
-  // Enviar notificación push
-  sendPushNotification(`OT ${ot.folio} cerrada`, `El solicitante ${currentUser.nombre} ha validado el cierre.`, '/icon.png');
   alert('✓ OT cerrada correctamente. Gracias por validar.');
   showScreen('sol-lista');
   renderSolOTs('todas');
@@ -1636,6 +1569,7 @@ function confirmarRechazo(){
   showScreen('sol-lista');
   renderSolOTs('todas');
 }
+
 
 function verOTSol(id){
   currentOTId=id;
@@ -1676,6 +1610,7 @@ function buildDetalleSol(ot){
       +'</div>';
   }
 
+  // ── Caja "Técnico en máquina" ─────────────────────────────────────────
   var primerContactoBox = '';
   if(ot.tecnico && !ot.fechaPrimerContacto && ot.status!=='cerrado' && ot.status!=='validar'){
     primerContactoBox =
@@ -1741,6 +1676,7 @@ function buildDetalleSol(ot){
     +'<div class="spacer"></div>';
 }
 
+
 function confirmarAsignacion(){
   var sel = document.getElementById('asignar-tecnico');
   if(!sel || !sel.value){ alert('Selecciona un técnico'); return; }
@@ -1762,6 +1698,7 @@ function confirmarAsignacion(){
   alert('✓ OT '+ot.folio+' asignada a '+tecnico);
 }
 
+
 function renderNotifsSol(){
   reloadDB();
   const notifs=DB.notifs.filter(n=>n.para==='solicitante');
@@ -1778,22 +1715,10 @@ function renderNotifsSol(){
   updateNotifDot('sol-notif-dot','solicitante');
 }
 
-// ============================================================
-// PERFIL SOLICITANTE (modificado con botón de push)
-// ============================================================
 function renderPerfilSol(){
   var bioReg2 = JSON.parse(localStorage.getItem('mantoBio')||'{}')[currentUser.nomina];
   var totSol  = DB.ots.filter(function(o){return o.nomina===currentUser.nomina;}).length;
   var cerSol  = DB.ots.filter(function(o){return o.nomina===currentUser.nomina&&o.status==='cerrado';}).length;
-  var pushBtn = '';
-  if ('serviceWorker' in navigator && 'PushManager' in window) {
-    pushBtn = `<button class="btn btn-outline btn-block" onclick="subscribeUser()" id="push-subscribe-btn">📲 Activar notificaciones push</button>`;
-    if (isPushSubscribed()) {
-      pushBtn += `<div style="margin-top:5px;font-size:12px;color:var(--green);">✅ Notificaciones activas</div>`;
-    } else {
-      pushBtn += `<div style="margin-top:5px;font-size:12px;color:var(--text3);">⏳ No suscrito. Toca el botón para activar.</div>`;
-    }
-  }
   document.getElementById('sol-perfil-content').innerHTML =
     '<div style="padding:24px 16px;text-align:center">'
       +'<div class="avatar av-blue" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">'+initials(currentUser.nombre)+'</div>'
@@ -1804,10 +1729,6 @@ function renderPerfilSol(){
     +'<div class="field-row"><div class="field-lbl">OT creadas total</div><div class="field-val">'+totSol+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">'+cerSol+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">OT pendientes</div><div class="field-val">'+(totSol-cerSol)+'</div></div>'
-    +'<div class="section-head">Notificaciones push</div>'
-    +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
-      +pushBtn
-    +'</div>'
     +'<div class="section-head">Acceso biométrico</div>'
     +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
       +(bioReg2
@@ -1819,7 +1740,6 @@ function renderPerfilSol(){
     +'</div>'
     +'<div class="spacer"></div>';
 }
-
 function showNotifs(role){
   if(role==='solicitante'){showScreen('sol-notifs');renderNotifsSol();}
   else if(role==='tecnico'){showScreen('tec-historial');renderNotifsTec();}
@@ -1888,6 +1808,7 @@ function otCardTec(ot, disponible){
       +'<div style="font-size:11px;color:var(--text3);margin-top:2px">Avance: '+ot.avance+'%</div>'
     : '';
 
+  // Datos con etiqueta
   function fila(lbl, val, color){
     if(!val) return '';
     return '<div style="display:flex;gap:0;align-items:baseline;padding:2px 0">'
@@ -1906,10 +1827,12 @@ function otCardTec(ot, disponible){
   var naveEquipo = [ot.nave ? 'NAVE '+ot.nave : '', ot.equipo].filter(Boolean).join(' · ');
 
   return '<div class="card '+urgClass+'" style="cursor:pointer;'+borderStyle+'" onclick="verOTTec(event.currentTarget.dataset.id)" data-id="'+ot.id+'">'
+    // Header: folio + badge
     +'<div class="card-header" style="margin-bottom:8px">'
       +'<span class="card-folio">'+ot.folio+'</span>'
       +'<div>'+topBadge+urgBadge+'</div>'
     +'</div>'
+    // Datos etiquetados
     +'<div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--border);padding-top:8px">'
       +fila('Descripción:', ot.desc)
       +fila('Tipo de servicio:', ot.tipo==='MTTO-MAQ-PROD'?'MAQUINARIA':ot.tipo==='MTTO-INFRAESTRUCTURA'?'INFRAESTRUCTURA':ot.tipo==='MTTO-SEGURIDAD'?'SEGURIDAD':ot.tipo)
@@ -1922,6 +1845,7 @@ function otCardTec(ot, disponible){
 }
 
 function selectChipProblema(el){
+  // Select chip in either chip-group (taking or post-take)
   var grp = el.closest('.chip-group');
   if(grp) grp.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('selected'); });
   el.classList.add('selected');
@@ -1935,14 +1859,17 @@ function getChipSelected(groupId){
 }
 
 function tomarOTConTipo(id){
+  // Validate tipo de problema is selected
   var tipo = getChipSelected('tipo-falla') || getChipSelected('tipo-falla-tomar');
   if(!tipo){ alert('Selecciona el tipo de problema antes de tomar la orden.'); return; }
+
   var ot = DB.ots.find(function(o){ return o.id===id; });
   if(!ot){ alert('OT no encontrada'); return; }
   if(ot.tecnico && tecnicoEnTurnoActual(ot, currentUser.nombre)){
     alert('Ya estás registrado en este turno para esta OT.');
     verOTTec(id); return;
   }
+
   if(!ot.tecnicos) ot.tecnicos = [];
   ot.tecnicos.push({
     nombre:  currentUser.nombre,
@@ -1953,7 +1880,10 @@ function tomarOTConTipo(id){
   ot.tecnico = ot.tecnicos[0].nombre;
   ot.status  = 'proceso';
   if(!ot.fechaTomada) ot.fechaTomada = new Date().toISOString();
+
+  // Save tipo de problema permanently
   ot.tipoProblema = tipo;
+
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' tomada por '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') — Tipo: '+tipo,
     fecha:new Date().toISOString(), leida:false});
@@ -1975,6 +1905,7 @@ function guardarTipoProblema(id){
   verOTTec(id);
 }
 
+
 function verOTTec(id){
   if(!id){ console.error('verOTTec: id vacío'); return; }
   currentOTId = id;
@@ -1986,11 +1917,15 @@ function verOTTec(id){
   showScreen('tec-detalle');
 }
 
+// Helper — turno según hora actual
 function turnoActual(){
   var now  = new Date();
-  var mins = now.getHours() * 60 + now.getMinutes();
+  var mins = now.getHours() * 60 + now.getMinutes(); // minutos desde medianoche
+  // T1: 06:00 (360) a 14:00 (840)
   if(mins >= 360 && mins < 840)  return 'T1 (06:00–14:00)';
+  // T2: 14:00 (840) a 21:30 (1290)
   if(mins >= 840 && mins < 1290) return 'T2 (14:00–21:30)';
+  // T3: 21:30 (1290) a 06:00 del día siguiente (360)
   return 'T3 (21:30–07:00)';
 }
 
@@ -2001,13 +1936,17 @@ function turnoLabel(){
   return 'Turno 3  ·  21:30–07:00';
 }
 
+// Helper — ¿este técnico ya está en la OT?
 function tecnicoEnOT(ot, nombre){
+  // Returns true if this tech is registered in the OT at all (for display/counts)
   if(!ot.tecnicos || !ot.tecnicos.length) return false;
   var n = nombre.toLowerCase();
   return ot.tecnicos.some(function(t){ return t.nombre.toLowerCase()===n; });
 }
 
 function tecnicoEnTurnoActual(ot, nombre){
+  // Returns true only if tech registered TODAY in the CURRENT shift
+  // Used to prevent double-registration in the same shift
   if(!ot.tecnicos || !ot.tecnicos.length) return false;
   var n    = nombre.toLowerCase();
   var hoy  = new Date().toISOString().split('T')[0];
@@ -2018,17 +1957,20 @@ function tecnicoEnTurnoActual(ot, nombre){
   });
 }
 
+// Helper — nombre del primer técnico que tomó la OT
 function primerTecnico(ot){
   if(ot.tecnicos && ot.tecnicos.length) return ot.tecnicos[0].nombre;
-  return ot.tecnico || null;
+  return ot.tecnico || null; // compatibilidad con OTs viejas
 }
 
+// Helper — todos los registros de intervención (incluyendo repeticiones por turno)
 function listaTecnicos(ot){
   if(ot.tecnicos && ot.tecnicos.length) return ot.tecnicos;
   if(ot.tecnico) return [{nombre:ot.tecnico, nomina:ot.nominaTecnico||'—', turno:'—', fecha:ot.fechaTomada||ot.fechaAlta}];
   return [];
 }
 
+// Helper — técnicos únicos que han intervenido (para conteos)
 function tecnicosUnicos(ot){
   var vistos = {};
   return listaTecnicos(ot).filter(function(t){
@@ -2041,20 +1983,29 @@ function tecnicosUnicos(ot){
 function tomarOT(id){
   var ot = DB.ots.find(function(o){ return o.id===id; });
   if(!ot){ alert('OT no encontrada'); return; }
+
+  // Inicializar array de técnicos si no existe
   if(!ot.tecnicos) ot.tecnicos = [];
+
+  // Bloquear solo si ya se registró HOY en el turno actual
   if(tecnicoEnTurnoActual(ot, currentUser.nombre)){
     alert('Ya estás registrado en este turno para esta OT. Puedes registrar actividades.');
     verOTTec(id); return;
   }
+
+  // Agregar al array de técnicos
   ot.tecnicos.push({
     nombre:   currentUser.nombre,
     nomina:   currentUser.nomina,
     turno:    turnoActual(),
     fecha:    new Date().toISOString()
   });
+
+  // Mantener ot.tecnico con el primer técnico (compatibilidad)
   ot.tecnico = ot.tecnicos[0].nombre;
   ot.status  = 'proceso';
   if(!ot.fechaTomada) ot.fechaTomada = new Date().toISOString();
+
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' — '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') se unió a la atención.',
     fecha:new Date().toISOString(), leida:false});
@@ -2080,6 +2031,8 @@ function buildDetalleTec(ot){
   },100);
 
   var tipoFallas=['Mecánico','Eléctrico','Neumático','Electrónico','Hidráulico','Parámetros'];
+
+  // Declarar ANTES de tipoProblemaSection para que estén disponibles
   var yaSoy       = tecnicoEnOT(ot, currentUser.nombre);
   var canEdit     = ot.status!=='cerrado' && ot.status!=='validar' && yaSoy;
   var puedeUnirse = (ot.status==='abierto'||ot.status==='proceso')
@@ -2088,6 +2041,7 @@ function buildDetalleTec(ot){
 
   var tipoProblemaSection = '';
   if(ot.tipoProblema){
+    // ── Ya definido — solo lectura, no modificable ──────────────────────
     tipoProblemaSection =
       '<div class="section-head">Tipo de problema</div>'
       +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px">'
@@ -2095,6 +2049,7 @@ function buildDetalleTec(ot){
         +'<span style="font-size:11px;color:var(--text3)">Registrado — no modificable</span>'
       +'</div>';
   } else if(yaSoy && !puedeUnirse){
+    // ── Ya tomó la OT → Paso 2: elegir tipo (obligatorio antes de actuar) ─
     tipoProblemaSection =
       '<div class="section-head" style="background:var(--green-light);color:var(--green-dark)">✓ OT tomada — Paso 2: selecciona el tipo de problema</div>'
       +'<div class="chip-group" id="tipo-falla">'
@@ -2104,12 +2059,14 @@ function buildDetalleTec(ot){
         +'<button class="btn btn-green btn-block" onclick="guardarTipoProblema(this.dataset.id)" data-id="'+ot.id+'">Confirmar tipo de problema</button>'
       +'</div>';
   } else if(puedeUnirse){
+    // ── Aún no ha tomado — no mostrar sección de tipo ──────────────────
     tipoProblemaSection = '';
   } else {
     tipoProblemaSection =
       '<div class="section-head">Tipo de problema</div>'
       +'<div style="padding:10px 16px;font-size:13px;color:var(--text3)">Pendiente de definir</div>';
   }
+  var fallas = '';
 
   var refs='';
   if(ot.refacciones && ot.refacciones.length){
@@ -2156,6 +2113,8 @@ function buildDetalleTec(ot){
       +'<div>En espera: '+ot.espera.motivo+' — '+ot.espera.comentario+'</div></div>'
     : '';
 
+  // Bloquear acciones hasta que se defina el tipo de problema
+  // Bloquear actividades/refacciones hasta que se defina el tipo de problema
   var tipoBloqueado = yaSoy && !puedeUnirse && !ot.tipoProblema;
   var acciones='';
   if(canEdit && !tipoBloqueado){
@@ -2176,6 +2135,7 @@ function buildDetalleTec(ot){
     +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+' — '+ot.nave+' · '+ot.area+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Prioridad</div><div class="field-val">'+(ot.prioridad==='urgente'?'<span class="badge badge-urgente">Urgente</span>':'Normal')+'</div></div>'
+    // Fila de técnicos que han intervenido
   +(function(){
     var tecs = listaTecnicos(ot);
     if(!tecs.length) return '<div class="field-row"><div class="field-lbl">Técnico(s)</div><div class="field-val"><span style="color:var(--red)">Sin tomar</span></div></div>';
@@ -2204,6 +2164,7 @@ function buildDetalleTec(ot){
     +'<div class="spacer"></div>';
 }
 
+
 function guardarActividad(){
   const ot=DB.ots.find(o=>o.id===currentOTId);
   const accion=document.getElementById('act-accion').value.trim();
@@ -2222,11 +2183,9 @@ function guardarActividad(){
   ot.avance=avance;
   ot.status=concluir?'validar':'proceso';
   if(concluir){
-    ot.fechaCierreMantenimiento = new Date().toISOString();
+    ot.fechaCierreMantenimiento = new Date().toISOString(); // Fecha exacta en que mantenimiento concluye
     DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' fue concluida y está lista para que valides el cierre.',fecha:new Date().toISOString(),leida:false});
     DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' concluida por '+currentUser.nombre+'. Pendiente validación del solicitante.',fecha:new Date().toISOString(),leida:false});
-    // Enviar notificación push
-    sendPushNotification(`OT ${ot.folio} concluida`, `El técnico ${currentUser.nombre} ha finalizado el trabajo.`, '/icon.png');
   }
   saveDB();
   document.getElementById('act-accion').value='';
@@ -2251,8 +2210,6 @@ function ponerEnEspera(){
   DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' está en espera: '+motivo+'. '+comentario+'. Fecha estimada: '+fmtDate(fechaEst),fecha:new Date().toISOString(),leida:false});
   DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' puesta en espera por '+currentUser.nombre+': '+motivo+'.',fecha:new Date().toISOString(),leida:false});
   saveDB();
-  // Enviar notificación push
-  sendPushNotification(`OT ${ot.folio} en espera`, `${motivo} - ${comentario}`, '/icon.png');
   document.getElementById('espera-comentario').value='';
   document.getElementById('espera-fecha').value='';
   document.querySelectorAll('#espera-motivo-chips .chip').forEach(c=>c.classList.remove('selected'));
@@ -2310,21 +2267,9 @@ function renderNotifsTec(){
   updateNotifDot('tec-notif-dot','tecnico');
 }
 
-// ============================================================
-// PERFIL TÉCNICO (modificado con botón de push)
-// ============================================================
 function renderTecPerfil(){
   const mis=DB.ots.filter(function(o){ return tecnicoEnOT(o,currentUser.nombre)||(o.tecnico&&o.tecnico.toLowerCase()===currentUser.nombre.toLowerCase()); });
   var bioReg = JSON.parse(localStorage.getItem('mantoBio')||'{}')[currentUser.nomina];
-  var pushBtn = '';
-  if ('serviceWorker' in navigator && 'PushManager' in window) {
-    pushBtn = `<button class="btn btn-outline btn-block" onclick="subscribeUser()" id="push-subscribe-btn">📲 Activar notificaciones push</button>`;
-    if (isPushSubscribed()) {
-      pushBtn += `<div style="margin-top:5px;font-size:12px;color:var(--green);">✅ Notificaciones activas</div>`;
-    } else {
-      pushBtn += `<div style="margin-top:5px;font-size:12px;color:var(--text3);">⏳ No suscrito. Toca el botón para activar.</div>`;
-    }
-  }
   document.getElementById('tec-perfil-content').innerHTML =
     '<div style="padding:24px 16px;text-align:center">'
       +'<div class="avatar av-green" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px">'+initials(currentUser.nombre)+'</div>'
@@ -2335,10 +2280,6 @@ function renderTecPerfil(){
     +'<div class="field-row"><div class="field-lbl">OT atendidas total</div><div class="field-val">'+mis.length+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">OT cerradas</div><div class="field-val">'+mis.filter(function(o){return o.status==='cerrado';}).length+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">OT activas</div><div class="field-val">'+mis.filter(function(o){return o.status!=='cerrado';}).length+'</div></div>'
-    +'<div class="section-head">Notificaciones push</div>'
-    +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
-      +pushBtn
-    +'</div>'
     +'<div class="section-head">Acceso biométrico</div>'
     +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
       +(bioReg
@@ -2394,11 +2335,377 @@ function renderDashboard(){
   }).join('');
 }
 
-function secsToHHMMSS(secs){ /* (ya está en el original) */ }
+function secsToHHMMSS(secs){
+  if(!secs || secs < 0) return '--:--:--';
+  var h = Math.floor(secs/3600);
+  var m = Math.floor((secs%3600)/60);
+  var s = Math.floor(secs%60);
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
 
-function diffSecs(isoA, isoB){ /* (ya está en el original) */ }
+function diffSecs(isoA, isoB){
+  if(!isoA||!isoB) return null;
+  var diff = (new Date(isoB)-new Date(isoA))/1000;
+  return diff >= 0 ? diff : null;
+}
 
-function exportarExcelOTs(){ /* (ya está en el original) */ }
+function exportarExcelOTs(){
+  reloadDB();
+  var ots = DB.ots || [];
+  if(!ots.length){ alert('No hay OT para exportar.'); return; }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function diffSecs2(isoA, isoB){
+    return Math.max(0, Math.floor((new Date(isoB)-new Date(isoA))/1000));
+  }
+  function toHHMMSS(secs){
+    if(isNaN(secs)||secs<0) return '--:--:--';
+    var h=Math.floor(secs/3600);
+    var m=Math.floor((secs%3600)/60);
+    var s=secs%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+  function fLocal(iso){
+    if(!iso) return '';
+    return new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  }
+  function hLocal(iso){
+    if(!iso) return '';
+    return new Date(iso).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  }
+  var prioLabel = function(p){ return p==='urgente'?'Urgente — Máquina parada':'Normal'; };
+  var stLabel   = {abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Pendiente validación',cerrado:'Cerrada'};
+
+  // ── Columnas ──────────────────────────────────────────────────────────────
+  // Columnas base de la OT (se repiten en cada fila de técnico)
+  // + columnas por técnico + tiempos calculados por técnico
+  var headers = [
+    // OT
+    'OT',
+    'Estatus',
+    'Fecha de solicitud',
+    'Hora de solicitud',
+    'Solicitante',
+    'Nómina Solicitante',
+    'Equipo',
+    'Nave',
+    'Área',
+    'Descripción de la falla',
+    'Tipo de mantenimiento',
+    'Prioridad',
+    // Por técnico
+    'Nú de técnico en la OT',
+    'Técnico',
+    'Nómina Técnico',
+    'Turno',
+    'Fecha en que toma orden',
+    'Hora en que toma orden',
+    // Tiempos por técnico
+    'Hora de primer contacto',
+    'Actividades',
+    'Refacciones',
+    'Cant. Ref.',
+    'Precio',
+    'Tiempo de confirmación (HH:MM:SS)',
+    'Tiempo de intervención (HH:MM:SS)',
+    // Tiempo total (solo en fila del último técnico)
+    'Tiempo total de orden (HH:MM:SS)',
+    'Fecha cierre Mantenimiento',
+    'Hora cierre Mantenimiento',
+    'Fecha cierre Usuario',
+    'Hora cierre Usuario'
+  ];
+
+  // ── Generar filas: una por técnico que intervino ──────────────────────────
+  var rows = [];
+
+  ots.forEach(function(ot){
+    var fechaSol = fLocal(ot.fechaAlta);
+    var horaSol  = hLocal(ot.fechaAlta);
+    var prioridad = prioLabel(ot.prioridad);
+    var status    = stLabel[ot.status]||ot.status;
+
+    // Lista de técnicos — garantizamos al menos 1 fila por OT
+    var tecs = (ot.tecnicos && ot.tecnicos.length)
+      ? ot.tecnicos
+      : (ot.tecnico ? [{nombre:ot.tecnico, nomina:ot.nominaTecnico||'', turno:'', fecha:ot.fechaTomada||''}] : []);
+
+    if(!tecs.length){
+      // OT sin técnico todavía — una fila con columnas de técnico en blanco
+      rows.push([
+        ot.folio, status, fechaSol, horaSol,
+        ot.solicitante, ot.nomina,
+        ot.equipo, ot.nave, ot.area, ot.desc, ot.tipo, prioridad,
+        '', 'Sin asignar', '', '', '', '',
+        '',
+        '',
+        '', '', '',
+        '--:--:--', '--:--:--', '--:--:--',
+        '', '', '', ''
+      ]);
+      return;
+    }
+
+    tecs.forEach(function(tec, idx){
+      var esPrimero = idx === 0;
+      var esUltimo  = idx === tecs.length - 1;
+
+      // Tiempo de encuentro: solo aplica al primer técnico (creación → primer toma)
+      var tEncuentro = '--:--:--';
+      if(esPrimero && ot.fechaAlta && tec.fecha){
+        tEncuentro = toHHMMSS(diffSecs2(ot.fechaAlta, tec.fecha));
+      }
+
+      // Tiempo de intervención de ESTE técnico:
+      // desde que este técnico toma hasta que el siguiente toma (o hasta cierre si es el último)
+      var tIntervencion = '--:--:--';
+      if(tec.fecha){
+        var finTec = esUltimo
+          ? (ot.fechaCierre || null)           // último: hasta cierre
+          : (tecs[idx+1] ? tecs[idx+1].fecha : null); // no último: hasta que el siguiente toma
+        if(finTec){
+          tIntervencion = toHHMMSS(diffSecs2(tec.fecha, finTec));
+        }
+      }
+
+      // Tiempo total: solo en la última fila de la OT (para no repetirlo)
+      var tTotal = '--:--:--';
+      if(esUltimo && ot.fechaAlta && ot.fechaCierre){
+        tTotal = toHHMMSS(diffSecs2(ot.fechaAlta, ot.fechaCierre));
+      }
+
+      // ── Actividades: solo las registradas por ESTE técnico, numeradas globalmente
+      var actividadesTexto = '';
+      if(ot.actividades && ot.actividades.length){
+        var actsDelTec = ot.actividades.filter(function(a){
+          return a.tecnico && a.tecnico.toLowerCase() === tec.nombre.toLowerCase();
+        });
+        if(actsDelTec.length){
+          // Numeración global dentro de la OT
+          var globalIdx = 0;
+          actividadesTexto = ot.actividades.map(function(a, i){
+            if(a.tecnico && a.tecnico.toLowerCase() === tec.nombre.toLowerCase()){
+              globalIdx++;
+              return globalIdx+'. '+a.accion+(a.obs?' ('+a.obs+')':'');
+            }
+            return null;
+          }).filter(function(x){ return x!==null; }).join('\n');
+        }
+      }
+
+      // ── Refacciones: se manejan abajo como filas adicionales ──────────
+      // En esta fila del técnico dejan las columnas en blanco si hay refacciones
+      // (se agregarán como filas separadas al final del grupo de técnicos)
+      var refNombres = '';
+      var refCants   = '';
+      var refPrecios = '';
+
+      // Cierre mantenimiento: fecha exacta guardada cuando el técnico marcó "concluida"
+      // Retrocompatibilidad: si no existe fechaCierreMantenimiento, buscar última actividad con avance 100
+      var cierreMantoISO = ot.fechaCierreMantenimiento || null;
+      if(!cierreMantoISO && ot.actividades && ot.actividades.length){
+        var acts100 = ot.actividades.filter(function(a){ return parseInt(a.avance)===100; });
+        if(acts100.length){
+          var last100 = acts100[acts100.length-1];
+          if(last100.fecha && last100.fin){
+            cierreMantoISO = last100.fecha+'T'+last100.fin+':00';
+          }
+        }
+      }
+      var cierreMantoF  = esUltimo && cierreMantoISO ? fLocal(cierreMantoISO) : '';
+      var cierreMantoH  = esUltimo && cierreMantoISO ? hLocal(cierreMantoISO) : '';
+      var cierreUsrF    = esUltimo && ot.fechaCierre  ? fLocal(ot.fechaCierre) : '';
+      var cierreUsrH    = esUltimo && ot.fechaCierre  ? hLocal(ot.fechaCierre) : '';
+
+      rows.push([
+        ot.folio,
+        status,
+        fechaSol,
+        horaSol,
+        ot.solicitante,
+        ot.nomina,
+        ot.equipo,
+        ot.nave,
+        ot.area,
+        ot.desc,
+        ot.tipo,
+        prioridad,
+        idx+1,
+        tec.nombre,
+        tec.nomina || '',
+        tec.turno  || '',
+        esPrimero ? fLocal(tec.fecha) : '',
+        esPrimero ? hLocal(tec.fecha) : '',
+        esPrimero ? hLocal(ot.fechaPrimerContacto||null) : '',
+        actividadesTexto,
+        '',
+        '',
+        '',
+        tEncuentro,
+        tIntervencion,
+        tTotal,
+        cierreMantoF,
+        cierreMantoH,
+        cierreUsrF,
+        cierreUsrH
+      ]);
+    }); // end tecs.forEach
+
+    // ── Filas adicionales: una por refacción ─────────────────────────────
+    if(ot.refacciones && ot.refacciones.length){
+      ot.refacciones.forEach(function(ref){
+        rows.push([
+          ot.folio,
+          stLabel[ot.status]||ot.status,
+          fLocal(ot.fechaAlta),
+          hLocal(ot.fechaAlta),
+          ot.solicitante,
+          ot.nomina,
+          ot.equipo,
+          ot.nave,
+          ot.area,
+          ot.desc,
+          ot.tipo,
+          prioLabel(ot.prioridad),
+          '',   // N° técnico
+          '',   // Técnico
+          '',   // Nómina técnico
+          '',   // Turno
+          '',   // Fecha toma
+          '',   // Hora toma
+          '',   // Hora primer contacto
+          '',   // Actividades
+          ref.desc,                                    // Refacción
+          ref.qty,                                     // Cantidad (número)
+          parseFloat((ref.qty * ref.costo).toFixed(2)),// Precio (número)
+          '',   // T. confirmación
+          '',   // T. intervención
+          '',   // T. total
+          '',   // Fecha cierre manto
+          '',   // Hora cierre manto
+          '',   // Fecha cierre usuario
+          ''    // Hora cierre usuario
+        ]);
+      });
+    }
+
+  }); // end ots.forEach
+
+  // ── Construir libro ───────────────────────────────────────────────────────
+  var wb = XLSX.utils.book_new();
+  var wsData = [headers].concat(rows);
+  var ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Anchos de columna
+  var colW = [10,18,16,16,28,14,10,12,14,40,24,22, 10,28,14,20,18,18, 16,50,30,10,14, 26,26,26, 22,16,22,16];
+  ws['!cols'] = colW.map(function(w){ return {wch:w}; });
+
+  // Fila 1 congelada
+  ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2', activePane:'bottomLeft', state:'frozen'};
+
+  // Estilos
+  var range = XLSX.utils.decode_range(ws['!ref']);
+
+  // Encabezado — fondo morado
+  for(var c=range.s.c; c<=range.e.c; c++){
+    var hcell = ws[XLSX.utils.encode_cell({r:0,c:c})];
+    if(!hcell) continue;
+    hcell.s = {
+      font:      {bold:true, color:{rgb:'FFFFFF'}, name:'Arial', sz:10},
+      fill:      {fgColor:{rgb:'3C3489'}, patternType:'solid'},
+      alignment: {horizontal:'center', vertical:'center', wrapText:true},
+      border:    {bottom:{style:'medium',color:{rgb:'FFFFFF'}}}
+    };
+  }
+
+  // ── Filas de datos con color por OT alternado ───────────────────────────
+  // Cada grupo de filas de la misma OT comparte el mismo color de fondo
+  // para distinguir visualmente qué filas pertenecen a la misma OT.
+  var otColorMap = {};
+  var colorA = 'FFFFFF'; // blanco
+  var colorB = 'EEEDFE'; // lila claro
+  var colorToggle = false;
+  var lastFolio = null;
+
+  rows.forEach(function(row){ // pre-build color map
+    var folio = row[0];
+    if(folio !== lastFolio){
+      colorToggle = !colorToggle;
+      otColorMap[folio] = colorToggle ? colorA : colorB;
+      lastFolio = folio;
+    }
+  });
+
+  // Fila de separación entre OTs — línea más gruesa
+  var prevFolio2 = null;
+  for(var r=1; r<=range.e.r; r++){
+    var rowFolio = rows[r-1] ? rows[r-1][0] : null;
+    var bg = otColorMap[rowFolio] || 'FFFFFF';
+    var isFirstOfGroup = rowFolio !== prevFolio2;
+    prevFolio2 = rowFolio;
+
+    for(var c2=range.s.c; c2<=range.e.c; c2++){
+      var addr = XLSX.utils.encode_cell({r:r, c:c2});
+      var dc = ws[addr];
+      if(!dc){ ws[addr]={t:'s',v:''}; dc=ws[addr]; }
+      var isTimeCol = c2 >= 23 && c2 <= 25;
+      var isNumCol  = c2 === 12; // N° técnico
+      dc.s = {
+        font:      {name:'Arial', sz:10, bold: isFirstOfGroup && c2===0},
+        fill:      {fgColor:{rgb:bg}, patternType:'solid'},
+        alignment: {
+          horizontal: (isTimeCol||isNumCol) ? 'center' : 'left',
+          vertical:   'top',
+          wrapText:   true
+        },
+        border: {
+          top:    isFirstOfGroup ? {style:'medium', color:{rgb:'3C3489'}} : {style:'thin', color:{rgb:'D0CEED'}},
+          bottom: {style:'thin', color:{rgb:'D0CEED'}},
+          right:  {style:'thin', color:{rgb:'D0CEED'}}
+        }
+      };
+    }
+  }
+
+  // Autofilter
+  ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:0,c:range.e.c}})};
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Órdenes de Trabajo');
+
+  // ── Hoja de resumen ───────────────────────────────────────────────────────
+  var total    = ots.length;
+  var cerradas = ots.filter(function(o){return o.status==='cerrado';}).length;
+  var abiertas = ots.filter(function(o){return o.status==='abierto';}).length;
+  var proceso2 = ots.filter(function(o){return o.status==='proceso';}).length;
+  var espera2  = ots.filter(function(o){return o.status==='espera';}).length;
+  var validar2 = ots.filter(function(o){return o.status==='validar';}).length;
+  var now      = new Date();
+
+  var wsSumData = [
+    ['Reporte de Órdenes de Trabajo — Mantenimiento IMPREDIMEX'],
+    ['Generado: '+fLocal(now.toISOString())+' '+hLocal(now.toISOString())],
+    [''],
+    ['Resumen ejecutivo', ''],
+    ['Total de OT', total],
+    ['Cerradas', cerradas],
+    ['Abiertas / Sin tomar', abiertas],
+    ['En proceso', proceso2],
+    ['En espera', espera2],
+    ['Pendiente validación', validar2],
+    [''],
+    ['Total de filas exportadas (por técnico)', rows.length],
+    ['Nota: OTs con múltiples técnicos generan una fila por técnico','']
+  ];
+  var wsSum = XLSX.utils.aoa_to_sheet(wsSumData);
+  wsSum['!cols'] = [{wch:40},{wch:16}];
+  if(wsSum['A1']) wsSum['A1'].s={font:{bold:true,sz:13,name:'Arial',color:{rgb:'3C3489'}}};
+  if(wsSum['A4']) wsSum['A4'].s={font:{bold:true,sz:11,name:'Arial'}};
+  XLSX.utils.book_append_sheet(wb, wsSum, 'Resumen');
+
+  // ── Descargar ─────────────────────────────────────────────────────────────
+  var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb, 'OT_Mantenimiento_IMPREDIMEX_'+stamp+'.xlsx', {bookType:'xlsx', type:'binary', cellStyles:true});
+}
 
 function renderSupOTs(filter){
   reloadDB();
@@ -2437,13 +2744,351 @@ function verOTSup(id){
   showScreen('sup-detalle');
 }
 
-function buildDetalleSup(ot){ /* (ya está en el original) */ }
+function buildDetalleSup(ot){
 
-function asignarOT(){ /* (ya está en el original) */ }
+  // ── Helper: build timeline events ──────────────────────────────────────
+  var events = [];
 
-function renderTecnicos(){ /* (ya está en el original) */ }
+  // 1. Creación de OT
+  events.push({
+    tipo:'creacion', fecha:ot.fechaAlta,
+    dot:'tl-dot-blue', icon:'📋',
+    titulo:'OT creada'+(ot.tipoProblema?' — Tipo: '+ot.tipoProblema:''),
+    sub:'Solicitante: '+ot.solicitante+' (Nóm. '+ot.nomina+')<br>'
+       +'Equipo: '+ot.equipo+' — '+ot.nave+' · '+ot.area+'<br>'
+       +'Tipo: '+ot.tipo+' · Prioridad: '+(ot.prioridad==='urgente'?'<span class="tl-tag tl-tag-red">Urgente</span>':'Normal'),
+    tags:[]
+  });
 
-function verDetalleTecnico(nomina){ /* (ya está en el original) */ }
+  // 2. Intervenciones de técnicos (toma de OT)
+  if(ot.tecnicos && ot.tecnicos.length){
+    ot.tecnicos.forEach(function(t, i){
+      events.push({
+        tipo:'tecnico', fecha:t.fecha,
+        dot:'tl-dot-green', icon:'👷',
+        titulo:(i===0?'OT tomada por primera vez':'Técnico se unió al turno siguiente'),
+        sub:t.nombre+' (Nóm. '+t.nomina+')<br>'+t.turno,
+        tags:[]
+      });
+    });
+  } else if(ot.tecnico && ot.fechaTomada){
+    events.push({
+      tipo:'tecnico', fecha:ot.fechaTomada,
+      dot:'tl-dot-green', icon:'👷',
+      titulo:'OT tomada',
+      sub:ot.tecnico,
+      tags:[]
+    });
+  }
+
+  // 3. Actividades registradas
+  if(ot.actividades && ot.actividades.length){
+    ot.actividades.forEach(function(a){
+      var fechaISO = a.fecha+'T'+(a.inicio||'00:00')+':00';
+      events.push({
+        tipo:'actividad', fecha:fechaISO,
+        dot:'tl-dot-purple', icon:'🔧',
+        titulo:'Actividad registrada',
+        sub:(a.tecnico||'Técnico')+' · '+a.fecha+' '+a.inicio+'–'+a.fin+'<br>'+a.accion
+           +(a.obs?'<br><em style="color:var(--text3)">'+a.obs+'</em>':''),
+        tags:['Avance: '+a.avance+'%']
+      });
+    });
+  }
+
+  // 4. Refacciones utilizadas
+  if(ot.refacciones && ot.refacciones.length){
+    var total = ot.refacciones.reduce(function(s,r){return s+r.qty*r.costo;},0);
+    var refDesc = ot.refacciones.map(function(r){
+      return r.desc+' ('+r.qty+' u. · $'+(r.qty*r.costo).toFixed(2)+')';
+    }).join('<br>');
+    events.push({
+      tipo:'refaccion', fecha:ot.actividades&&ot.actividades.length?ot.actividades[ot.actividades.length-1].fecha+'T00:00:00':ot.fechaAlta,
+      dot:'tl-dot-amber', icon:'🔩',
+      titulo:'Refacciones utilizadas',
+      sub:refDesc,
+      tags:['Total: $'+total.toFixed(2)]
+    });
+  }
+
+  // 5. Espera
+  if(ot.espera){
+    events.push({
+      tipo:'espera', fecha:null,
+      dot:'tl-dot-amber', icon:'⏸',
+      titulo:'OT puesta en espera',
+      sub:'Motivo: '+ot.espera.motivo+'<br>'+ot.espera.comentario,
+      tags:['Fecha est. reanudación: '+fmtDate(ot.espera.fechaEst)]
+    });
+  }
+
+  // 6. Comentarios
+  if(ot.comentarios && ot.comentarios.length){
+    ot.comentarios.forEach(function(c){
+      events.push({
+        tipo:'comentario', fecha:c.fecha,
+        dot:'tl-dot-gray', icon:'💬',
+        titulo:'Comentario',
+        sub:'<strong>'+c.autor+'</strong><br>'+c.texto,
+        tags:[]
+      });
+    });
+  }
+
+  // 3b. Primer contacto confirmado por el solicitante
+  if(ot.fechaPrimerContacto){
+    events.push({
+      tipo:'primer-contacto', fecha:ot.fechaPrimerContacto,
+      dot:'tl-dot-blue', icon:'🤝',
+      titulo:'Técnico en máquina — primer contacto',
+      sub:'El solicitante confirmó que el técnico llegó a intervenir el problema.',
+      tags:[]
+    });
+  }
+
+  // 7. Solicitud de cierre por técnico (cuando avance = 100 y status fue validar)
+  if(ot.status==='validar'||ot.status==='cerrado'){
+    var lastAct = ot.actividades&&ot.actividades.length ? ot.actividades[ot.actividades.length-1] : null;
+    if(lastAct && lastAct.avance===100){
+      var fechaSolCierre = lastAct.fecha+'T'+(lastAct.fin||'00:00')+':00';
+      events.push({
+        tipo:'sol-cierre', fecha:fechaSolCierre,
+        dot:'tl-dot-green', icon:'✅',
+        titulo:'Trabajo concluido — solicitando cierre',
+        sub:(lastAct.tecnico||'Técnico')+' marcó la OT como concluida al 100%',
+        tags:[]
+      });
+    }
+  }
+
+  // 8. Cierre validado por usuario
+  if(ot.status==='cerrado' && ot.fechaCierre){
+    events.push({
+      tipo:'cierre', fecha:ot.fechaCierre,
+      dot:'tl-dot-green', icon:'🔒',
+      titulo:'OT cerrada y validada',
+      sub:'El solicitante confirmó que el equipo quedó operando correctamente.',
+      tags:['<span class="tl-tag tl-tag-green">Cierre exitoso</span>']
+    });
+  }
+
+  // Sort events by date (nulls go at end)
+  events.sort(function(a,b){
+    if(!a.fecha) return 1;
+    if(!b.fecha) return -1;
+    return new Date(a.fecha)-new Date(b.fecha);
+  });
+
+  // Build timeline HTML
+  var tlHtml = '<div class="timeline">'
+    +events.map(function(e, idx){
+      var timeStr = e.fecha ? fmt(e.fecha) : '—';
+      var tagsHtml = e.tags.map(function(t){
+        return t.startsWith('<')?t:'<span class="tl-tag">'+t+'</span>';
+      }).join('');
+      return '<div class="tl-item">'
+        +'<div class="tl-line"></div>'
+        +'<div class="tl-dot '+e.dot+'" style="font-size:14px">'+e.icon+'</div>'
+        +'<div class="tl-body">'
+          +'<div class="tl-time">'+timeStr+'</div>'
+          +'<div class="tl-title">'+e.titulo+'</div>'
+          +'<div class="tl-sub">'+e.sub+'</div>'
+          +(tagsHtml?'<div style="margin-top:5px">'+tagsHtml+'</div>':'')
+        +'</div>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+
+  // ── Datos generales ─────────────────────────────────────────────────────
+  var stMap={abierto:'badge-abierto',proceso:'badge-proceso',espera:'badge-espera',validar:'badge-validar',cerrado:'badge-cerrado'};
+  var stLbl={abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Pendiente validación',cerrado:'Cerrada'};
+
+  var asignarSec = !ot.tecnico
+    ? '<div class="alert alert-warn" style="margin:8px 12px"><div class="alert-icon">⏳</div><div>OT pendiente de ser tomada por un técnico de mantenimiento.</div></div>'
+    : '';
+
+  var esperaWarn = ot.espera && ot.status==='espera'
+    ? '<div class="alert alert-warn" style="margin:8px 12px"><div class="alert-icon">⏸</div><div><strong>En espera:</strong> '+ot.espera.motivo+'<br>'+ot.espera.comentario+'<br>Fecha est: '+fmtDate(ot.espera.fechaEst)+'</div></div>'
+    : '';
+
+  var refs='';
+  if(ot.refacciones && ot.refacciones.length){
+    var total2=ot.refacciones.reduce(function(s,r){return s+r.qty*r.costo;},0);
+    refs='<div class="section-head">Refacciones — Total: $'+total2.toFixed(2)+'</div>'
+      +ot.refacciones.map(function(r){
+        return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center">'
+          +'<div><div class="field-lbl">'+r.tipo+'</div><div class="field-val" style="font-weight:400">'+r.desc+' × '+r.qty+'</div></div>'
+          +'<div class="field-val">$'+(r.qty*r.costo).toFixed(2)+'</div></div>';
+      }).join('');
+  }
+
+  return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center;padding:12px 16px">'
+    +'<div><div style="font-size:16px;font-weight:600;color:var(--text)">'+ot.folio+'</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-top:2px">'+ot.tipo+'</div></div>'
+    +'<span class="badge '+(stMap[ot.status]||'')+'">'+( stLbl[ot.status]||ot.status)+'</span>'
+    +'</div>'
+    +'<div class="field-row"><div class="field-lbl">Solicitante</div><div class="field-val">'+ot.solicitante+' · Nóm. '+ot.nomina+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+' — '+ot.nave+' · '+ot.area+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Avance general</div>'
+    +'<div class="progress-track"><div class="progress-fill" style="width:'+ot.avance+'%;background:var(--purple)"></div></div>'
+    +'<div class="field-val" style="font-size:12px">'+ot.avance+'%</div></div>'
+    +asignarSec+esperaWarn+refs
+    +'<div class="section-head">Historial completo de la OT</div>'
+    +tlHtml
+    +'<div class="spacer"></div>';
+}
+
+function asignarOT(){
+  var sel = document.getElementById('sup-asignar-sel');
+  if(!sel || !sel.value){ alert('Selecciona un técnico de la lista'); return; }
+  var tecnico = toTitleCase(sel.value);  // normalizar a TitleCase para coincidir con currentUser.nombre
+  var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
+  ot.tecnico = tecnico;
+  if(ot.status==='abierto') ot.status = 'proceso';
+  DB.notifs.push({id:'n'+Date.now(), para:'tecnico',
+    texto:'Nueva OT '+ot.folio+' asignada por '+currentUser.nombre+': '+ot.desc.substring(0,60),
+    fecha:new Date().toISOString(), leida:false});
+  saveDB();
+  renderDashboard();
+  verOTSup(currentOTId);
+  alert('✓ OT asignada a '+toTitleCase(tecnico));
+}
+
+function renderTecnicos(){
+  reloadDB();
+  const personal = getTecnicos();
+  if(!personal.length){
+    document.getElementById('sup-tecnicos-content').innerHTML=
+      '<div class="empty-state"><div class="empty-icon">👷</div><div class="empty-title">Sin personal de mantenimiento</div><div class="empty-sub">El catálogo no tiene empleados activos en Mantenimiento.</div></div>';
+    return;
+  }
+  const puestoOrder = ['JEFE','INGENIERO','ANALISTA','TÉCNICO','AUXILIAR','APRENDIZ'];
+  const sorted = [...personal].sort((a,b)=>{
+    const ai = puestoOrder.findIndex(k=>a.puesto.toUpperCase().includes(k));
+    const bi = puestoOrder.findIndex(k=>b.puesto.toUpperCase().includes(k));
+    return (ai===-1?99:ai)-(bi===-1?99:bi) || a.nombre.localeCompare(b.nombre);
+  });
+  const tecs = sorted.map(p=>{
+    const n = p.nombre;
+    const activas  = DB.ots.filter(function(o){ return tecnicoEnOT(o,n)&&o.status!=='cerrado'; }).length;
+    const cerradas = DB.ots.filter(function(o){ return tecnicoEnOT(o,n)&&o.status==='cerrado'; }).length;
+    return Object.assign({},p,{activas,cerradas});
+  });
+  const maxC = Math.max.apply(null, tecs.map(t=>t.cerradas).concat([1]));
+  const avCls = ['av-blue','av-green','av-purple'];
+
+  function rowBadge(activas){
+    if(activas===0) return 'background:var(--green-light);color:var(--green-dark)';
+    if(activas<=2)  return 'background:var(--blue-light);color:var(--blue-dark)';
+    return 'background:var(--amber-light);color:var(--amber-dark)';
+  }
+  function rowLabel(activas){
+    if(activas===0) return 'Disponible';
+    if(activas<=2)  return 'Con OT';
+    return 'Ocupado';
+  }
+
+  var rows = tecs.map(function(t){
+    var cls = avCls[Math.abs(t.nombre.charCodeAt(0))%3];
+    var sub = (t.activas>0 ? t.activas+' OT activa'+(t.activas!==1?'s':'')+' · ' : '')
+            + t.cerradas+' cerrada'+(t.cerradas!==1?'s':'')
+            + (t.turno ? ' · T'+t.turno : '');
+    return '<div class="tec-row" onclick="verDetalleTecnico(\''+t.nomina+'\')" style="cursor:pointer">'
+      +'<div class="avatar '+cls+'">'+initials(t.nombre)+'</div>'
+      +'<div class="tec-info">'
+        +'<div class="tec-name">'+t.nombre+'</div>'
+        +'<div class="tec-sub">'+t.puesto+'</div>'
+        +'<div style="margin-top:3px;font-size:11px;color:var(--text3)">'+sub+'</div>'
+      +'</div>'
+      +'<span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:999px;'+rowBadge(t.activas)+'">'+rowLabel(t.activas)+'</span>'
+      +'</div>';
+  }).join('');
+
+  var actBar = tecs.filter(t=>t.activas>0).length===0
+    ? '<div style="padding:10px 16px;font-size:13px;color:var(--text3)">Ningún técnico tiene OT activas en este momento.</div>'
+    : tecs.filter(t=>t.activas>0).map(function(t){
+        var primer = t.nombre.split(' ')[0]+' '+t.nombre.split(' ')[1];
+        return '<div class="bar-row">'
+          +'<span class="bar-label" style="font-size:11px;width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+primer+'</span>'
+          +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(100,t.activas*25)+'%;background:var(--amber)"></div></div>'
+          +'<span class="bar-count">'+t.activas+'</span>'
+          +'</div>';
+      }).join('');
+
+  var cBar = tecs.map(function(t){
+    var primer = t.nombre.split(' ')[0]+' '+t.nombre.split(' ')[1];
+    return '<div class="bar-row">'
+      +'<span class="bar-label" style="font-size:11px;width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+primer+'</span>'
+      +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.round(t.cerradas/maxC*100)+'%;background:var(--purple)"></div></div>'
+      +'<span class="bar-count">'+t.cerradas+'</span>'
+      +'</div>';
+  }).join('');
+
+  document.getElementById('sup-tecnicos-content').innerHTML=
+    '<div style="padding:8px 12px 4px;font-size:11px;color:var(--text2)">'+personal.length+' personas activas en el depto. de Mantenimiento</div>'
+    +'<div class="section-head">Carga de trabajo actual</div>'
+    +rows
+    +'<div class="section-head" style="margin-top:8px">OT activas por persona</div>'
+    +'<div style="padding:6px 0 4px">'+actBar+'</div>'
+    +'<div class="section-head">OT cerradas — comparativo histórico</div>'
+    +'<div style="padding:6px 0 10px">'+cBar+'</div>'
+    +'<div class="spacer"></div>';
+}
+
+function verDetalleTecnico(nomina){
+  var p = (DB.personal||[]).find(x=>x.nomina===nomina);
+  if(!p) return;
+  var nombre   = p.nombre;
+  var todas    = DB.ots.filter(function(o){ return tecnicoEnOT(o,nombre)||(o.tecnico&&o.tecnico.toLowerCase()===nombre.toLowerCase()); });
+  var activas  = todas.filter(o=>o.status!=='cerrado');
+  var cerradas = todas.filter(o=>o.status==='cerrado');
+  var el = document.getElementById('sup-tecnicos-content');
+  var stMap = {abierto:'badge-abierto',proceso:'badge-proceso',espera:'badge-espera',validar:'badge-validar',cerrado:'badge-cerrado'};
+  var stLbl = {abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Validar',cerrado:'Cerrada'};
+  function sbadge(s){ return '<span class="badge '+(stMap[s]||'')+'">'+(stLbl[s]||s)+'</span>'; }
+
+  var otActHtml = activas.length===0 ? '' :
+    '<div class="section-head">OT activas</div>'
+    +activas.map(function(ot){
+      return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center;gap:8px">'
+        +'<div style="min-width:0">'
+          +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+ot.folio+' — '+ot.equipo+'</div>'
+          +'<div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ot.desc+'</div>'
+        +'</div>'+sbadge(ot.status)+'</div>';
+    }).join('');
+
+  var otCerHtml = cerradas.length===0 ? '' :
+    '<div class="section-head">Últimas OT cerradas</div>'
+    +cerradas.slice(-5).reverse().map(function(ot){
+      return '<div class="field-row" style="flex-direction:row;justify-content:space-between;align-items:center;gap:8px">'
+        +'<div style="min-width:0">'
+          +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+ot.folio+' — '+ot.equipo+'</div>'
+          +'<div style="font-size:11px;color:var(--text2)">'+fmt(ot.fechaCierre||ot.fechaAlta)+'</div>'
+        +'</div>'+sbadge(ot.status)+'</div>';
+    }).join('');
+
+  var kvCls = activas.length>3?'bad':activas.length>1?'warn':'';
+  el.innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)">'
+      +'<button onclick="renderTecnicos()" style="background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:0">← Volver al listado</button>'
+    +'</div>'
+    +'<div style="padding:18px 16px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)">'
+      +'<div class="avatar av-blue" style="width:48px;height:48px;font-size:16px">'+initials(nombre)+'</div>'
+      +'<div>'
+        +'<div style="font-size:15px;font-weight:600;color:var(--text)">'+nombre+'</div>'
+        +'<div style="font-size:12px;color:var(--text2);margin-top:2px">'+p.puesto+'</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:2px">Nóm. '+p.nomina+(p.turno?' · Turno '+p.turno:'')+'</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">'
+      +'<div class="kpi"><div class="kpi-label">Activas</div><div class="kpi-val '+kvCls+'">'+activas.length+'</div></div>'
+      +'<div class="kpi"><div class="kpi-label">Cerradas</div><div class="kpi-val good">'+cerradas.length+'</div></div>'
+      +'<div class="kpi"><div class="kpi-label">Total</div><div class="kpi-val">'+todas.length+'</div></div>'
+    +'</div>'
+    +otActHtml+otCerHtml
+    +'<div class="spacer"></div>';
+}
 
 function abrirModalAsignar(){
   const sel = document.getElementById('asignar-tecnico');
@@ -2452,32 +3097,105 @@ function abrirModalAsignar(){
   openModal('modal-asignar');
 }
 
-function switchAdmModule(mod){ /* (ya está en el original) */ }
 
-function injectAdmBackBar(pageId, firstScreenId){ /* (ya está en el original) */ }
+// ── Admin module switcher ────────────────────────────────────────────────────
+let admPrevPage = null;   // which page was active before admin switched to it
 
-function returnToAdmin(){ /* (ya está en el original) */ }
+function switchAdmModule(mod){
+  admPrevPage = 'page-admin';
+  if(mod === 'personal'){
+    showScreen('adm-personal');
+    renderPersonal();
+    return;
+  }
+  // Temporarily switch to the target role page
+  // We need to initialise it with the admin user context
+  const saved = {...currentUser};
+  if(mod === 'solicitante'){
+    showPage('page-solicitante');
+    initSolicitante();
+    injectAdmBackBar('page-solicitante', 'sol-lista');
+  } else if(mod === 'tecnico'){
+    showPage('page-tecnico');
+    initTecnico();
+    injectAdmBackBar('page-tecnico', 'tec-lista');
+  } else if(mod === 'supervisor'){
+    showPage('page-supervisor');
+    initSupervisor();
+    injectAdmBackBar('page-supervisor', 'sup-dashboard');
+  }
+  currentUser = saved;  // keep admin identity
+}
 
-function renderAlertas(){ /* (ya está en el original) */ }
+function injectAdmBackBar(pageId, firstScreenId){
+  // Inject "Volver al admin" button in ALL screens of this page
+  const page = document.getElementById(pageId);
+  if(!page) return;
+  const screens = page.querySelectorAll('.screen');
+  screens.forEach(function(screen){
+    const barId = 'adm-back-bar-' + screen.id;
+    if(document.getElementById(barId)) return;  // already injected
+    var bar = document.createElement('button');
+    bar.id = barId;
+    bar.className = 'adm-back-btn';
+    bar.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg> Volver al panel de administración';
+    bar.onclick = function(){ returnToAdmin(); };
+    screen.insertBefore(bar, screen.firstChild);
+  });
+}
 
+function returnToAdmin(){
+  showPage('page-admin');
+  showScreen('adm-hub');
+}
+
+function renderAlertas(){
+  reloadDB();
+  const ots=DB.ots;
+  const sinAsignar=ots.filter(o=>!o.tecnico&&o.status==='abierto');
+  const esperaSinFecha=ots.filter(o=>o.status==='espera'&&(!o.espera?.fechaEst));
+  const notifs=DB.notifs.filter(n=>n.para==='supervisor');
+  let html='';
+  if(sinAsignar.length){
+    html+='<div class="section-head">Sin técnico asignado</div>';
+    html+=sinAsignar.map(function(ot){return '<div class="alert alert-red">'
+      +'<div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
+      +'<div><strong>'+ot.folio+'</strong> — '+ot.desc.substring(0,60)+'<br><span style="font-size:11px">'+ot.equipo+' · '+fmt(ot.fechaAlta)+'</span></div>'
+      +'</div>';}).join('');
+  }
+  if(esperaSinFecha.length){
+    html+='<div class="section-head">En espera sin fecha estimada</div>';
+    html+=esperaSinFecha.map(function(ot){return '<div class="alert alert-warn">'
+      +'<div class="alert-icon">⏸</div>'
+      +'<div><strong>'+ot.folio+'</strong> — '+ot.desc.substring(0,50)+'<br><span style="font-size:11px">Sin fecha de reanudación registrada</span></div>'
+      +'</div>';}).join('');
+  }
+  html+='<div class="section-head">Notificaciones recientes</div>';
+  if(!notifs.length){html+='<div style="padding:14px 16px;font-size:13px;color:var(--text3)">Sin notificaciones nuevas</div>';}
+  else{html+=notifs.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);}).map(function(n){
+    return '<div class="notif-item" style="'+(n.leida?'':'background:var(--purple-light)')+'">'
+      +'<div class="notif-dot2" style="background:'+(n.leida?'var(--border)':'var(--purple)')+'"></div>'
+      +'<div><div class="notif-text">'+n.texto+'</div><div class="notif-time">'+fmt(n.fecha)+'</div></div>'
+      +'</div>';}).join('');}
+  html+='<div class="spacer"></div>';
+  document.getElementById('sup-alertas-content').innerHTML=html;
+  DB.notifs.filter(n=>n.para==='supervisor').forEach(n=>n.leida=true);
+  saveDB();
+  updateNotifDot('sup-notif-dot','supervisor');
+}
+
+// Sync avance bar con slider
 document.getElementById('act-avance')?.addEventListener('input',function(){
   document.getElementById('act-avance-bar').style.width=this.value+'%';
 });
 
-// ============================================================
-// PERFIL SUPERVISOR (modificado con botón de push)
-// ============================================================
+
+
+// ══════════════════════════════════════
+// AJUSTE 2 — Perfil supervisor
+// ══════════════════════════════════════
 function renderSupPerfil(){
   var ots = DB.ots || [];
-  var pushBtn = '';
-  if ('serviceWorker' in navigator && 'PushManager' in window) {
-    pushBtn = `<button class="btn btn-outline btn-block" onclick="subscribeUser()" id="push-subscribe-btn">📲 Activar notificaciones push</button>`;
-    if (isPushSubscribed()) {
-      pushBtn += `<div style="margin-top:5px;font-size:12px;color:var(--green);">✅ Notificaciones activas</div>`;
-    } else {
-      pushBtn += `<div style="margin-top:5px;font-size:12px;color:var(--text3);">⏳ No suscrito. Toca el botón para activar.</div>`;
-    }
-  }
   document.getElementById('sup-perfil-content').innerHTML =
     '<div style="padding:20px 16px 12px;text-align:center;border-bottom:1px solid var(--border)">'
       +'<div class="avatar av-purple" style="width:56px;height:56px;font-size:18px;margin:0 auto 10px">'+initials(currentUser.nombre)+'</div>'
@@ -2489,10 +3207,6 @@ function renderSupPerfil(){
     +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">OT totales</div><div class="field-val">'+ots.length+'</div></div>'
     +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">OT activas</div><div class="field-val">'+ots.filter(function(o){return o.status!=='cerrado';}).length+'</div></div>'
     +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">OT cerradas</div><div class="field-val" style="color:var(--green)">'+ots.filter(function(o){return o.status==='cerrado';}).length+'</div></div>'
-    +'<div class="section-head">Notificaciones push</div>'
-    +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
-      +pushBtn
-    +'</div>'
     +'<div class="section-head">Acceso biométrico</div>'
     +'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
       +'<button class="btn btn-outline btn-block" onclick="registrarBiometria()" id="btn-bio-sup">'
@@ -2506,40 +3220,566 @@ function renderSupPerfil(){
     +'<div class="spacer"></div>';
 }
 
-// ============================================================
-// ADMIN Y CATÁLOGOS (se mantienen igual que en el original)
-// ============================================================
-function renderAdmOTs(){ /* (ya está en el original) */ }
-function admEditarOT(id){ /* (ya está en el original) */ }
-function admGuardarEditOT(){ /* (ya está en el original) */ }
-function admEliminarOT(id){ /* (ya está en el original) */ }
-function registrarBiometria(){ /* (ya está en el original) */ }
-function autenticarBiometria(nomina){ /* (ya está en el original) */ }
-function renderAdmCatalogos(){ /* (ya está en el original) */ }
-function abrirFormCatalogo(tipo, id){ /* (ya está en el original) */ }
-function abrirFormMaquina(id){ /* (ya está en el original) */ }
-function guardarMaquina(){ /* (ya está en el original) */ }
-function bajarMaquina(id){ /* (ya está en el original) */ }
-function activarMaquina(id){ /* (ya está en el original) */ }
-function abrirFormInfra(id){ /* (ya está en el original) */ }
-function guardarInfra(){ /* (ya está en el original) */ }
-function bajarInfra(id){ /* (ya está en el original) */ }
-function activarInfra(id){ /* (ya está en el original) */ }
-function guardarCatalogo(){ /* (ya está en el original) */ }
-function bajarCatalogo(tipo, id){ /* (ya está en el original) */ }
-function activarCatalogo(tipo, id){ /* (ya está en el original) */ }
+// ══════════════════════════════════════
+// AJUSTE 1 — Admin: gestión de OT
+// ══════════════════════════════════════
+function renderAdmOTs(){
+  reloadDB();
+  var ots = [...(DB.ots||[])].sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
+  ots = applySearchFilters(ots, 'adm');
+  var el = document.getElementById('adm-ots-list');
+  if(!el) return;
+  if(!ots.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes de trabajo</div></div>';
+    return;
+  }
+  var stMap={abierto:'badge-abierto',proceso:'badge-proceso',espera:'badge-espera',validar:'badge-validar',cerrado:'badge-cerrado'};
+  var stLbl={abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Validar',cerrado:'Cerrada'};
+  el.innerHTML = ots.map(function(ot){
+    return '<div class="card" style="margin-bottom:8px">'
+      +'<div class="card-header"><span class="card-folio">'+ot.folio+'</span><span class="badge '+stMap[ot.status]+'">'+stLbl[ot.status]+'</span></div>'
+      +'<div class="card-desc">'+ot.desc+'</div>'
+      +'<div class="card-tags" style="margin-bottom:8px"><span class="tag">'+ot.equipo+' · '+ot.nave+'</span><span class="tag">'+(ot.tecnico||'Sin asignar')+'</span></div>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-outline btn-sm" style="flex:1" onclick="admEditarOT(this.dataset.id)" data-id="'+ot.id+'">✏️ Modificar</button>'
+        +'<button class="btn btn-danger btn-sm" style="flex:1" onclick="admEliminarOT(this.dataset.id)" data-id="'+ot.id+'">🗑 Eliminar</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
 
-// ============================================================
-// CATÁLOGOS Y PERSONAL (igual que en el original)
-// ============================================================
+function admEditarOT(id){
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot) return;
+  // Mostrar modal de edición
+  var modal = document.getElementById('modal-adm-edit-ot');
+  document.getElementById('adm-edit-ot-id').value = ot.id;
+  document.getElementById('adm-edit-ot-desc').value = ot.desc;
+  document.getElementById('adm-edit-ot-status').value = ot.status;
+  document.getElementById('adm-edit-ot-tecnico').value = ot.tecnico||'';
+  document.getElementById('adm-edit-ot-prioridad').value = ot.prioridad||'normal';
+  openModal('modal-adm-edit-ot');
+}
+
+function admGuardarEditOT(){
+  var id = document.getElementById('adm-edit-ot-id').value;
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot){ closeModal('modal-adm-edit-ot'); return; }
+  ot.desc      = document.getElementById('adm-edit-ot-desc').value.trim() || ot.desc;
+  ot.status    = document.getElementById('adm-edit-ot-status').value;
+  ot.tecnico   = document.getElementById('adm-edit-ot-tecnico').value.trim() || null;
+  ot.prioridad = document.getElementById('adm-edit-ot-prioridad').value;
+  saveDB();
+  closeModal('modal-adm-edit-ot');
+  renderAdmOTs();
+  alert('✓ OT '+ot.folio+' actualizada.');
+}
+
+function admEliminarOT(id){
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot) return;
+  if(!confirm('¿Eliminar permanentemente la OT '+ot.folio+'? '+ot.desc+' Esta acción no se puede deshacer.')) return;
+  DB.ots = DB.ots.filter(function(o){ return o.id!==id; });
+  saveDB();
+  renderAdmOTs();
+  alert('✓ OT '+ot.folio+' eliminada.');
+}
+
+// ══════════════════════════════════════
+// AJUSTE 3 — WebAuthn (Face ID / Huella)
+// ══════════════════════════════════════
+function base64urlEncode(buffer){
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function registrarBiometria(){
+  if(!window.PublicKeyCredential){
+    alert('Tu navegador o dispositivo no soporta autenticación biométrica.');
+    return;
+  }
+  try{
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    var userId = new TextEncoder().encode(currentUser.nomina);
+    var cred = await navigator.credentials.create({publicKey:{
+      challenge: challenge,
+      rp:{ name:'MantoApp', id: location.hostname },
+      user:{ id: userId, name: currentUser.nomina, displayName: currentUser.nombre },
+      pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
+      authenticatorSelection:{ userVerification:'required' },
+      timeout: 60000
+    }});
+    // Guardar ID de credencial vinculada a esta nómina
+    var credId = base64urlEncode(cred.rawId);
+    var bioMap = JSON.parse(localStorage.getItem('mantoBio')||'{}');
+    bioMap[currentUser.nomina] = credId;
+    localStorage.setItem('mantoBio', JSON.stringify(bioMap));
+    alert('✓ Biometría registrada. La próxima vez podrás entrar con Face ID o huella.');
+  } catch(e){
+    if(e.name==='NotAllowedError') alert('Registro cancelado.');
+    else alert('Error al registrar biometría: '+e.message);
+  }
+}
+
+async function autenticarBiometria(nomina){
+  if(!window.PublicKeyCredential) return false;
+  var bioMap = JSON.parse(localStorage.getItem('mantoBio')||'{}');
+  var credId = bioMap[nomina];
+  if(!credId) return false;
+  try{
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    // Decode stored credId
+    var bin = atob(credId.replace(/-/g,'+').replace(/_/g,'/'));
+    var arr = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    await navigator.credentials.get({publicKey:{
+      challenge: challenge,
+      allowCredentials:[{type:'public-key', id: arr}],
+      userVerification:'required',
+      timeout: 60000
+    }});
+    return true;
+  } catch(e){ return false; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CATÁLOGO TIPO DE SERVICIO Y NAVE
+// ══════════════════════════════════════════════════════════════════
+function renderAdmCatalogos(){
+  reloadDB();
+  // Render máquinas
+  var maquinas = DB.maquinas || DEFAULT_MAQUINAS;
+  var elMaq = document.getElementById('adm-cat-maquinas');
+  if(elMaq){
+    var grupoA = maquinas.filter(function(m){ return m.naves&&(m.naves.indexOf('A1')>=0||m.naves.indexOf('A2')>=0); });
+    var grupoB = maquinas.filter(function(m){ return m.naves&&(m.naves.indexOf('B16')>=0||m.naves.indexOf('B17')>=0); });
+    var otras  = maquinas.filter(function(m){ return grupoA.indexOf(m)<0 && grupoB.indexOf(m)<0; });
+    function renderMaqLista(items){
+      return items.map(function(m){
+        var editBtn = '<button class="btn btn-sm btn-outline" onclick="abrirFormMaquina(this.dataset.id)" data-id="'+m.id+'" style="padding:3px 8px;font-size:11px">Editar</button>';
+        var stBtn   = m.activo
+          ? '<button class="btn btn-sm btn-danger" onclick="bajarMaquina(this.dataset.id)" data-id="'+m.id+'" style="padding:3px 8px;font-size:11px">Baja</button>'
+          : '<button class="btn btn-sm btn-outline" onclick="activarMaquina(this.dataset.id)" data-id="'+m.id+'" style="padding:3px 8px;font-size:11px">Activar</button>';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border)">'
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="font-size:13px;font-weight:500;color:'+(m.activo?'var(--text)':'var(--text3)')+';'+(m.activo?'':'text-decoration:line-through')+'">'+m.nombre+'</div>'
+            +(m.desc?'<div style="font-size:11px;color:var(--amber-dark);margin-top:1px">⚠ '+m.desc+'</div>':'')
+            +'<span class="badge '+(m.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 6px">'+(m.activo?'Activo':'Baja')+'</span>'
+          +'</div>'
+          +editBtn+stBtn+'</div>';
+      }).join('');
+    }
+    var htmlM='';
+    if(grupoA.length) htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Naves A1 / A2</div>'+renderMaqLista(grupoA);
+    if(grupoB.length) htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Naves B16 / B17</div>'+renderMaqLista(grupoB);
+    if(otras.length)  htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Otras naves</div>'+renderMaqLista(otras);
+    elMaq.innerHTML = htmlM||'<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin máquinas</div>';
+  }
+
+  // Render infraestructura
+  var infras = DB.infraestructura || DEFAULT_INFRAESTRUCTURA;
+  var elInfra = document.getElementById('adm-cat-infra');
+  if(elInfra){
+    var navesList = (DB.naves||DEFAULT_NAVES).map(function(n){ return n.nombre; });
+    var htmlI = '';
+    navesList.forEach(function(nave){
+      var items = infras.filter(function(x){ return x.nave===nave; });
+      if(!items.length) return;
+      htmlI += '<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">NAVE '+nave+'</div>';
+      htmlI += items.map(function(item){
+        var editBtn = '<button class="btn btn-sm btn-outline" onclick="abrirFormInfra(this.dataset.id)" data-id="'+item.id+'" style="padding:3px 8px;font-size:11px">Editar</button>';
+        var stBtn   = item.activo
+          ? '<button class="btn btn-sm btn-danger" onclick="bajarInfra(this.dataset.id)" data-id="'+item.id+'" style="padding:3px 8px;font-size:11px">Baja</button>'
+          : '<button class="btn btn-sm btn-outline" onclick="activarInfra(this.dataset.id)" data-id="'+item.id+'" style="padding:3px 8px;font-size:11px">Activar</button>';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border)">'
+          +'<div style="flex:1"><div style="font-size:13px;font-weight:500;color:'+(item.activo?'var(--text)':'var(--text3)')+';'+(item.activo?'':'text-decoration:line-through')+'">'+item.nombre+'</div>'
+          +'<span class="badge '+(item.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 6px">'+(item.activo?'Activo':'Baja')+'</span></div>'
+          +editBtn+stBtn+'</div>';
+      }).join('');
+    });
+    elInfra.innerHTML = htmlI || '<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin áreas registradas</div>';
+  }
+
+  var tipos = DB.tiposServicio || DEFAULT_TIPOS;
+  var naves = DB.naves || DEFAULT_NAVES;
+
+  function renderLista(items, tipo){
+    return items.map(function(item){
+      var editBtn   = '<button class="btn btn-sm btn-outline" onclick="abrirFormCatalogo(this.dataset.t,this.dataset.i)" data-t="'+tipo+'" data-i="'+item.id+'" style="padding:4px 10px;font-size:11px">Editar</button>';
+      var statusBtn = item.activo
+        ? '<button class="btn btn-sm btn-danger" onclick="bajarCatalogo(this.dataset.t,this.dataset.i)" data-t="'+tipo+'" data-i="'+item.id+'" style="padding:4px 10px;font-size:11px">Baja</button>'
+        : '<button class="btn btn-sm btn-outline" onclick="activarCatalogo(this.dataset.t,this.dataset.i)" data-t="'+tipo+'" data-i="'+item.id+'" style="padding:4px 10px;font-size:11px">Activar</button>';
+      return '<div class="field-row" style="flex-direction:row;align-items:center;gap:10px">'
+        +'<div style="flex:1">'
+          +'<div class="field-val" style="font-size:13px'+(item.activo?'':';color:var(--text3);text-decoration:line-through')+'">'+item.nombre+'</div>'
+          +'<span class="badge '+(item.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 7px">'+(item.activo?'Activo':'Baja')+'</span>'
+        +'</div>'
+        +editBtn+statusBtn
+        +'</div>';
+    }).join('');
+  }
+
+  var elTipos = document.getElementById('adm-cat-tipos');
+  var elNaves = document.getElementById('adm-cat-naves');
+  if(elTipos) elTipos.innerHTML = tipos.length
+    ? renderLista(tipos,'tipo')
+    : '<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin tipos de servicio</div>';
+  if(elNaves) elNaves.innerHTML = naves.length
+    ? renderLista(naves,'nave')
+    : '<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin naves</div>';
+}
+
+function abrirFormCatalogo(tipo, id){
+  var esTipo = tipo==='tipo';
+  document.getElementById('modal-cat-titulo').textContent = id
+    ? ('Editar '+(esTipo?'tipo de servicio':'nave'))
+    : ('Nuevo '+(esTipo?'tipo de servicio':'nave'));
+  document.getElementById('cat-form-label').textContent = esTipo?'Nombre del tipo':'Nombre de la nave';
+  document.getElementById('cat-form-tipo').value = tipo;
+  document.getElementById('cat-form-id').value = id||'';
+
+  if(id){
+    var lista = esTipo ? (DB.tiposServicio||[]) : (DB.naves||[]);
+    var item = lista.find(function(x){ return x.id===id; });
+    if(item){
+      document.getElementById('cat-form-nombre').value = item.nombre;
+      document.getElementById('cat-form-activo').value = item.activo?'1':'0';
+    }
+  } else {
+    document.getElementById('cat-form-nombre').value = '';
+    document.getElementById('cat-form-activo').value = '1';
+  }
+  openModal('modal-cat-form');
+}
+
+function abrirFormMaquina(id){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var naves = (DB.naves||DEFAULT_NAVES);
+  document.getElementById('modal-maq-titulo').textContent = id ? 'Editar máquina' : 'Nueva máquina';
+  document.getElementById('maq-form-id').value   = id||'';
+  document.getElementById('maq-form-nombre').value = '';
+  document.getElementById('maq-form-desc').value   = '';
+  document.getElementById('maq-form-activo').value  = '1';
+  // Build nave checkboxes
+  var navesContainer = document.getElementById('maq-form-naves');
+  var maq = id ? DB.maquinas.find(function(m){ return m.id===id; }) : null;
+  navesContainer.innerHTML = naves.map(function(n){
+    var checked = maq && maq.naves && maq.naves.indexOf(n.nombre)>=0 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">'
+      +'<input type="checkbox" value="'+n.nombre+'" '+checked+' style="accent-color:var(--orange)">'
+      +'NAVE '+n.nombre+'</label>';
+  }).join('');
+  if(maq){
+    document.getElementById('maq-form-nombre').value = maq.nombre;
+    document.getElementById('maq-form-desc').value   = maq.desc||'';
+    document.getElementById('maq-form-activo').value  = maq.activo?'1':'0';
+  }
+  openModal('modal-maquina-form');
+}
+
+function guardarMaquina(){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var id     = document.getElementById('maq-form-id').value;
+  var nombre = document.getElementById('maq-form-nombre').value.trim();
+  var desc   = document.getElementById('maq-form-desc').value.trim();
+  var activo = document.getElementById('maq-form-activo').value==='1';
+  var navesEl= document.getElementById('maq-form-naves').querySelectorAll('input[type=checkbox]:checked');
+  var naves  = Array.from(navesEl).map(function(c){ return c.value; });
+  if(!nombre){ alert('El nombre de la máquina no puede estar vacío'); return; }
+  if(!naves.length){ alert('Selecciona al menos una nave'); return; }
+  if(id){
+    var maq = DB.maquinas.find(function(m){ return m.id===id; });
+    if(maq){ maq.nombre=nombre; maq.desc=desc; maq.naves=naves; maq.activo=activo; }
+  } else {
+    DB.maquinas.push({id:'mq_'+Date.now(), nombre:nombre, desc:desc, naves:naves, activo:true});
+  }
+  saveDB();
+  closeModal('modal-maquina-form');
+  renderAdmCatalogos();
+  poblarSelectsNueva();
+  alert('✓ Máquina guardada.');
+}
+
+function bajarMaquina(id){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var maq = DB.maquinas.find(function(m){ return m.id===id; });
+  if(!maq) return;
+  if(!confirm('¿Dar de baja "'+maq.nombre+'"?')) return;
+  maq.activo=false; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Máquina dada de baja.');
+}
+
+function activarMaquina(id){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var maq = DB.maquinas.find(function(m){ return m.id===id; });
+  if(!maq) return;
+  maq.activo=true; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Máquina activada.');
+}
+
+function abrirFormInfra(id){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var naves = (DB.naves||DEFAULT_NAVES).filter(function(n){ return n.activo; });
+  var selNave = document.getElementById('infra-form-nave');
+  selNave.innerHTML = '<option value="">— Selecciona —</option>'
+    + naves.map(function(n){ return '<option value="'+n.nombre+'">NAVE '+n.nombre+'</option>'; }).join('');
+  document.getElementById('modal-infra-titulo').textContent = id ? 'Editar área' : 'Nueva área de infraestructura';
+  document.getElementById('infra-form-id').value     = id||'';
+  document.getElementById('infra-form-nombre').value = '';
+  document.getElementById('infra-form-nave').value   = '';
+  document.getElementById('infra-form-activo').value = '1';
+  if(id){
+    var item = DB.infraestructura.find(function(x){ return x.id===id; });
+    if(item){
+      document.getElementById('infra-form-nombre').value = item.nombre;
+      document.getElementById('infra-form-nave').value   = item.nave;
+      document.getElementById('infra-form-activo').value = item.activo?'1':'0';
+    }
+  }
+  openModal('modal-infra-form');
+}
+
+function guardarInfra(){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var id     = document.getElementById('infra-form-id').value;
+  var nombre = document.getElementById('infra-form-nombre').value.trim().toUpperCase();
+  var nave   = document.getElementById('infra-form-nave').value;
+  var activo = document.getElementById('infra-form-activo').value==='1';
+  if(!nombre){ alert('El nombre no puede estar vacío'); return; }
+  if(!nave)  { alert('Selecciona una nave'); return; }
+  if(id){
+    var item = DB.infraestructura.find(function(x){ return x.id===id; });
+    if(item){ item.nombre=nombre; item.nave=nave; item.activo=activo; }
+  } else {
+    DB.infraestructura.push({id:'in_'+Date.now(), nombre:nombre, nave:nave, activo:true});
+  }
+  saveDB(); closeModal('modal-infra-form'); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Área guardada.');
+}
+
+function bajarInfra(id){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var item = DB.infraestructura.find(function(x){ return x.id===id; });
+  if(!item) return;
+  if(!confirm('¿Dar de baja "'+item.nombre+'"?')) return;
+  item.activo=false; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Área dada de baja.');
+}
+
+function activarInfra(id){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var item = DB.infraestructura.find(function(x){ return x.id===id; });
+  if(!item) return;
+  item.activo=true; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Área activada.');
+}
+
+function guardarCatalogo(){
+  var tipo   = document.getElementById('cat-form-tipo').value;
+  var id     = document.getElementById('cat-form-id').value;
+  var nombre = document.getElementById('cat-form-nombre').value.trim().toUpperCase();
+  var activo = document.getElementById('cat-form-activo').value==='1';
+  if(!nombre){ alert('El nombre no puede estar vacío'); return; }
+
+  var esTipo = tipo==='tipo';
+  if(!DB.tiposServicio) DB.tiposServicio = JSON.parse(JSON.stringify(DEFAULT_TIPOS));
+  if(!DB.naves) DB.naves = JSON.parse(JSON.stringify(DEFAULT_NAVES));
+  var lista = esTipo ? DB.tiposServicio : DB.naves;
+
+  if(id){
+    var item = lista.find(function(x){ return x.id===id; });
+    if(item){ item.nombre=nombre; item.activo=activo; }
+  } else {
+    var newId = tipo+'_'+Date.now();
+    lista.push({id:newId, nombre:nombre, activo:true});
+  }
+  saveDB();
+  closeModal('modal-cat-form');
+  renderAdmCatalogos();
+  poblarSelectsNueva(); // refrescar selects en Nueva Solicitud
+  alert('✓ Guardado correctamente.');
+}
+
+function bajarCatalogo(tipo, id){
+  var lista = tipo==='tipo' ? DB.tiposServicio : DB.naves;
+  var item = lista.find(function(x){ return x.id===id; });
+  if(!item) return;
+  if(!confirm('¿Dar de baja "'+item.nombre+'"? Ya no aparecerá en Nueva Solicitud.')) return;
+  item.activo = false;
+  saveDB();
+  renderAdmCatalogos();
+  poblarSelectsNueva();
+  alert('✓ Dado de baja.');
+}
+
+function activarCatalogo(tipo, id){
+  var lista = tipo==='tipo' ? DB.tiposServicio : DB.naves;
+  var item = lista.find(function(x){ return x.id===id; });
+  if(!item) return;
+  item.activo = true;
+  saveDB();
+  renderAdmCatalogos();
+  poblarSelectsNueva();
+  alert('✓ Activado.');
+}
+
+// ==================== ADMIN ====================
 const CATALOG_PERSONAL = [ /* Lista retirada del historial por privacidad */ ];
-const DEFAULT_TIPOS = [ /* (idéntico al original) */ ];
-const DEFAULT_NAVES = [ /* (idéntico al original) */ ];
-const DEFAULT_INFRAESTRUCTURA = [ /* (idéntico al original) */ ];
-const DEFAULT_MAQUINAS = [ /* (idéntico al original) */ ];
 
-function initPersonal(){ /* (ya está en el original) */ }
-function initCatalogos(){ /* (ya está en el original) */ }
+// Catálogos de Tipo de Servicio y Nave — valores iniciales
+var DEFAULT_TIPOS = [
+  {id:'ts1', nombre:'MTTO-MAQ-PROD',       activo:true},
+  {id:'ts2', nombre:'MTTO-INFRAESTRUCTURA', activo:true},
+  {id:'ts3', nombre:'MTTO-SEGURIDAD',       activo:true}
+];
+var DEFAULT_NAVES = [
+  {id:'nv1', nombre:'A1',  activo:true},
+  {id:'nv2', nombre:'A2',  activo:true},
+  {id:'nv3', nombre:'B16', activo:true},
+  {id:'nv4', nombre:'B17', activo:true}
+];
+
+var DEFAULT_INFRAESTRUCTURA = [
+  // ── Nave A1 ────────────────────────────────────────────────────────────
+  {id:'in01', nombre:'DIGITAL',                          nave:'A1', activo:true},
+  {id:'in02', nombre:'ROTOGRABADO',                      nave:'A1', activo:true},
+  {id:'in03', nombre:'TINTAS',                           nave:'A1', activo:true},
+  {id:'in04', nombre:'COMEDOR',                          nave:'A1', activo:true},
+  {id:'in05', nombre:'CHILLERS',                         nave:'A1', activo:true},
+  {id:'in06', nombre:'ALMACÉN DE MANEJO ESPECIAL',   nave:'A1', activo:true},
+  {id:'in07', nombre:'ALMACÉN DE RESIDUOS PELIGROSOS',nave:'A1', activo:true},
+  {id:'in08', nombre:'ALMACÉN DE SOLVENTES',         nave:'A1', activo:true},
+  {id:'in09', nombre:'LAVATINA ROTOGRABADO',             nave:'A1', activo:true},
+  {id:'in10', nombre:'PERIFERICOS DE PRODUCCIÓN',    nave:'A1', activo:true},
+  {id:'in11', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'A1', activo:true},
+  // ── Nave A2 ────────────────────────────────────────────────────────────
+  {id:'in12', nombre:'RECEPCIÓN',                    nave:'A2', activo:true},
+  {id:'in13', nombre:'VIGILANCIA',                       nave:'A2', activo:true},
+  {id:'in14', nombre:'VESTIDORES HOMBRES A2',            nave:'A2', activo:true},
+  {id:'in15', nombre:'VESTIDORES MUJERES A2',            nave:'A2', activo:true},
+  {id:'in16', nombre:'COBRANZA',                         nave:'A2', activo:true},
+  {id:'in17', nombre:'SISTEMAS',                         nave:'A2', activo:true},
+  {id:'in18', nombre:'SALA DE VENTAS',                   nave:'A2', activo:true},
+  {id:'in19', nombre:'SALA DE JUNTAS',                   nave:'A2', activo:true},
+  {id:'in20', nombre:'DIRECCIÓN GENERAL',             nave:'A2', activo:true},
+  {id:'in21', nombre:'DIRECCIÓN DE OPERACIONES',     nave:'A2', activo:true},
+  {id:'in22', nombre:'COMPRAS',                          nave:'A2', activo:true},
+  {id:'in23', nombre:'CALIDAD',                          nave:'A2', activo:true},
+  {id:'in24', nombre:'GERENCIA DE OPERACIONES',          nave:'A2', activo:true},
+  {id:'in25', nombre:'ANDÉN',                        nave:'A2', activo:true},
+  {id:'in26', nombre:'OFICINA DE MANTENIMIENTO',         nave:'A2', activo:true},
+  {id:'in27', nombre:'TALLER DE MANTENIMIENTO',          nave:'A2', activo:true},
+  {id:'in28', nombre:'DISEÑO',                       nave:'A2', activo:true},
+  {id:'in29', nombre:'PREPRENSA',                        nave:'A2', activo:true},
+  {id:'in30', nombre:'BAÑOS HOMBRES PRODUCCIÓN A2',nave:'A2', activo:true},
+  {id:'in31', nombre:'BAÑOS MUJERES PRODUCCIÓN A2',nave:'A2', activo:true},
+  {id:'in32', nombre:'BAÑOS HOMBRES PLANTA ALTA A2', nave:'A2', activo:true},
+  {id:'in33', nombre:'BAÑOS MUJERES PLANTA ALTA A2', nave:'A2', activo:true},
+  {id:'in34', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'A2', activo:true},
+  // ── Nave B16 ───────────────────────────────────────────────────────────
+  {id:'in35', nombre:'ALMACEN DE MATERIA PRIMA',         nave:'B16', activo:true},
+  {id:'in36', nombre:'ANDÉN EMBARQUES Y MATERIA PRIMA',nave:'B16', activo:true},
+  {id:'in37', nombre:'EMBARQUES',                        nave:'B16', activo:true},
+  {id:'in38', nombre:'BAÑO B16',                     nave:'B16', activo:true},
+  {id:'in39', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'B16', activo:true},
+  // ── Nave B17 ───────────────────────────────────────────────────────────
+  {id:'in40', nombre:'VIGILANCIA',                       nave:'B17', activo:true},
+  {id:'in41', nombre:'VESTIDORES MUJERES B17',           nave:'B17', activo:true},
+  {id:'in42', nombre:'VESTIDORES HOMBRES B17',           nave:'B17', activo:true},
+  {id:'in43', nombre:'COMEDOR',                          nave:'B17', activo:true},
+  {id:'in44', nombre:'ADMINISTRACION',                   nave:'B17', activo:true},
+  {id:'in45', nombre:'BAÑOS HOMBRES PLANTA ALTA B17',nave:'B17', activo:true},
+  {id:'in46', nombre:'BAÑOS MUJERES PLANTA ALTA B17',nave:'B17', activo:true},
+  {id:'in47', nombre:'GERENCIA DE ADMINISTRACIÓN',   nave:'B17', activo:true},
+  {id:'in48', nombre:'EMPAQUE',                          nave:'B17', activo:true},
+  {id:'in49', nombre:'CORTADORA DE CORES',               nave:'B17', activo:true},
+  {id:'in50', nombre:'SUPERVISIÓN DE ACONDICIONADO', nave:'B17', activo:true},
+  {id:'in51', nombre:'CALIDAD B17',                      nave:'B17', activo:true},
+  {id:'in52', nombre:'ANDÉN',                        nave:'B17', activo:true},
+  {id:'in53', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'B17', activo:true}
+];
+
+// Grupo A = Naves A1 y A2 | Grupo B = Naves B16 y B17
+var DEFAULT_MAQUINAS = [
+  // ── Naves A1 y A2 ───────────────────────────────────────────────────────
+  {id:'mq01',  nombre:'FL1',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq02',  nombre:'FL2',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq03',  nombre:'FL3',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq04',  nombre:'FL4',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq05',  nombre:'RT5',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq06',  nombre:'RT6',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq07',  nombre:'RT7',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq08',  nombre:'Omega',                      naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq09',  nombre:'LAM1',                       naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq10',  nombre:'Depuradora',                 naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq11',  nombre:'Montadora',                  naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq12',  nombre:'Compresor',                  naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq13',  nombre:'Cortadora de Cores',         naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq14',  nombre:'Tanque pulmón',           naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq15',  nombre:'Aire acondicionado',         naves:['A1','A2'], desc:'Indicar qué aire requiere atención',       activo:true},
+  {id:'mq16',  nombre:'Patín hidráulico',     naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq17',  nombre:'Mesa elevadora',             naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq18',  nombre:'Polipasto',                  naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq19',  nombre:'Lámpara UV tintas',       naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq20',  nombre:'Secador aire',               naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq21',  nombre:'Extractores (1,2,3,4)',      naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq22',  nombre:'Rampa andén',             naves:['A1','A2'], desc:'',                                               activo:true},
+  // ── Naves B16 y B17 ─────────────────────────────────────────────────────
+  {id:'mq23',  nombre:'REF1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq24',  nombre:'REF2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq25',  nombre:'REF3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq26',  nombre:'PEG1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq27',  nombre:'PEG2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq28',  nombre:'PEG3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq29',  nombre:'REV1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq30',  nombre:'REV2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq31',  nombre:'REV3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq32',  nombre:'REV4',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq33',  nombre:'REV5',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq34',  nombre:'REV6',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq35',  nombre:'REV7',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq36',  nombre:'Depuradora acondicionado',   naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq37',  nombre:'COR1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq38',  nombre:'COR2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq39',  nombre:'COR3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq40',  nombre:'Compresor acondicionado',    naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq41',  nombre:'Cortadora de cores acondicionado', naves:['B16','B17'], desc:'',                                       activo:true},
+  {id:'mq42',  nombre:'Secador aire acondicionado', naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq43',  nombre:'Tanque pulmón acondicionado', naves:['B16','B17'], desc:'',                                        activo:true},
+  {id:'mq44',  nombre:'Mesa inspección',         naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq45',  nombre:'Rebobinador',                naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq46',  nombre:'Aires positivos (1,2,3)',    naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq47',  nombre:'Aire acondicionado',         naves:['B16','B17'], desc:'Indicar qué aire requiere atención',    activo:true},
+  {id:'mq48',  nombre:'Rampa andén almacén',  naves:['B16','B17'], desc:'',                                             activo:true}
+];
+
+// Inicializar catálogo de personal en DB para TODOS los roles
+function initPersonal(){
+  if(!DB.personal || DB.personal.length === 0){
+    DB.personal = JSON.parse(JSON.stringify(CATALOG_PERSONAL));
+    saveDB();
+  }
+}
+function initCatalogos(){
+  if(!DB.tiposServicio || !DB.tiposServicio.length){
+    DB.tiposServicio = JSON.parse(JSON.stringify(DEFAULT_TIPOS));
+    saveDB();
+  }
+  if(!DB.naves || !DB.naves.length){
+    DB.naves = JSON.parse(JSON.stringify(DEFAULT_NAVES));
+    saveDB();
+  }
+  if(!DB.maquinas || !DB.maquinas.length){
+    DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+    saveDB();
+  }
+  if(!DB.infraestructura || !DB.infraestructura.length){
+    DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+    saveDB();
+  }
+}
 initPersonal();
 initCatalogos();
 
@@ -2547,17 +3787,736 @@ let admStatusFilter = 'activo';
 let personalEditar = null;
 let personalBajaId = null;
 
-function initAdmin(){ /* (ya está en el original) */ }
+function initAdmin(){
+  document.getElementById('adm-greeting').textContent = currentUser.nombre;
+  showScreen('adm-hub');
+  if(!DB.personal){
+    DB.personal = JSON.parse(JSON.stringify(CATALOG_PERSONAL));
+    saveDB();
+  }
+  // Populate dept filter
+  const deptos = [...new Set(DB.personal.map(p=>p.depto))].sort();
+  const sel = document.getElementById('adm-filter-dept');
+  sel.innerHTML = '<option value="">Todos los depto.</option>' +
+    deptos.map(d=>'<option value="'+d+'">'+d+'</option>').join('');
+
+  // Render user card in hub
+  const hubUser = document.getElementById('adm-hub-user');
+  if(hubUser){
+    const avBg   = 'background:var(--orange-light);color:var(--orange-dark)';
+    const total  = (DB.personal||[]).length;
+    const activos= (DB.personal||[]).filter(p=>p.estatus==='activo').length;
+    hubUser.innerHTML =
+      '<div class="avatar" style="width:48px;height:48px;font-size:16px;flex-shrink:0;'+avBg+'">'+initials(currentUser.nombre)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:15px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
+        +'<div style="font-size:12px;color:var(--text2);margin-top:2px">Administrador &nbsp;·&nbsp; '+activos+' activos / '+total+' en catálogo</div>'
+      +'</div>';
+  }
+
+  renderPersonal();
+  renderAdmPerfil();
+}
+
 function setStatusFilter(f){ admStatusFilter=f; renderPersonal(); }
-function renderPersonal(){ /* (ya está en el original) */ }
-function verPersona(nomina){ /* (ya está en el original) */ }
-function abrirFormPersonal(nomina){ /* (ya está en el original) */ }
-function guardarPersona(){ /* (ya está en el original) */ }
-function abrirBaja(nomina){ /* (ya está en el original) */ }
-function confirmarBaja(){ /* (ya está en el original) */ }
-function reactivarPersona(nomina){ /* (ya está en el original) */ }
-function renderEstadisticas(){ /* (ya está en el original) */ }
-function renderAdmPerfil(){ /* (ya está en el original) */ }
+
+function renderPersonal(){
+  reloadDB();
+  const q = (document.getElementById('adm-search')?.value||'').toLowerCase().trim();
+  const dept = document.getElementById('adm-filter-dept')?.value||'';
+  let list = DB.personal || [];
+  if(admStatusFilter !== 'todos') list = list.filter(p=>p.estatus===admStatusFilter);
+  if(dept) list = list.filter(p=>p.depto===dept);
+  if(q) list = list.filter(p=>
+    p.nombre.toLowerCase().includes(q) ||
+    p.nomina.toString().includes(q) ||
+    p.puesto.toLowerCase().includes(q) ||
+    p.depto.toLowerCase().includes(q)
+  );
+  list = list.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const el = document.getElementById('adm-personal-list');
+  const cnt = document.getElementById('adm-count');
+  if(cnt) cnt.textContent = list.length + ' resultado' + (list.length!==1?'s':'');
+  if(!list.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">👤</div><div class="empty-title">Sin resultados</div><div class="empty-sub">Intenta con otro filtro o búsqueda</div></div>';
+    return;
+  }
+  const rolLabel = {solicitante:'Solicitante',tecnico:'Técnico',supervisor:'Supervisor',admin:'Admin',ninguno:'Sin acceso'};
+  el.innerHTML = list.map(p=>`
+    <div class="person-row" onclick="verPersona('${p.nomina}')">
+      <div class="avatar ${p.estatus==='baja'?'av-purple':'av-blue'}" style="${p.estatus==='baja'?'opacity:.5':''}">
+        ${initials(p.nombre)}
+      </div>
+      <div class="person-info">
+        <div class="person-name">${p.nombre}</div>
+        <div class="person-sub">${p.puesto} · <span class="dept-pill">${p.depto}</span></div>
+        <div style="margin-top:3px;display:flex;gap:5px;align-items:center">
+          <span class="badge ${p.estatus==='activo'?'badge-activo':'badge-baja'}" style="font-size:10px;padding:1px 7px">${p.estatus==='activo'?'Activo':'Baja'}</span>
+          <span style="font-size:10px;color:var(--text3)">${rolLabel[p.rol]||p.rol}</span>
+          ${p.turno?`<span style="font-size:10px;color:var(--text3)">· T${p.turno}</span>`:''}
+        </div>
+      </div>
+      <span class="person-nomina">${p.nomina}</span>
+    </div>`).join('');
+}
+
+function verPersona(nomina){
+  const p = DB.personal.find(x=>x.nomina===nomina);
+  if(!p) return;
+  document.getElementById('adm-det-titulo').textContent = 'Nóm. '+p.nomina;
+  const rolLabel = {solicitante:'Solicitante (producción)',tecnico:'Técnico de mantenimiento',supervisor:'Supervisor',admin:'Administrador',ninguno:'Sin acceso a la app'};
+  document.getElementById('adm-detalle-content').innerHTML = `
+    <div style="padding:20px 16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border)">
+      <div class="avatar av-blue" style="width:56px;height:56px;font-size:18px;${p.estatus==='baja'?'opacity:.4':''}">
+        ${initials(p.nombre)}
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">${p.nombre}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${p.puesto}</div>
+        <div style="margin-top:5px;display:flex;gap:6px">
+          <span class="badge ${p.estatus==='activo'?'badge-activo':'badge-baja'}">${p.estatus==='activo'?'Activo':'Baja'}</span>
+          <span class="dept-pill">${p.depto}</span>
+        </div>
+      </div>
+    </div>
+    <div class="section-head">Datos del empleado</div>
+    <div class="field-row"><div class="field-lbl">Nómina</div><div class="field-val">${p.nomina}</div></div>
+    <div class="field-row"><div class="field-lbl">Nombre</div><div class="field-val">${p.nombre}</div></div>
+    <div class="field-row"><div class="field-lbl">Puesto</div><div class="field-val">${p.puesto}</div></div>
+    <div class="field-row"><div class="field-lbl">Departamento</div><div class="field-val">${p.depto}</div></div>
+    <div class="field-row"><div class="field-lbl">Rol en la app</div><div class="field-val">${rolLabel[p.rol]||p.rol}</div></div>
+    <div class="field-row"><div class="field-lbl">Turno</div><div class="field-val">${p.turno?'Turno '+p.turno:'No aplica'}</div></div>
+    ${p.obs?`<div class="field-row"><div class="field-lbl">Observaciones</div><div class="field-val" style="font-weight:400;font-size:13px">${p.obs}</div></div>`:''}
+    <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-orange btn-block" onclick="abrirFormPersonal('${p.nomina}')">
+        <svg style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-right:4px" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Modificar datos
+      </button>
+      ${p.estatus==='activo'
+        ? `<button class="btn btn-danger btn-block" onclick="abrirBaja('${p.nomina}')">Dar de baja</button>`
+        : `<button class="btn btn-outline btn-block" onclick="reactivarPersona('${p.nomina}')">Reactivar empleado</button>`
+      }
+      <button class="btn btn-outline btn-block" onclick="showScreen('adm-personal');renderPersonal()">Volver al listado</button>
+    </div>
+    <div class="spacer"></div>`;
+  showScreen('adm-detalle-persona');
+}
+
+function abrirFormPersonal(nomina){
+  personalEditar = nomina;
+  const titulo = nomina ? 'Modificar datos' : 'Alta de personal';
+  document.getElementById('adm-form-titulo').textContent = titulo;
+  if(nomina){
+    const p = DB.personal.find(x=>x.nomina===nomina);
+    if(!p) return;
+    document.getElementById('frm-nomina').value = p.nomina;
+    document.getElementById('frm-nomina').disabled = true;
+    document.getElementById('frm-nombre').value = p.nombre;
+    document.getElementById('frm-puesto').value = p.puesto;
+    document.getElementById('frm-depto').value = p.depto;
+    document.getElementById('frm-rol').value = p.rol;
+    document.getElementById('frm-turno').value = p.turno||'';
+    document.getElementById('frm-estatus').value = p.estatus;
+    document.getElementById('frm-obs').value = p.obs||'';
+  } else {
+    document.getElementById('frm-nomina').value = '';
+    document.getElementById('frm-nomina').disabled = false;
+    document.getElementById('frm-nombre').value = '';
+    document.getElementById('frm-puesto').value = '';
+    document.getElementById('frm-depto').value = '';
+    document.getElementById('frm-rol').value = 'solicitante';
+    document.getElementById('frm-turno').value = '';
+    document.getElementById('frm-estatus').value = 'activo';
+    document.getElementById('frm-obs').value = '';
+  }
+  showScreen('adm-form-persona');
+}
+
+function guardarPersona(){
+  const nomina = document.getElementById('frm-nomina').value.toString().trim();
+  const nombre = document.getElementById('frm-nombre').value.trim().toUpperCase();
+  const puesto = document.getElementById('frm-puesto').value.trim().toUpperCase();
+  const depto  = document.getElementById('frm-depto').value.trim();
+  const rol    = document.getElementById('frm-rol').value;
+  const turno  = document.getElementById('frm-turno').value;
+  const estatus= document.getElementById('frm-estatus').value;
+  const obs    = document.getElementById('frm-obs').value.trim();
+  if(!nomina||!nombre||!puesto||!depto){alert('Nómina, nombre, puesto y departamento son obligatorios.');return;}
+  if(personalEditar){
+    const idx = DB.personal.findIndex(x=>x.nomina===personalEditar);
+    if(idx>=0) DB.personal[idx]={...DB.personal[idx],nombre,puesto,depto,rol,turno,estatus,obs};
+    saveDB();
+    alert('✓ Datos actualizados correctamente.');
+    verPersona(personalEditar);
+  } else {
+    if(DB.personal.find(x=>x.nomina===nomina)){alert('Ya existe un empleado con esa nómina.');return;}
+    DB.personal.push({nomina,nombre,puesto,depto,rol,turno,estatus,obs});
+    saveDB();
+    document.getElementById('frm-nomina').disabled = false;
+    alert('✓ Empleado dado de alta correctamente.');
+    showScreen('adm-personal');
+    renderPersonal();
+  }
+}
+
+function abrirBaja(nomina){
+  personalBajaId = nomina;
+  const p = DB.personal.find(x=>x.nomina===nomina);
+  document.getElementById('modal-baja-texto').textContent =
+    '¿Confirmas la baja de ' + p.nombre + ' (Nóm. '+p.nomina+')?';
+  document.getElementById('baja-motivo').value = '';
+  openModal('modal-baja');
+}
+
+function confirmarBaja(){
+  const motivo = document.getElementById('baja-motivo').value.trim();
+  const p = DB.personal.find(x=>x.nomina===personalBajaId);
+  if(!p) return;
+  p.estatus = 'baja';
+  p.obs = motivo ? ('Baja: ' + motivo + (p.obs?' — '+p.obs:'')) : p.obs;
+  p.fechaBaja = new Date().toISOString();
+  saveDB();
+  closeModal('modal-baja');
+  alert('✓ Empleado dado de baja: ' + p.nombre);
+  showScreen('adm-personal');
+  renderPersonal();
+}
+
+function reactivarPersona(nomina){
+  const p = DB.personal.find(x=>x.nomina===nomina);
+  if(!p) return;
+  if(!confirm('¿Reactivar a ' + p.nombre + '?')) return;
+  p.estatus = 'activo';
+  p.fechaBaja = null;
+  saveDB();
+  alert('✓ Empleado reactivado.');
+  verPersona(nomina);
+}
+
+function renderEstadisticas(){
+  reloadDB();
+  const personal = DB.personal || [];
+  const activos = personal.filter(p=>p.estatus==='activo');
+  const bajas = personal.filter(p=>p.estatus==='baja');
+  const deptos = {};
+  activos.forEach(p=>{ deptos[p.depto]=(deptos[p.depto]||0)+1; });
+  const deptosSorted = Object.entries(deptos).sort((a,b)=>b[1]-a[1]);
+  const maxD = deptosSorted[0]?.[1]||1;
+  const roles = {solicitante:0,tecnico:0,supervisor:0,admin:0,ninguno:0};
+  activos.forEach(p=>{ if(roles[p.rol]!==undefined) roles[p.rol]++; });
+
+  document.getElementById('adm-stats-content').innerHTML = `
+    <div class="stat-row">
+      <div class="stat-chip"><div class="stat-chip-val" style="color:var(--green)">${activos.length}</div><div class="stat-chip-lbl">Activos</div></div>
+      <div class="stat-chip"><div class="stat-chip-val" style="color:var(--red)">${bajas.length}</div><div class="stat-chip-lbl">Bajas</div></div>
+      <div class="stat-chip"><div class="stat-chip-val">${personal.length}</div><div class="stat-chip-lbl">Total</div></div>
+    </div>
+    <div class="section-head">Roles en la app (activos)</div>
+    <div style="padding:6px 0 10px">
+      <div class="bar-row"><span class="bar-label">Solicitantes</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.solicitante/activos.length*100)}%;background:var(--blue)"></div></div><span class="bar-count">${roles.solicitante}</span></div>
+      <div class="bar-row"><span class="bar-label">Técnicos</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.tecnico/activos.length*100)}%;background:var(--green)"></div></div><span class="bar-count">${roles.tecnico}</span></div>
+      <div class="bar-row"><span class="bar-label">Supervisores</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.supervisor/activos.length*100)}%;background:var(--purple)"></div></div><span class="bar-count">${roles.supervisor}</span></div>
+      <div class="bar-row"><span class="bar-label">Admin</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.admin/activos.length*100)}%;background:var(--orange)"></div></div><span class="bar-count">${roles.admin}</span></div>
+      <div class="bar-row"><span class="bar-label">Sin acceso</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(roles.ninguno/activos.length*100)}%;background:var(--gray)"></div></div><span class="bar-count">${roles.ninguno}</span></div>
+    </div>
+    <div class="section-head">Personal por departamento</div>
+    <div style="padding:6px 0 10px">
+      ${deptosSorted.map(([d,n])=>`
+        <div class="bar-row">
+          <span class="bar-label" style="font-size:11px;width:96px">${d}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxD*100)}%;background:var(--orange)"></div></div>
+          <span class="bar-count">${n}</span>
+        </div>`).join('')}
+    </div>
+    <div class="spacer"></div>`;
+}
+
+function renderAdmPerfil(){
+  const total   = (DB.personal||[]).length;
+  const activos = (DB.personal||[]).filter(p=>p.estatus==='activo').length;
+  const bajas   = total - activos;
+  const ots     = DB.ots||[];
+  document.getElementById('adm-perfil-content').innerHTML =
+    '<div style="padding:20px 16px 12px;text-align:center;border-bottom:1px solid var(--border)">'
+      +'<div class="avatar" style="width:56px;height:56px;font-size:18px;margin:0 auto 10px;background:var(--orange-light);color:var(--orange-dark)">'+initials(currentUser.nombre)+'</div>'
+      +'<div style="font-size:16px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-top:3px">'+currentUser.puesto+' &nbsp;·&nbsp; '+currentUser.depto+'</div>'
+      +'<div style="margin-top:6px"><span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--orange-light);color:var(--orange-dark)">Administrador</span></div>'
+    +'</div>'
+    +'<div class="section-head">Catálogo de personal</div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">Total en catálogo</div><div class="field-val">'+total+'</div></div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">Activos</div><div class="field-val" style="color:var(--green)">'+activos+'</div></div>'
+    +'<div class="field-row" style="flex-direction:row;justify-content:space-between"><div class="field-lbl">Bajas</div><div class="field-val" style="color:var(--red)">'+bajas+'</div></div>'
+    +'<div class="section-head">Módulos con acceso</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'personal\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--orange);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Catálogo de personal</div><div class="field-lbl" style="margin-top:1px">Alta, baja y modificación</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'solicitante\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Órdenes de trabajo</div><div class="field-lbl" style="margin-top:1px">Vista solicitante · '+ots.length+' OT en sistema</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'tecnico\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--green);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Ejecución de mantenimiento</div><div class="field-lbl" style="margin-top:1px">Vista técnico · Actividades y refacciones</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="showScreen(\'adm-catalogos-screen\');renderAdmCatalogos()">'  +'<div style="width:30px;height:30px;border-radius:8px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--green);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>'  +'<div style="flex:1"><div class="field-val">Catálogo Tipo de Servicio y Nave</div><div class="field-lbl" style="margin-top:1px">Alta, baja y modificación</div></div>'  +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'  +'</div>'
+    +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer" onclick="switchAdmModule(\'supervisor\')">'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:16px;height:16px;stroke:var(--purple);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>'
+      +'<div style="flex:1"><div class="field-val">Panel de supervisión</div><div class="field-lbl" style="margin-top:1px">Dashboard, técnicos y alertas</div></div>'
+      +'<svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'</div>'
+    +'<div style="padding:16px;margin-top:4px">'
+      +'<button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>'
+    +'</div>'
+    +'<div class="spacer"></div>';
+}
+
 </script>
+
+<!-- ==================== APP ADMINISTRADOR ==================== -->
+<div id="page-admin" class="page">
+
+  <!-- SCREEN: Hub / selector de módulo -->
+  <div id="adm-hub" class="screen active">
+    <div class="topbar topbar-orange">
+      <div style="flex:1">
+        <div style="font-size:11px;opacity:.75" id="adm-greeting">Administrador</div>
+        <div class="topbar-title">Panel de administración</div>
+      </div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+    <div id="adm-hub-user" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)"></div>
+    <div class="scroll-content">
+      <div style="padding:16px 14px 8px;font-size:13px;font-weight:500;color:var(--text)">Módulos disponibles</div>
+
+      <!-- Catálogo de personal -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Administración</div>
+        <div class="card" onclick="switchAdmModule('personal')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo de personal</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de empleados</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Solicitante -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista solicitante</div>
+        <div class="card" onclick="switchAdmModule('solicitante')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--blue);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Órdenes de trabajo</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Solicitudes, seguimiento y cierre</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Técnico -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista técnico de mantenimiento</div>
+        <div class="card" onclick="switchAdmModule('tecnico')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Ejecución de mantenimiento</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Actividades, refacciones y esperas</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Supervisor -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista supervisor / jefe de mantenimiento</div>
+        <div class="card" onclick="switchAdmModule('supervisor')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--purple);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Panel de supervisión</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Dashboard, técnicos, asignaciones y alertas</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="card" onclick="showScreen('adm-ots-screen');renderAdmOTs()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:#FAEEDA;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--amber);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Gestión de OT</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Modificar y eliminar órdenes de trabajo</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="card" onclick="showScreen('adm-catalogos-screen');renderAdmCatalogos()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h.01M12 16h.01M8 12h.01M8 16h.01M16 12h.01"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo Tipo de Servicio y Nave</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de tipos y naves</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Catálogo personal -->
+  <div id="adm-personal" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="flex:1">
+        <div class="topbar-title">Catálogo de personal</div>
+      </div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showScreen('adm-estadisticas');renderEstadisticas()" aria-label="Resumen">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </button>
+    </div>
+    <div class="search-box">
+      <input class="search-input" type="search" id="adm-search" placeholder="Buscar por nombre, nómina o puesto..." oninput="renderPersonal()">
+      <select id="adm-filter-dept" style="padding:8px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text)" onchange="renderPersonal()">
+        <option value="">Todos los depto.</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;padding:8px 12px 4px;border-bottom:1px solid var(--border)">
+      <button class="badge badge-activo" style="cursor:pointer" onclick="setStatusFilter('activo')">Activos</button>
+      <button class="badge badge-baja" style="cursor:pointer" onclick="setStatusFilter('baja')">Bajas</button>
+      <button class="badge" style="background:var(--gray-light);color:var(--gray-dark);cursor:pointer" onclick="setStatusFilter('todos')">Todos</button>
+      <span id="adm-count" style="margin-left:auto;font-size:12px;color:var(--text2);align-self:center"></span>
+    </div>
+    <div class="scroll-content">
+      <div id="adm-personal-list"></div>
+      <div class="spacer"></div>
+    </div>
+    <button class="fab fab-orange" onclick="abrirFormPersonal(null)" aria-label="Alta de personal">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <nav class="adm-tabbar">
+      <button class="adm-tab active" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Personal
+      </button>
+      <button class="adm-tab" onclick="showScreen('adm-estadisticas');renderEstadisticas()">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Resumen
+      </button>
+      <button class="adm-tab" onclick="showScreen('adm-hub')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Inicio
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Detalle / edición de persona -->
+  <div id="adm-detalle-persona" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title" id="adm-det-titulo">Detalle</div>
+    </div>
+    <div class="scroll-content" id="adm-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Catálogo Tipo de Servicio y Nave -->
+  <div id="adm-catalogos-screen" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Tipos de Servicio y Naves</div>
+    </div>
+    <div class="scroll-content">
+      <!-- Tipos de Servicio -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px">
+        Tipos de Servicio
+        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('tipo',null)" style="font-size:11px;padding:4px 10px">+ Nuevo</button>
+      </div>
+      <div id="adm-cat-tipos"></div>
+      <!-- Naves -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Naves
+        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('nave',null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-naves"></div>
+      <!-- Máquinas -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Máquinas
+        <button class="btn btn-sm btn-orange" onclick="abrirFormMaquina(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-maquinas"></div>
+      <!-- Infraestructura -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Infraestructura
+        <button class="btn btn-sm btn-orange" onclick="abrirFormInfra(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-infra"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Gestión de OT -->
+  <div id="adm-ots-screen" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Gestión de OT</div>
+    </div>
+    <div class="search-filters">
+      <div class="search-filters-row">
+        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="sf-input" type="search" id="adm-f-folio" placeholder="Buscar por # de orden..." oninput="renderAdmOTs()">
+      </div>
+      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
+        <span class="sf-label">Fecha:</span>
+        <input class="sf-input" type="date" id="adm-f-fecha" style="max-width:140px" onchange="renderAdmOTs()">
+        <span class="sf-label">Prioridad:</span>
+        <select class="sf-select" id="adm-f-prioridad" onchange="renderAdmOTs()">
+          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+        </select>
+        <span class="sf-label">Tipo:</span>
+        <select class="sf-select" id="adm-f-tipo" onchange="renderAdmOTs()">
+          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
+        </select>
+      </div>
+    </div>
+    <div class="scroll-content">
+      <div class="list-pad" id="adm-ots-list"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Formulario alta / modificación -->
+  <div id="adm-form-persona" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title" id="adm-form-titulo">Alta de personal</div>
+    </div>
+    <div class="scroll-content">
+      <div class="section-head">Datos del empleado</div>
+      <div class="field-row"><div class="field-lbl">Nómina <span style="color:var(--red)">*</span></div><input class="field-input" type="number" id="frm-nomina" placeholder="Ej. 2430" min="1"></div>
+      <div class="field-row"><div class="field-lbl">Nombre completo <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-nombre" placeholder="Apellido Paterno Materno Nombre(s)"></div>
+      <div class="field-row"><div class="field-lbl">Puesto <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-puesto" placeholder="Ej. Técnico de Mantenimiento"></div>
+      <div class="field-row">
+        <div class="field-lbl">Departamento <span style="color:var(--red)">*</span></div>
+        <select class="field-select" id="frm-depto">
+          <option value="">— Selecciona —</option>
+          <option>ACONDICIONADO</option><option>ADMINISTRACIÓN</option><option>CALIDAD</option>
+          <option>DIGITAL</option><option>FLEXOGRAFÍA</option><option>LOGÍSTICA</option>
+          <option>MANTENIMIENTO</option><option>OPERACIONES</option><option>PREPRENSA</option>
+          <option>RECURSOS HUMANOS</option><option>ROTOGRABADO</option><option>TINTAS</option><option>VENTAS</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Rol en la app</div>
+        <select class="field-select" id="frm-rol">
+          <option value="solicitante">Solicitante (producción)</option>
+          <option value="tecnico">Técnico de mantenimiento</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Administrador</option>
+          <option value="ninguno">Sin acceso a la app</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Turno</div>
+        <select class="field-select" id="frm-turno">
+          <option value="">— No aplica —</option>
+          <option value="1">Turno 1</option><option value="2">Turno 2</option><option value="3">Turno 3</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Estatus</div>
+        <select class="field-select" id="frm-estatus"><option value="activo">Activo</option><option value="baja">Baja</option></select>
+      </div>
+      <div class="field-row"><div class="field-lbl">Observaciones</div><textarea class="field-textarea" id="frm-obs" placeholder="Notas adicionales, motivo de baja, etc..."></textarea></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-orange btn-block" onclick="guardarPersona()">Guardar</button>
+        <button class="btn btn-outline btn-block" onclick="showScreen('adm-personal');renderPersonal()">Cancelar</button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Estadísticas -->
+  <div id="adm-estadisticas" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Resumen de personal</div>
+    </div>
+    <div class="scroll-content" id="adm-stats-content"></div>
+  </div>
+
+</div>
+
+<!-- MODAL CONFIRMAR BAJA -->
+<div class="modal-overlay" id="modal-baja">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Confirmar baja</div>
+    <div class="alert alert-red" style="margin:0 16px 12px">
+      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div id="modal-baja-texto">¿Confirmas la baja de este empleado?</div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Motivo de baja (opcional)</div>
+      <textarea class="field-textarea" id="baja-motivo" placeholder="Renuncia voluntaria, término de contrato, etc..."></textarea>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-baja')" style="flex:1">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarBaja()" style="flex:2">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL EDITAR OT (Admin) -->
+<div class="modal-overlay" id="modal-adm-edit-ot">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Modificar OT</div>
+    <input type="hidden" id="adm-edit-ot-id">
+    <div class="field-row">
+      <div class="field-lbl">Descripción</div>
+      <textarea class="field-textarea" id="adm-edit-ot-desc" style="min-height:60px"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="adm-edit-ot-status">
+        <option value="abierto">Abierta</option>
+        <option value="proceso">En proceso</option>
+        <option value="espera">En espera</option>
+        <option value="validar">Pendiente validación</option>
+        <option value="cerrado">Cerrada</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Técnico asignado</div>
+      <input class="field-input" type="text" id="adm-edit-ot-tecnico" placeholder="Nombre del técnico">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Prioridad</div>
+      <select class="field-select" id="adm-edit-ot-prioridad">
+        <option value="normal">Normal</option>
+        <option value="urgente">Urgente</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-adm-edit-ot')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="admGuardarEditOT()" style="flex:2">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MÁQUINAS -->
+<div class="modal-overlay" id="modal-maquina-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-maq-titulo">Nueva máquina</div>
+    <input type="hidden" id="maq-form-id">
+    <div class="field-row">
+      <div class="field-lbl">Nombre de la máquina <span style="color:var(--red)">*</span></div>
+      <input class="field-input" type="text" id="maq-form-nombre" placeholder="Ej. FL1, REV3...">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Descripción / nota</div>
+      <input class="field-input" type="text" id="maq-form-desc" placeholder="Ej. Indicar qué aire requiere atención">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Naves donde aplica</div>
+      <div id="maq-form-naves" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="maq-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-maquina-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarMaquina()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INFRAESTRUCTURA -->
+<div class="modal-overlay" id="modal-infra-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-infra-titulo">Nueva área de infraestructura</div>
+    <input type="hidden" id="infra-form-id">
+    <div class="field-row">
+      <div class="field-lbl">Nombre del área <span style="color:var(--red)">*</span></div>
+      <input class="field-input" type="text" id="infra-form-nombre" placeholder="Ej. COMEDOR, BAÑOS HOMBRES...">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Nave <span style="color:var(--red)">*</span></div>
+      <select class="field-select" id="infra-form-nave">
+        <option value="">— Selecciona —</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="infra-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-infra-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarInfra()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CATÁLOGO TIPO / NAVE -->
+<div class="modal-overlay" id="modal-cat-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-cat-titulo">Nuevo tipo de servicio</div>
+    <input type="hidden" id="cat-form-tipo">
+    <input type="hidden" id="cat-form-id">
+    <div class="field-row">
+      <div class="field-lbl" id="cat-form-label">Nombre</div>
+      <input class="field-input" type="text" id="cat-form-nombre" placeholder="Ej. MTTO-MAQ-PROD">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="cat-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-cat-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarCatalogo()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
