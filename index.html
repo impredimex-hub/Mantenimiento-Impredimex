@@ -24,7 +24,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit;font-size:14px}
 /* ===== LAYOUT ===== */
-.page{display:none;flex-direction:column;min-height:100vh}
+.page{display:none;flex-direction:column;height:100vh;overflow:hidden}
 .page.active{display:flex}
 /* ===== LOGIN ===== */
 #page-login{align-items:center;justify-content:center;background:linear-gradient(160deg,var(--blue-dark) 0%,var(--blue) 100%)}
@@ -66,14 +66,77 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .topbar-icon-btn:hover{background:rgba(255,255,255,.25)}
 .notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:#E24B4A;border-radius:50%;border:1.5px solid var(--blue)}
 /* ===== TAB BAR ===== */
-.tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;position:sticky;bottom:0;z-index:50}
-.tabbar-item{flex:1;padding:8px 4px 10px;text-align:center;font-size:10px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;transition:color .15s}
-.tabbar-item.active{color:var(--blue);border-top-color:var(--blue)}
-.tabbar-item.active.green{color:var(--green);border-top-color:var(--green)}
-.tabbar-item.active.purple{color:var(--purple);border-top-color:var(--purple)}
-.tabbar-item svg{display:block;width:22px;height:22px;margin:0 auto 2px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabbar{
+  display:flex;
+  background:var(--surface);
+  border-top:none;
+  box-shadow:0 -2px 12px rgba(0,0,0,.10);
+  flex-shrink:0;
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  z-index:100;
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+.tabbar-item{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  padding:10px 4px 10px;
+  font-size:11px;
+  font-weight:500;
+  color:var(--text3);
+  background:none;
+  border:none;
+  cursor:pointer;
+  transition:color .15s, transform .1s;
+  position:relative;
+}
+.tabbar-item:active{ transform:scale(.92); }
+.tabbar-item .tb-icon-wrap{
+  width:36px;height:26px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:18px;
+  transition:background .15s;
+}
+.tabbar-item.active .tb-icon-wrap{
+  background:var(--blue-light);
+}
+.tabbar-item.active.green .tb-icon-wrap{ background:var(--green-light); }
+.tabbar-item.active.purple .tb-icon-wrap{ background:var(--purple-light); }
+.tabbar-item.active.orange .tb-icon-wrap{ background:#FEF0E6; }
+.tabbar-item.active{ color:var(--blue); }
+.tabbar-item.active.green{ color:var(--green); }
+.tabbar-item.active.purple{ color:var(--purple); }
+.tabbar-item.active.orange{ color:var(--orange); }
+.tabbar-item svg{
+  display:block;
+  width:24px;height:24px;
+  stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+.tabbar-item.active svg{ stroke-width:2.2; }
+.tb-badge{
+  position:absolute;
+  top:6px;
+  left:calc(50% + 6px);
+  background:var(--red);
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  min-width:18px;
+  height:18px;
+  border-radius:9px;
+  padding:0 4px;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--surface);
+}
 /* ===== SCREEN SYSTEM ===== */
-.screen{display:none;flex:1;flex-direction:column;overflow-y:auto}
+.screen{display:none;flex:1;flex-direction:column;overflow-y:auto;padding-bottom:68px}
 .screen.active{display:flex}
 /* ===== CARDS ===== */
 .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px;margin-bottom:10px}
@@ -170,7 +233,7 @@ input,select,textarea{font-family:inherit;font-size:14px}
 /* ===== MISC ===== */
 .divider{height:1px;background:var(--border);margin:0}
 .spacer{height:80px}
-.scroll-content{flex:1;overflow-y:auto}
+.scroll-content{flex:1;overflow-y:auto;padding-bottom:8px}
 .list-pad{padding:12px}
 .urgente-line{border-left:3px solid var(--red);border-radius:0 var(--radius) var(--radius) 0;padding-left:13px}
 .empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
@@ -186,6 +249,14 @@ input,select,textarea{font-family:inherit;font-size:14px}
 input[type=range]{width:100%;accent-color:var(--blue)}
 input[type=range].green{accent-color:var(--green)}
 .filter-bar{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;scrollbar-width:none}
+.search-filters{display:flex;flex-direction:column;gap:0;border-bottom:1px solid var(--border)}
+.search-filters-row{display:flex;gap:6px;padding:8px 12px;align-items:center;border-bottom:0.5px solid var(--border)}
+.search-filters-row:last-child{border-bottom:none}
+.sf-input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--surface);color:var(--text)}
+.sf-input:focus{outline:none;border-color:var(--blue)}
+.sf-select{padding:7px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);min-width:0}
+.sf-select:focus{outline:none;border-color:var(--blue)}
+.sf-label{font-size:11px;color:var(--text2);white-space:nowrap;flex-shrink:0}
 .filter-bar::-webkit-scrollbar{display:none}
 .notif-item{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
 .notif-dot2{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
@@ -200,7 +271,6 @@ input[type=range].green{accent-color:var(--green)}
 /* ===== ADMIN ===== */
 :root{--orange:#C05A00;--orange-light:#FEF0E6;--orange-dark:#7A3800;}
 .topbar-orange{background:var(--orange)}
-.tabbar-item.active.orange{color:var(--orange);border-top-color:var(--orange)}
 .badge-activo{background:#EAF3DE;color:#27500A}
 .badge-baja{background:#FCEBEB;color:#791F1F}
 .search-box{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)}
@@ -307,12 +377,30 @@ input[type=range].green{accent-color:var(--green)}
         <span class="notif-dot" id="sol-notif-dot"></span>
       </button>
     </div>
-    <div class="filter-bar" id="sol-filter-bar">
-      <button class="badge badge-proceso" onclick="filterOTs('todas','solicitante')" style="cursor:pointer">Todas</button>
-      <button class="badge badge-abierto" onclick="filterOTs('abierto','solicitante')" style="cursor:pointer">Abiertas</button>
-      <button class="badge badge-espera" onclick="filterOTs('espera','solicitante')" style="cursor:pointer">En espera</button>
-      <button class="badge badge-validar" onclick="filterOTs('validar','solicitante')" style="cursor:pointer">Validar</button>
-      <button class="badge badge-cerrado" onclick="filterOTs('cerrado','solicitante')" style="cursor:pointer">Cerradas</button>
+    <div class="search-filters" id="sol-search-filters">
+      <div class="search-filters-row">
+        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="sf-input" type="search" id="sol-f-folio" placeholder="Buscar por # de orden..." oninput="renderSolOTs()">
+      </div>
+      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
+        <span class="sf-label">Fecha:</span>
+        <input class="sf-input" type="date" id="sol-f-fecha" style="max-width:140px" onchange="renderSolOTs()">
+        <span class="sf-label">Prioridad:</span>
+        <select class="sf-select" id="sol-f-prioridad" onchange="renderSolOTs()">
+          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+        </select>
+        <span class="sf-label">Tipo:</span>
+        <select class="sf-select" id="sol-f-tipo" onchange="renderSolOTs()">
+          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
+        </select>
+      </div>
+      <div class="filter-bar" id="sol-filter-bar" style="padding:6px 12px">
+        <button class="badge badge-proceso" onclick="setStatusFilter('todas','solicitante')" style="cursor:pointer">Todas</button>
+        <button class="badge badge-abierto" onclick="setStatusFilter('abierto','solicitante')" style="cursor:pointer">Abiertas</button>
+        <button class="badge badge-espera" onclick="setStatusFilter('espera','solicitante')" style="cursor:pointer">En espera</button>
+        <button class="badge badge-validar" onclick="setStatusFilter('validar','solicitante')" style="cursor:pointer">Validar</button>
+        <button class="badge badge-cerrado" onclick="setStatusFilter('cerrado','solicitante')" style="cursor:pointer">Cerradas</button>
+      </div>
     </div>
     <div class="scroll-content">
       <div class="list-pad" id="sol-ot-list"></div>
@@ -323,15 +411,15 @@ input[type=range].green{accent-color:var(--green)}
     </button>
     <nav class="tabbar">
       <button class="tabbar-item active" onclick="showScreen('sol-lista')">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
       <button class="tabbar-item" onclick="showScreen('sol-notifs')">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Avisos
       </button>
       <button class="tabbar-item" onclick="showScreen('sol-perfil')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
       </button>
     </nav>
@@ -360,17 +448,31 @@ input[type=range].green{accent-color:var(--green)}
         <select class="field-select" id="nueva-nave">
         </select>
       </div>
-      <div class="field-row">
-        <div class="field-lbl">Área</div>
-        <select class="field-select" id="nueva-area">
-          <option>Rotograbado</option><option>Laminado</option><option>Corte</option><option>Sellado</option><option>Extrusión</option>
-        </select>
-      </div>
-      <div class="field-row">
+      <div class="field-row" id="row-equipo">
         <div class="field-lbl">Equipo</div>
         <select class="field-select" id="nueva-equipo">
-          <option>IMP06</option><option>IMP03</option><option>LAM01</option><option>LAM02</option><option>COR01</option>
         </select>
+      </div>
+      <div class="field-row" id="row-riesgo" style="display:none">
+        <div class="field-lbl">Tipo de riesgo <span style="color:var(--red)">*</span></div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="riesgo-maquinaria" style="width:18px;height:18px;accent-color:var(--blue);flex-shrink:0">
+            <span style="font-size:14px;color:var(--text)">Riesgo en maquinaria</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="riesgo-infraestructura" style="width:18px;height:18px;accent-color:var(--blue);flex-shrink:0">
+            <span style="font-size:14px;color:var(--text)">Riesgo en infraestructura</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="riesgo-personal" style="width:18px;height:18px;accent-color:var(--blue);flex-shrink:0">
+            <span style="font-size:14px;color:var(--text)">Riesgo en personal</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="riesgo-robo" style="width:18px;height:18px;accent-color:var(--blue);flex-shrink:0">
+            <span style="font-size:14px;color:var(--text)">Riesgo a robo / vulnerabilidad</span>
+          </label>
+        </div>
       </div>
       <div class="section-head">Descripción</div>
       <div class="field-row">
@@ -411,15 +513,15 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content" id="sol-notifs-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sol-lista')">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
       <button class="tabbar-item active" onclick="showScreen('sol-notifs')">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Avisos
       </button>
       <button class="tabbar-item" onclick="showScreen('sol-perfil')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
       </button>
     </nav>
@@ -431,15 +533,15 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content" id="sol-perfil-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sol-lista')">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
       <button class="tabbar-item" onclick="showScreen('sol-notifs')">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Avisos
       </button>
       <button class="tabbar-item active" onclick="showScreen('sol-perfil')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
       </button>
     </nav>
@@ -460,11 +562,29 @@ input[type=range].green{accent-color:var(--green)}
         <span class="notif-dot" id="tec-notif-dot" style="border-color:var(--green)"></span>
       </button>
     </div>
-    <div class="filter-bar">
-      <button class="badge badge-proceso" onclick="filterOTs('todas','tecnico')" style="cursor:pointer">Todas</button>
-      <button class="badge badge-abierto" onclick="filterOTs('abierto','tecnico')" style="cursor:pointer">Nuevas</button>
-      <button class="badge badge-proceso" onclick="filterOTs('proceso','tecnico')" style="cursor:pointer">En proceso</button>
-      <button class="badge badge-espera" onclick="filterOTs('espera','tecnico')" style="cursor:pointer">En espera</button>
+    <div class="search-filters">
+      <div class="search-filters-row">
+        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="sf-input" type="search" id="tec-f-folio" placeholder="Buscar por # de orden..." oninput="renderTecOTs()">
+      </div>
+      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
+        <span class="sf-label">Fecha:</span>
+        <input class="sf-input" type="date" id="tec-f-fecha" style="max-width:140px" onchange="renderTecOTs()">
+        <span class="sf-label">Prioridad:</span>
+        <select class="sf-select" id="tec-f-prioridad" onchange="renderTecOTs()">
+          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+        </select>
+        <span class="sf-label">Tipo:</span>
+        <select class="sf-select" id="tec-f-tipo" onchange="renderTecOTs()">
+          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
+        </select>
+      </div>
+      <div class="filter-bar" style="padding:6px 12px">
+        <button class="badge badge-proceso" onclick="setStatusFilter('todas','tecnico')" style="cursor:pointer">Todas</button>
+        <button class="badge badge-abierto" onclick="setStatusFilter('abierto','tecnico')" style="cursor:pointer">Nuevas</button>
+        <button class="badge badge-proceso" onclick="setStatusFilter('proceso','tecnico')" style="cursor:pointer">En proceso</button>
+        <button class="badge badge-espera" onclick="setStatusFilter('espera','tecnico')" style="cursor:pointer">En espera</button>
+      </div>
     </div>
     <div class="scroll-content">
       <div class="list-pad" id="tec-ot-list"></div>
@@ -472,15 +592,15 @@ input[type=range].green{accent-color:var(--green)}
     </div>
     <nav class="tabbar">
       <button class="tabbar-item active green" onclick="showScreen('tec-lista')">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
       <button class="tabbar-item" onclick="showScreen('tec-historial')">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
       <button class="tabbar-item" onclick="showScreen('tec-perfil')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
       </button>
     </nav>
@@ -597,15 +717,15 @@ input[type=range].green{accent-color:var(--green)}
     </div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('tec-lista')">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
       <button class="tabbar-item active green" onclick="showScreen('tec-historial')">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
       <button class="tabbar-item" onclick="showScreen('tec-perfil')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
       </button>
     </nav>
@@ -617,15 +737,15 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content" id="tec-perfil-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('tec-lista')">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
       <button class="tabbar-item" onclick="showScreen('tec-historial')">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
       <button class="tabbar-item active green" onclick="showScreen('tec-perfil')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
       </button>
     </nav>
@@ -656,23 +776,23 @@ input[type=range].green{accent-color:var(--green)}
     </div>
     <nav class="tabbar">
       <button class="tabbar-item active purple" onclick="showScreen('sup-dashboard')">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
         Panel
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
       </button>
     </nav>
@@ -687,12 +807,30 @@ input[type=range].green{accent-color:var(--green)}
         Excel
       </button>
     </div>
-    <div class="filter-bar">
-      <button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer" onclick="filterOTs('todas','supervisor')">Todas</button>
-      <button class="badge badge-abierto" onclick="filterOTs('abierto','supervisor')" style="cursor:pointer">Nuevas</button>
-      <button class="badge badge-proceso" onclick="filterOTs('proceso','supervisor')" style="cursor:pointer">Proceso</button>
-      <button class="badge badge-espera" onclick="filterOTs('espera','supervisor')" style="cursor:pointer">Espera</button>
-      <button class="badge badge-validar" onclick="filterOTs('validar','supervisor')" style="cursor:pointer">Validar</button>
+    <div class="search-filters">
+      <div class="search-filters-row">
+        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="sf-input" type="search" id="sup-f-folio" placeholder="Buscar por # de orden..." oninput="renderSupOTs()">
+      </div>
+      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
+        <span class="sf-label">Fecha:</span>
+        <input class="sf-input" type="date" id="sup-f-fecha" style="max-width:140px" onchange="renderSupOTs()">
+        <span class="sf-label">Prioridad:</span>
+        <select class="sf-select" id="sup-f-prioridad" onchange="renderSupOTs()">
+          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+        </select>
+        <span class="sf-label">Tipo:</span>
+        <select class="sf-select" id="sup-f-tipo" onchange="renderSupOTs()">
+          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
+        </select>
+      </div>
+      <div class="filter-bar" style="padding:6px 12px">
+        <button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer" onclick="setStatusFilter('todas','supervisor')">Todas</button>
+        <button class="badge badge-abierto" onclick="setStatusFilter('abierto','supervisor')" style="cursor:pointer">Nuevas</button>
+        <button class="badge badge-proceso" onclick="setStatusFilter('proceso','supervisor')" style="cursor:pointer">Proceso</button>
+        <button class="badge badge-espera" onclick="setStatusFilter('espera','supervisor')" style="cursor:pointer">Espera</button>
+        <button class="badge badge-validar" onclick="setStatusFilter('validar','supervisor')" style="cursor:pointer">Validar</button>
+      </div>
     </div>
     <div class="scroll-content">
       <div class="list-pad" id="sup-ot-list"></div>
@@ -700,19 +838,19 @@ input[type=range].green{accent-color:var(--green)}
     </div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
         Panel
       </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-ots');renderSupOTs()">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
       </button>
     </nav>
@@ -724,19 +862,19 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content" id="sup-tecnicos-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
         Panel
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
       </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-tecnicos');renderTecnicos()">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
       </button>
     </nav>
@@ -748,19 +886,19 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content" id="sup-alertas-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
         Panel
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
       </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-alertas');renderAlertas()">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
       </button>
     </nav>
@@ -786,19 +924,19 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content" id="sup-perfil-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Panel
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>Panel
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
-        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>OT
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>OT
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Técnicos
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>Técnicos
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>Alertas
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>Alertas
       </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-perfil');renderSupPerfil()">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>Perfil
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>Perfil
       </button>
     </nav>
   </div>
@@ -1124,6 +1262,28 @@ function updateNotifDot(id,role){
   if(dot) dot.style.display=notifCount(role)>0?'block':'none';
 }
 
+function setStatusFilter(f, role){
+  currentFilter = f;
+  if(role==='solicitante')  renderSolOTs();
+  else if(role==='tecnico') renderTecOTs();
+  else if(role==='supervisor') renderSupOTs();
+}
+
+// Apply search panel filters to an OT array
+function applySearchFilters(ots, prefix){
+  var folio    = (document.getElementById(prefix+'-f-folio')    ||{}).value||'';
+  var fecha    = (document.getElementById(prefix+'-f-fecha')    ||{}).value||'';
+  var prioridad= (document.getElementById(prefix+'-f-prioridad')||{}).value||'';
+  var tipo     = (document.getElementById(prefix+'-f-tipo')     ||{}).value||'';
+  return ots.filter(function(ot){
+    if(folio     && ot.folio.toLowerCase().indexOf(folio.toLowerCase())<0) return false;
+    if(fecha     && (!ot.fechaAlta || ot.fechaAlta.split('T')[0]!==fecha)) return false;
+    if(prioridad && ot.prioridad !== prioridad) return false;
+    if(tipo      && ot.tipo !== tipo) return false;
+    return true;
+  });
+}
+
 function filterOTs(f,role){
   currentFilter=f;
   if(role==='solicitante') renderSolOTs(f);
@@ -1139,9 +1299,11 @@ function getMyOTs(role){
 
 function renderSolOTs(filter){
   reloadDB();
-  filter=filter||currentFilter;
+  if(filter) currentFilter=filter;
+  var statusF = currentFilter||'todas';
   let ots = getMyOTs('solicitante');
-  if(filter!=='todas') ots=ots.filter(o=>o.status===filter);
+  if(statusF!=='todas') ots=ots.filter(function(o){ return o.status===statusF; });
+  ots = applySearchFilters(ots, 'sol');
   const el=document.getElementById('sol-ot-list');
   if(!ots.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">No tienes OT en este estado</div></div>`;
@@ -1151,43 +1313,134 @@ function renderSolOTs(filter){
 }
 
 function otCardSol(ot){
-  const urgClass = ot.prioridad==='urgente'?'urgente-line':'';
-  return `<div class="card ${urgClass}" onclick="verOTSol('${ot.id}')">
-    <div class="card-header">
-      <span class="card-folio">${ot.folio}</span>
-      ${statusBadge(ot.status)}
-    </div>
-    <div class="card-desc">${ot.desc}</div>
-    <div class="card-tags">
-      <span class="tag">${ot.equipo} · ${ot.area}</span>
-      ${ot.tecnico?`<span class="tag">${ot.tecnico}</span>`:'<span class="tag">Sin asignar</span>'}
-      ${ot.espera?`<span class="tag" style="background:var(--red-light);color:var(--red-dark)">Est. ${fmtDate(ot.espera.fechaEst)}</span>`:''}
-      ${ot.prioridad==='urgente'?'<span class="badge badge-urgente">Urgente</span>':''}
-    </div>
-  </div>`;
+  var urgClass    = ot.prioridad==='urgente' ? 'urgente-line' : '';
+  var urgBadge    = ot.prioridad==='urgente'
+    ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>' : '';
+  var tipoLabel   = ot.tipo==='MTTO-MAQ-PROD' ? 'MAQUINARIA'
+    : ot.tipo==='MTTO-INFRAESTRUCTURA' ? 'INFRAESTRUCTURA'
+    : ot.tipo==='MTTO-SEGURIDAD'       ? 'SEGURIDAD'
+    : (ot.tipo||'');
+  var naveEquipo  = [ot.nave ? 'NAVE '+ot.nave : '', ot.equipo].filter(Boolean).join(' · ');
+  var tecnicoStr  = ot.tecnico || 'Sin asignar';
+  var fechaStr    = '';
+  if(ot.fechaAlta){
+    var fd = new Date(ot.fechaAlta);
+    fechaStr = String(fd.getDate()).padStart(2,'0')+'/'
+             + String(fd.getMonth()+1).padStart(2,'0')+'/'
+             + fd.getFullYear();
+  }
+  var esperaTag = ot.espera
+    ? '<div style="margin-top:6px"><span class="badge badge-espera">En espera — Est. '+fmtDate(ot.espera.fechaEst)+'</span></div>'
+    : '';
+
+  function fila(lbl, val, color){
+    if(!val) return '';
+    return '<div style="display:flex;gap:0;align-items:baseline;padding:2px 0">'
+      +'<span style="font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0;width:100px">'+lbl+'</span>'
+      +'<span style="font-size:13px;color:'+(color||'var(--text)')+';font-weight:500;line-height:1.3;flex:1">'+val+'</span>'
+      +'</div>';
+  }
+
+  return '<div class="card '+urgClass+'" style="cursor:pointer" onclick="verOTSol(event.currentTarget.dataset.id)" data-id="'+ot.id+'">'
+    +'<div class="card-header" style="margin-bottom:8px">'
+      +'<span class="card-folio">'+ot.folio+'</span>'
+      +'<div>'+statusBadge(ot.status)+urgBadge+'</div>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--border);padding-top:8px">'
+      +fila('Descripción:', ot.desc)
+      +fila('Tipo de servicio:', tipoLabel)
+      +fila('Nave / Equipo:', naveEquipo)
+      +fila('Técnico:', tecnicoStr)
+      +fila('Fecha:', fechaStr)
+    +'</div>'
+    +esperaTag
+    +'</div>';
 }
 
 function poblarSelectsNueva(){
   reloadDB();
-  var tipos = (DB.tiposServicio||DEFAULT_TIPOS).filter(function(t){ return t.activo; });
-  var naves = (DB.naves||DEFAULT_NAVES).filter(function(n){ return n.activo; });
-  var selTipo = document.getElementById('nueva-tipo');
-  var selNave = document.getElementById('nueva-nave');
-  if(selTipo){
-    selTipo.innerHTML = tipos.map(function(t){
-      return '<option value="'+t.nombre+'">'+t.nombre+'</option>';
-    }).join('');
-  }
+  var tipos    = (DB.tiposServicio||DEFAULT_TIPOS).filter(function(t){ return t.activo; });
+  var naves    = (DB.naves||DEFAULT_NAVES).filter(function(n){ return n.activo; });
+  var maquinas = (DB.maquinas||DEFAULT_MAQUINAS).filter(function(m){ return m.activo; });
+
+  var selTipo  = document.getElementById('nueva-tipo');
+  var selNave  = document.getElementById('nueva-nave');
+  var selEquip = document.getElementById('nueva-equipo');
+
+  if(selTipo) selTipo.innerHTML = tipos.map(function(t){
+    return '<option value="'+t.nombre+'">'+t.nombre+'</option>';
+  }).join('');
+
   if(selNave){
     selNave.innerHTML = naves.map(function(n){
       return '<option value="'+n.nombre+'">NAVE '+n.nombre+'</option>';
     }).join('');
+    // filter equipos by nave on change
+    selNave.onchange = function(){ filtrarEquiposPorNave(); };
+  }
+  if(selTipo){
+    selTipo.onchange = function(){ filtrarEquiposPorNave(); };
+  }
+
+  filtrarEquiposPorNave();
+}
+
+function filtrarEquiposPorNave(){
+  var selTipo  = document.getElementById('nueva-tipo');
+  var selNave  = document.getElementById('nueva-nave');
+  var selEquip = document.getElementById('nueva-equipo');
+  if(!selNave || !selEquip) return;
+  var nave     = selNave.value;
+  var tipo     = selTipo ? selTipo.value : '';
+  var esInfra  = tipo === 'MTTO-INFRAESTRUCTURA';
+  var esSeguridad = tipo === 'MTTO-SEGURIDAD';
+
+  // ── Show/hide equipo vs riesgo casillas ───────────────────────────────
+  var rowEquipo = document.getElementById('row-equipo');
+  var rowRiesgo = document.getElementById('row-riesgo');
+  if(rowEquipo) rowEquipo.style.display = esSeguridad ? 'none' : '';
+  if(rowRiesgo) rowRiesgo.style.display = esSeguridad ? '' : 'none';
+  // Reset checkboxes when switching away from seguridad
+  if(!esSeguridad){
+    ['riesgo-maquinaria','riesgo-infraestructura','riesgo-personal','riesgo-robo'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.checked=false;
+    });
+  }
+  // If seguridad, skip equipo filtering
+  if(esSeguridad){ selEquip.innerHTML='<option value="N/A">N/A</option>'; return; }
+
+  if(esInfra){
+    // Usar catálogo de infraestructura filtrado por nave
+    var infras    = (DB.infraestructura||DEFAULT_INFRAESTRUCTURA).filter(function(x){ return x.activo && x.nave===nave; });
+    selEquip.innerHTML = infras.map(function(x){
+      return '<option value="'+x.nombre+'">'+x.nombre+'</option>';
+    }).join('');
+    if(!infras.length){
+      selEquip.innerHTML = '<option value="">Sin áreas para esta nave</option>';
+    }
+  } else {
+    // Usar catálogo de máquinas filtrado por nave
+    var maquinas  = (DB.maquinas||DEFAULT_MAQUINAS).filter(function(m){ return m.activo; });
+    var filtradas = maquinas.filter(function(m){ return m.naves && m.naves.indexOf(nave)>=0; });
+    selEquip.innerHTML = filtradas.map(function(m){
+      var lbl = m.nombre + (m.desc ? ' — ⚠ '+m.desc : '');
+      return '<option value="'+m.nombre+'">'+lbl+'</option>';
+    }).join('');
+    if(!filtradas.length){
+      selEquip.innerHTML = '<option value="">Sin máquinas para esta nave</option>';
+    }
   }
 }
 
 function crearOT(){
   var desc = document.getElementById('nueva-desc').value.trim();
   if(!desc){ alert('Describe el problema antes de enviar'); return; }
+  // Validar que al menos una casilla de riesgo esté marcada para MTTO-SEGURIDAD
+  if(document.getElementById('nueva-tipo').value==='MTTO-SEGURIDAD'){
+    var alguno = ['riesgo-maquinaria','riesgo-infraestructura','riesgo-personal','riesgo-robo']
+      .some(function(id){ var el=document.getElementById(id); return el&&el.checked; });
+    if(!alguno){ alert('Selecciona al menos un tipo de riesgo'); return; }
+  }
   var id = String(DB.folioSig).padStart(6,'0');
   DB.folioSig++;
   var ot = {
@@ -1195,8 +1448,16 @@ function crearOT(){
     folio:      '#'+id,
     tipo:       document.getElementById('nueva-tipo').value,
     nave:       document.getElementById('nueva-nave').value,
-    area:       document.getElementById('nueva-area').value,
-    equipo:     document.getElementById('nueva-equipo').value,
+    equipo:     (document.getElementById('nueva-tipo').value==='MTTO-SEGURIDAD')
+      ? (function(){
+          var r=[];
+          if(document.getElementById('riesgo-maquinaria')&&document.getElementById('riesgo-maquinaria').checked)     r.push('Riesgo en maquinaria');
+          if(document.getElementById('riesgo-infraestructura')&&document.getElementById('riesgo-infraestructura').checked) r.push('Riesgo en infraestructura');
+          if(document.getElementById('riesgo-personal')&&document.getElementById('riesgo-personal').checked)          r.push('Riesgo en personal');
+          if(document.getElementById('riesgo-robo')&&document.getElementById('riesgo-robo').checked)                  r.push('Riesgo a robo / vulnerabilidad');
+          return r.length ? r.join(' | ') : 'Sin especificar';
+        })()
+      : document.getElementById('nueva-equipo').value,
     desc:       desc,
     prioridad:  document.getElementById('nueva-prioridad').value,
     status:     'abierto',
@@ -1407,7 +1668,7 @@ function buildDetalleSol(ot){
     +'<div class="section-head">Datos de la solicitud</div>'
     +'<div class="field-row"><div class="field-lbl">Folio</div><div class="field-val">'+ot.folio+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">'+ot.tipo+'</div></div>'
-    +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+' — '+ot.nave+' · '+ot.area+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+(ot.nave?' — '+ot.nave:'')+(ot.area?' · '+ot.area:'')+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Fecha de alta</div><div class="field-val">'+fmt(ot.fechaAlta)+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Técnico asignado</div><div class="field-val">'+(ot.tecnico||'Sin asignar')+'</div></div>'
@@ -1496,28 +1757,29 @@ function initTecnico(){
 
 function renderTecOTs(filter){
   reloadDB();
-  filter=filter||currentFilter;
+  if(filter) currentFilter=filter;
+  var statusF2 = currentFilter||'todas';
   var cnNorm=currentUser.nombre.toLowerCase();
-  // OT disponibles: abiertas sin nadie o en proceso (el técnico puede unirse)
   var disponibles=DB.ots.filter(function(o){
     return (o.status==='abierto'||o.status==='proceso')
       && !tecnicoEnTurnoActual(o, currentUser.nombre)
       && o.status!=='validar' && o.status!=='cerrado';
   });
-  // OT propias: en las que ya está registrado este técnico y no están cerradas
   var propias=DB.ots.filter(function(o){
     return tecnicoEnOT(o, currentUser.nombre) && o.status!=='cerrado';
   });
+  disponibles = applySearchFilters(disponibles, 'tec');
+  propias     = applySearchFilters(propias,     'tec');
   const el=document.getElementById('tec-ot-list');
   var html='';
-  if(filter==='todas'||filter==='abierto'){
+  if(statusF2==='todas'||statusF2==='abierto'){
     if(disponibles.length){
       html+='<div class="section-head" style="background:var(--amber-light);color:var(--amber-dark)">⚡ Disponibles — toca para tomar</div>';
       html+=disponibles.map(function(ot){ return otCardTec(ot,true); }).join('');
     }
   }
   var misFilt=propias;
-  if(filter!=='todas') misFilt=propias.filter(function(o){ return o.status===filter; });
+  if(statusF2!=='todas') misFilt=propias.filter(function(o){ return o.status===statusF2; });
   if(misFilt.length){
     html+='<div class="section-head">Mis órdenes activas</div>';
     html+=misFilt.sort(function(a,b){
@@ -1533,27 +1795,116 @@ function renderTecOTs(filter){
 }
 
 function otCardTec(ot, disponible){
-  var urgClass = ot.prioridad==='urgente' ? 'urgente-line' : '';
+  var urgClass    = ot.prioridad==='urgente' ? 'urgente-line' : '';
+  var borderStyle = disponible ? 'border:1.5px solid var(--amber);' : '';
+  var topBadge    = disponible
+    ? '<span class="badge" style="background:var(--amber-light);color:var(--amber-dark)">Sin tomar</span>'
+    : statusBadge(ot.status);
+  var urgBadge    = ot.prioridad==='urgente'
+    ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>'
+    : '';
   var prog = ot.avance>0
     ? '<div class="progress-track" style="margin-top:8px"><div class="progress-fill green" style="width:'+ot.avance+'%"></div></div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:2px">Avance: '+ot.avance+'%</div>'
     : '';
-  var dispBadge = disponible ? '<span class="badge" style="background:var(--amber-light);color:var(--amber-dark)">Sin tomar</span>' : '';
-  var urgBadge  = ot.prioridad==='urgente' ? '<span class="badge badge-urgente">Urgente</span>' : '';
-  var borderStyle = disponible ? 'border:1.5px solid var(--amber);' : '';
-  var apel = ot.solicitante ? ot.solicitante.split(' ').slice(-1)[0] : '';
-  var id = ot.id;
-  return '<div class="card '+urgClass+'" style="cursor:pointer;'+borderStyle+'" onclick="verOTTec(event.currentTarget.dataset.id)" data-id="'+id+'">'
-    +'<div class="card-header"><span class="card-folio">'+ot.folio+'</span>'+(disponible ? dispBadge : statusBadge(ot.status))+'</div>'
-    +'<div class="card-desc">'+ot.desc+'</div>'
-    +'<div class="card-tags">'
-      +'<span class="tag">'+ot.equipo+' · '+ot.nave+'</span>'
-      +urgBadge
-      +'<span class="tag">'+fmt(ot.fechaAlta).split(' ')[0]+'</span>'
-      +(apel ? '<span class="tag">'+apel+'</span>' : '')
+
+  // Datos con etiqueta
+  function fila(lbl, val, color){
+    if(!val) return '';
+    return '<div style="display:flex;gap:0;align-items:baseline;padding:2px 0">'
+      +'<span style="font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0;width:90px">'+lbl+'</span>'
+      +'<span style="font-size:13px;color:'+(color||'var(--text)')+';font-weight:500;line-height:1.3;flex:1">'+val+'</span>'
+      +'</div>';
+  }
+
+  var fechaStr = '';
+  if(ot.fechaAlta){
+    var fd = new Date(ot.fechaAlta);
+    fechaStr = String(fd.getDate()).padStart(2,'0')+'/'
+             + String(fd.getMonth()+1).padStart(2,'0')+'/'
+             + fd.getFullYear();
+  }
+  var naveEquipo = [ot.nave ? 'NAVE '+ot.nave : '', ot.equipo].filter(Boolean).join(' · ');
+
+  return '<div class="card '+urgClass+'" style="cursor:pointer;'+borderStyle+'" onclick="verOTTec(event.currentTarget.dataset.id)" data-id="'+ot.id+'">'
+    // Header: folio + badge
+    +'<div class="card-header" style="margin-bottom:8px">'
+      +'<span class="card-folio">'+ot.folio+'</span>'
+      +'<div>'+topBadge+urgBadge+'</div>'
+    +'</div>'
+    // Datos etiquetados
+    +'<div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--border);padding-top:8px">'
+      +fila('Descripción:', ot.desc)
+      +fila('Tipo de servicio:', ot.tipo==='MTTO-MAQ-PROD'?'MAQUINARIA':ot.tipo==='MTTO-INFRAESTRUCTURA'?'INFRAESTRUCTURA':ot.tipo==='MTTO-SEGURIDAD'?'SEGURIDAD':ot.tipo)
+      +fila('Nave / Equipo:', naveEquipo)
+      +fila('Solicitante:', ot.solicitante)
+      +fila('Fecha:', fechaStr)
     +'</div>'
     +prog
     +'</div>';
 }
+
+function selectChipProblema(el){
+  // Select chip in either chip-group (taking or post-take)
+  var grp = el.closest('.chip-group');
+  if(grp) grp.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('selected'); });
+  el.classList.add('selected');
+}
+
+function getChipSelected(groupId){
+  var grp = document.getElementById(groupId);
+  if(!grp) return '';
+  var sel = grp.querySelector('.chip.selected');
+  return sel ? sel.textContent.trim() : '';
+}
+
+function tomarOTConTipo(id){
+  // Validate tipo de problema is selected
+  var tipo = getChipSelected('tipo-falla') || getChipSelected('tipo-falla-tomar');
+  if(!tipo){ alert('Selecciona el tipo de problema antes de tomar la orden.'); return; }
+
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot){ alert('OT no encontrada'); return; }
+  if(ot.tecnico && tecnicoEnTurnoActual(ot, currentUser.nombre)){
+    alert('Ya estás registrado en este turno para esta OT.');
+    verOTTec(id); return;
+  }
+
+  if(!ot.tecnicos) ot.tecnicos = [];
+  ot.tecnicos.push({
+    nombre:  currentUser.nombre,
+    nomina:  currentUser.nomina,
+    turno:   turnoActual(),
+    fecha:   new Date().toISOString()
+  });
+  ot.tecnico = ot.tecnicos[0].nombre;
+  ot.status  = 'proceso';
+  if(!ot.fechaTomada) ot.fechaTomada = new Date().toISOString();
+
+  // Save tipo de problema permanently
+  ot.tipoProblema = tipo;
+
+  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
+    texto:'OT '+ot.folio+' tomada por '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') — Tipo: '+tipo,
+    fecha:new Date().toISOString(), leida:false});
+  saveDB();
+  currentOTId = id;
+  alert('✓ OT '+ot.folio+' tomada. Tipo de problema registrado: '+tipo);
+  verOTTec(id);
+  renderTecOTs('todas');
+}
+
+function guardarTipoProblema(id){
+  var tipo = getChipSelected('tipo-falla');
+  if(!tipo){ alert('Selecciona un tipo de problema.'); return; }
+  var ot = DB.ots.find(function(o){ return o.id===id; });
+  if(!ot) return;
+  ot.tipoProblema = tipo;
+  saveDB();
+  alert('✓ Tipo de problema guardado: '+tipo);
+  verOTTec(id);
+}
+
 
 function verOTTec(id){
   if(!id){ console.error('verOTTec: id vacío'); return; }
@@ -1660,7 +2011,7 @@ function tomarOT(id){
     fecha:new Date().toISOString(), leida:false});
   saveDB();
   currentOTId = id;
-  alert('✓ Quedaste registrado en OT '+ot.folio+'. Ya puedes registrar tus actividades.');
+  alert('✓ OT '+ot.folio+' tomada. Ahora selecciona el tipo de problema para continuar.');
   verOTTec(id);
   renderTecOTs('todas');
 }
@@ -1680,7 +2031,42 @@ function buildDetalleTec(ot){
   },100);
 
   var tipoFallas=['Mecánico','Eléctrico','Neumático','Electrónico','Hidráulico','Parámetros'];
-  var fallas=tipoFallas.map(function(t){ return '<button class="chip" onclick="selectChip(this,&quot;tipo-falla&quot;)">'+t+'</button>'; }).join('');
+
+  // Declarar ANTES de tipoProblemaSection para que estén disponibles
+  var yaSoy       = tecnicoEnOT(ot, currentUser.nombre);
+  var canEdit     = ot.status!=='cerrado' && ot.status!=='validar' && yaSoy;
+  var puedeUnirse = (ot.status==='abierto'||ot.status==='proceso')
+    && !tecnicoEnTurnoActual(ot, currentUser.nombre)
+    && ot.status!=='validar' && ot.status!=='cerrado';
+
+  var tipoProblemaSection = '';
+  if(ot.tipoProblema){
+    // ── Ya definido — solo lectura, no modificable ──────────────────────
+    tipoProblemaSection =
+      '<div class="section-head">Tipo de problema</div>'
+      +'<div class="field-row" style="flex-direction:row;align-items:center;gap:10px">'
+        +'<span class="chip selected" style="background:var(--green);color:#fff;pointer-events:none;cursor:default">'+ot.tipoProblema+'</span>'
+        +'<span style="font-size:11px;color:var(--text3)">Registrado — no modificable</span>'
+      +'</div>';
+  } else if(yaSoy && !puedeUnirse){
+    // ── Ya tomó la OT → Paso 2: elegir tipo (obligatorio antes de actuar) ─
+    tipoProblemaSection =
+      '<div class="section-head" style="background:var(--green-light);color:var(--green-dark)">✓ OT tomada — Paso 2: selecciona el tipo de problema</div>'
+      +'<div class="chip-group" id="tipo-falla">'
+        +tipoFallas.map(function(t){ return '<button class="chip" onclick="selectChipProblema(this)">'+t+'</button>'; }).join('')
+      +'</div>'
+      +'<div style="padding:4px 16px 12px">'
+        +'<button class="btn btn-green btn-block" onclick="guardarTipoProblema(this.dataset.id)" data-id="'+ot.id+'">Confirmar tipo de problema</button>'
+      +'</div>';
+  } else if(puedeUnirse){
+    // ── Aún no ha tomado — no mostrar sección de tipo ──────────────────
+    tipoProblemaSection = '';
+  } else {
+    tipoProblemaSection =
+      '<div class="section-head">Tipo de problema</div>'
+      +'<div style="padding:10px 16px;font-size:13px;color:var(--text3)">Pendiente de definir</div>';
+  }
+  var fallas = '';
 
   var refs='';
   if(ot.refacciones && ot.refacciones.length){
@@ -1703,10 +2089,6 @@ function buildDetalleTec(ot){
     }).join('');
   }
 
-  var yaSoy    = tecnicoEnOT(ot, currentUser.nombre);
-  var canEdit  = ot.status!=='cerrado' && ot.status!=='validar' && yaSoy;
-  var puedeUnirse = (ot.status==='abierto'||ot.status==='proceso') && !tecnicoEnTurnoActual(ot, currentUser.nombre) && ot.status!=='validar' && ot.status!=='cerrado';
-
   var tomarSec='';
   if(puedeUnirse){
     var esPrimero = !ot.tecnicos || ot.tecnicos.length===0;
@@ -1721,10 +2103,9 @@ function buildDetalleTec(ot){
         +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+turnoActual()+'</div>'
       +'</div>'
       +'<div style="padding:12px 16px">'
-        +'<button class="btn btn-green btn-block" onclick="tomarOT(this.dataset.id)" data-id="'+ot.id+'">'
+      +'<button class="btn btn-green btn-block" onclick="tomarOT(this.dataset.id)" data-id="'+ot.id+'">'
           +(esPrimero?'Tomar esta OT a mi nombre':'Unirme y continuar esta OT')
         +'</button>'
-      +'</div>';
   }
 
   var espWarn = ot.espera
@@ -1732,8 +2113,11 @@ function buildDetalleTec(ot){
       +'<div>En espera: '+ot.espera.motivo+' — '+ot.espera.comentario+'</div></div>'
     : '';
 
+  // Bloquear acciones hasta que se defina el tipo de problema
+  // Bloquear actividades/refacciones hasta que se defina el tipo de problema
+  var tipoBloqueado = yaSoy && !puedeUnirse && !ot.tipoProblema;
   var acciones='';
-  if(canEdit){
+  if(canEdit && !tipoBloqueado){
     var btnRef='<div style="padding:4px 16px 2px"><button class="btn btn-outline btn-block btn-sm" onclick="openModal(&quot;modal-refaccion&quot;)">+ Agregar refacción</button></div>';
     var btnAct='<button class="btn btn-green btn-block" onclick="showScreen(&quot;tec-actividad&quot;)">Registrar actividad</button>';
     var btnEsp=ot.status!=='espera'
@@ -1771,8 +2155,7 @@ function buildDetalleTec(ot){
   })()
     +espWarn
     +tomarSec
-    +'<div class="section-head">Tipo de problema</div>'
-    +'<div class="chip-group" id="tipo-falla">'+fallas+'</div>'
+    +tipoProblemaSection
     +'<div class="section-head">Actividades registradas</div>'
     +(acts||'<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin actividades aún</div>')
     +'<div class="section-head">Refacciones</div>'
@@ -2326,9 +2709,11 @@ function exportarExcelOTs(){
 
 function renderSupOTs(filter){
   reloadDB();
-  filter=filter||currentFilter;
+  if(filter) currentFilter=filter;
+  var statusF3 = currentFilter||'todas';
   let ots=[...DB.ots];
-  if(filter!=='todas') ots=ots.filter(o=>o.status===filter);
+  if(statusF3!=='todas') ots=ots.filter(function(o){ return o.status===statusF3; });
+  ots = applySearchFilters(ots, 'sup');
   const el=document.getElementById('sup-ot-list');
   if(!ots.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sin órdenes</div></div>';return;}
   el.innerHTML=ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSup(ot)).join('');
@@ -2368,7 +2753,7 @@ function buildDetalleSup(ot){
   events.push({
     tipo:'creacion', fecha:ot.fechaAlta,
     dot:'tl-dot-blue', icon:'📋',
-    titulo:'OT creada',
+    titulo:'OT creada'+(ot.tipoProblema?' — Tipo: '+ot.tipoProblema:''),
     sub:'Solicitante: '+ot.solicitante+' (Nóm. '+ot.nomina+')<br>'
        +'Equipo: '+ot.equipo+' — '+ot.nave+' · '+ot.area+'<br>'
        +'Tipo: '+ot.tipo+' · Prioridad: '+(ot.prioridad==='urgente'?'<span class="tl-tag tl-tag-red">Urgente</span>':'Normal'),
@@ -2841,6 +3226,7 @@ function renderSupPerfil(){
 function renderAdmOTs(){
   reloadDB();
   var ots = [...(DB.ots||[])].sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
+  ots = applySearchFilters(ots, 'adm');
   var el = document.getElementById('adm-ots-list');
   if(!el) return;
   if(!ots.length){
@@ -2963,6 +3349,59 @@ async function autenticarBiometria(nomina){
 // ══════════════════════════════════════════════════════════════════
 function renderAdmCatalogos(){
   reloadDB();
+  // Render máquinas
+  var maquinas = DB.maquinas || DEFAULT_MAQUINAS;
+  var elMaq = document.getElementById('adm-cat-maquinas');
+  if(elMaq){
+    var grupoA = maquinas.filter(function(m){ return m.naves&&(m.naves.indexOf('A1')>=0||m.naves.indexOf('A2')>=0); });
+    var grupoB = maquinas.filter(function(m){ return m.naves&&(m.naves.indexOf('B16')>=0||m.naves.indexOf('B17')>=0); });
+    var otras  = maquinas.filter(function(m){ return grupoA.indexOf(m)<0 && grupoB.indexOf(m)<0; });
+    function renderMaqLista(items){
+      return items.map(function(m){
+        var editBtn = '<button class="btn btn-sm btn-outline" onclick="abrirFormMaquina(this.dataset.id)" data-id="'+m.id+'" style="padding:3px 8px;font-size:11px">Editar</button>';
+        var stBtn   = m.activo
+          ? '<button class="btn btn-sm btn-danger" onclick="bajarMaquina(this.dataset.id)" data-id="'+m.id+'" style="padding:3px 8px;font-size:11px">Baja</button>'
+          : '<button class="btn btn-sm btn-outline" onclick="activarMaquina(this.dataset.id)" data-id="'+m.id+'" style="padding:3px 8px;font-size:11px">Activar</button>';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border)">'
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="font-size:13px;font-weight:500;color:'+(m.activo?'var(--text)':'var(--text3)')+';'+(m.activo?'':'text-decoration:line-through')+'">'+m.nombre+'</div>'
+            +(m.desc?'<div style="font-size:11px;color:var(--amber-dark);margin-top:1px">⚠ '+m.desc+'</div>':'')
+            +'<span class="badge '+(m.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 6px">'+(m.activo?'Activo':'Baja')+'</span>'
+          +'</div>'
+          +editBtn+stBtn+'</div>';
+      }).join('');
+    }
+    var htmlM='';
+    if(grupoA.length) htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Naves A1 / A2</div>'+renderMaqLista(grupoA);
+    if(grupoB.length) htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Naves B16 / B17</div>'+renderMaqLista(grupoB);
+    if(otras.length)  htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Otras naves</div>'+renderMaqLista(otras);
+    elMaq.innerHTML = htmlM||'<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin máquinas</div>';
+  }
+
+  // Render infraestructura
+  var infras = DB.infraestructura || DEFAULT_INFRAESTRUCTURA;
+  var elInfra = document.getElementById('adm-cat-infra');
+  if(elInfra){
+    var navesList = (DB.naves||DEFAULT_NAVES).map(function(n){ return n.nombre; });
+    var htmlI = '';
+    navesList.forEach(function(nave){
+      var items = infras.filter(function(x){ return x.nave===nave; });
+      if(!items.length) return;
+      htmlI += '<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">NAVE '+nave+'</div>';
+      htmlI += items.map(function(item){
+        var editBtn = '<button class="btn btn-sm btn-outline" onclick="abrirFormInfra(this.dataset.id)" data-id="'+item.id+'" style="padding:3px 8px;font-size:11px">Editar</button>';
+        var stBtn   = item.activo
+          ? '<button class="btn btn-sm btn-danger" onclick="bajarInfra(this.dataset.id)" data-id="'+item.id+'" style="padding:3px 8px;font-size:11px">Baja</button>'
+          : '<button class="btn btn-sm btn-outline" onclick="activarInfra(this.dataset.id)" data-id="'+item.id+'" style="padding:3px 8px;font-size:11px">Activar</button>';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border)">'
+          +'<div style="flex:1"><div style="font-size:13px;font-weight:500;color:'+(item.activo?'var(--text)':'var(--text3)')+';'+(item.activo?'':'text-decoration:line-through')+'">'+item.nombre+'</div>'
+          +'<span class="badge '+(item.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 6px">'+(item.activo?'Activo':'Baja')+'</span></div>'
+          +editBtn+stBtn+'</div>';
+      }).join('');
+    });
+    elInfra.innerHTML = htmlI || '<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin áreas registradas</div>';
+  }
+
   var tipos = DB.tiposServicio || DEFAULT_TIPOS;
   var naves = DB.naves || DEFAULT_NAVES;
 
@@ -3013,6 +3452,128 @@ function abrirFormCatalogo(tipo, id){
     document.getElementById('cat-form-activo').value = '1';
   }
   openModal('modal-cat-form');
+}
+
+function abrirFormMaquina(id){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var naves = (DB.naves||DEFAULT_NAVES);
+  document.getElementById('modal-maq-titulo').textContent = id ? 'Editar máquina' : 'Nueva máquina';
+  document.getElementById('maq-form-id').value   = id||'';
+  document.getElementById('maq-form-nombre').value = '';
+  document.getElementById('maq-form-desc').value   = '';
+  document.getElementById('maq-form-activo').value  = '1';
+  // Build nave checkboxes
+  var navesContainer = document.getElementById('maq-form-naves');
+  var maq = id ? DB.maquinas.find(function(m){ return m.id===id; }) : null;
+  navesContainer.innerHTML = naves.map(function(n){
+    var checked = maq && maq.naves && maq.naves.indexOf(n.nombre)>=0 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">'
+      +'<input type="checkbox" value="'+n.nombre+'" '+checked+' style="accent-color:var(--orange)">'
+      +'NAVE '+n.nombre+'</label>';
+  }).join('');
+  if(maq){
+    document.getElementById('maq-form-nombre').value = maq.nombre;
+    document.getElementById('maq-form-desc').value   = maq.desc||'';
+    document.getElementById('maq-form-activo').value  = maq.activo?'1':'0';
+  }
+  openModal('modal-maquina-form');
+}
+
+function guardarMaquina(){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var id     = document.getElementById('maq-form-id').value;
+  var nombre = document.getElementById('maq-form-nombre').value.trim();
+  var desc   = document.getElementById('maq-form-desc').value.trim();
+  var activo = document.getElementById('maq-form-activo').value==='1';
+  var navesEl= document.getElementById('maq-form-naves').querySelectorAll('input[type=checkbox]:checked');
+  var naves  = Array.from(navesEl).map(function(c){ return c.value; });
+  if(!nombre){ alert('El nombre de la máquina no puede estar vacío'); return; }
+  if(!naves.length){ alert('Selecciona al menos una nave'); return; }
+  if(id){
+    var maq = DB.maquinas.find(function(m){ return m.id===id; });
+    if(maq){ maq.nombre=nombre; maq.desc=desc; maq.naves=naves; maq.activo=activo; }
+  } else {
+    DB.maquinas.push({id:'mq_'+Date.now(), nombre:nombre, desc:desc, naves:naves, activo:true});
+  }
+  saveDB();
+  closeModal('modal-maquina-form');
+  renderAdmCatalogos();
+  poblarSelectsNueva();
+  alert('✓ Máquina guardada.');
+}
+
+function bajarMaquina(id){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var maq = DB.maquinas.find(function(m){ return m.id===id; });
+  if(!maq) return;
+  if(!confirm('¿Dar de baja "'+maq.nombre+'"?')) return;
+  maq.activo=false; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Máquina dada de baja.');
+}
+
+function activarMaquina(id){
+  if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+  var maq = DB.maquinas.find(function(m){ return m.id===id; });
+  if(!maq) return;
+  maq.activo=true; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Máquina activada.');
+}
+
+function abrirFormInfra(id){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var naves = (DB.naves||DEFAULT_NAVES).filter(function(n){ return n.activo; });
+  var selNave = document.getElementById('infra-form-nave');
+  selNave.innerHTML = '<option value="">— Selecciona —</option>'
+    + naves.map(function(n){ return '<option value="'+n.nombre+'">NAVE '+n.nombre+'</option>'; }).join('');
+  document.getElementById('modal-infra-titulo').textContent = id ? 'Editar área' : 'Nueva área de infraestructura';
+  document.getElementById('infra-form-id').value     = id||'';
+  document.getElementById('infra-form-nombre').value = '';
+  document.getElementById('infra-form-nave').value   = '';
+  document.getElementById('infra-form-activo').value = '1';
+  if(id){
+    var item = DB.infraestructura.find(function(x){ return x.id===id; });
+    if(item){
+      document.getElementById('infra-form-nombre').value = item.nombre;
+      document.getElementById('infra-form-nave').value   = item.nave;
+      document.getElementById('infra-form-activo').value = item.activo?'1':'0';
+    }
+  }
+  openModal('modal-infra-form');
+}
+
+function guardarInfra(){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var id     = document.getElementById('infra-form-id').value;
+  var nombre = document.getElementById('infra-form-nombre').value.trim().toUpperCase();
+  var nave   = document.getElementById('infra-form-nave').value;
+  var activo = document.getElementById('infra-form-activo').value==='1';
+  if(!nombre){ alert('El nombre no puede estar vacío'); return; }
+  if(!nave)  { alert('Selecciona una nave'); return; }
+  if(id){
+    var item = DB.infraestructura.find(function(x){ return x.id===id; });
+    if(item){ item.nombre=nombre; item.nave=nave; item.activo=activo; }
+  } else {
+    DB.infraestructura.push({id:'in_'+Date.now(), nombre:nombre, nave:nave, activo:true});
+  }
+  saveDB(); closeModal('modal-infra-form'); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Área guardada.');
+}
+
+function bajarInfra(id){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var item = DB.infraestructura.find(function(x){ return x.id===id; });
+  if(!item) return;
+  if(!confirm('¿Dar de baja "'+item.nombre+'"?')) return;
+  item.activo=false; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Área dada de baja.');
+}
+
+function activarInfra(id){
+  if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
+  var item = DB.infraestructura.find(function(x){ return x.id===id; });
+  if(!item) return;
+  item.activo=true; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
+  alert('✓ Área activada.');
 }
 
 function guardarCatalogo(){
@@ -3080,6 +3641,120 @@ var DEFAULT_NAVES = [
   {id:'nv4', nombre:'B17', activo:true}
 ];
 
+var DEFAULT_INFRAESTRUCTURA = [
+  // ── Nave A1 ────────────────────────────────────────────────────────────
+  {id:'in01', nombre:'DIGITAL',                          nave:'A1', activo:true},
+  {id:'in02', nombre:'ROTOGRABADO',                      nave:'A1', activo:true},
+  {id:'in03', nombre:'TINTAS',                           nave:'A1', activo:true},
+  {id:'in04', nombre:'COMEDOR',                          nave:'A1', activo:true},
+  {id:'in05', nombre:'CHILLERS',                         nave:'A1', activo:true},
+  {id:'in06', nombre:'ALMACÉN DE MANEJO ESPECIAL',   nave:'A1', activo:true},
+  {id:'in07', nombre:'ALMACÉN DE RESIDUOS PELIGROSOS',nave:'A1', activo:true},
+  {id:'in08', nombre:'ALMACÉN DE SOLVENTES',         nave:'A1', activo:true},
+  {id:'in09', nombre:'LAVATINA ROTOGRABADO',             nave:'A1', activo:true},
+  {id:'in10', nombre:'PERIFERICOS DE PRODUCCIÓN',    nave:'A1', activo:true},
+  {id:'in11', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'A1', activo:true},
+  // ── Nave A2 ────────────────────────────────────────────────────────────
+  {id:'in12', nombre:'RECEPCIÓN',                    nave:'A2', activo:true},
+  {id:'in13', nombre:'VIGILANCIA',                       nave:'A2', activo:true},
+  {id:'in14', nombre:'VESTIDORES HOMBRES A2',            nave:'A2', activo:true},
+  {id:'in15', nombre:'VESTIDORES MUJERES A2',            nave:'A2', activo:true},
+  {id:'in16', nombre:'COBRANZA',                         nave:'A2', activo:true},
+  {id:'in17', nombre:'SISTEMAS',                         nave:'A2', activo:true},
+  {id:'in18', nombre:'SALA DE VENTAS',                   nave:'A2', activo:true},
+  {id:'in19', nombre:'SALA DE JUNTAS',                   nave:'A2', activo:true},
+  {id:'in20', nombre:'DIRECCIÓN GENERAL',             nave:'A2', activo:true},
+  {id:'in21', nombre:'DIRECCIÓN DE OPERACIONES',     nave:'A2', activo:true},
+  {id:'in22', nombre:'COMPRAS',                          nave:'A2', activo:true},
+  {id:'in23', nombre:'CALIDAD',                          nave:'A2', activo:true},
+  {id:'in24', nombre:'GERENCIA DE OPERACIONES',          nave:'A2', activo:true},
+  {id:'in25', nombre:'ANDÉN',                        nave:'A2', activo:true},
+  {id:'in26', nombre:'OFICINA DE MANTENIMIENTO',         nave:'A2', activo:true},
+  {id:'in27', nombre:'TALLER DE MANTENIMIENTO',          nave:'A2', activo:true},
+  {id:'in28', nombre:'DISEÑO',                       nave:'A2', activo:true},
+  {id:'in29', nombre:'PREPRENSA',                        nave:'A2', activo:true},
+  {id:'in30', nombre:'BAÑOS HOMBRES PRODUCCIÓN A2',nave:'A2', activo:true},
+  {id:'in31', nombre:'BAÑOS MUJERES PRODUCCIÓN A2',nave:'A2', activo:true},
+  {id:'in32', nombre:'BAÑOS HOMBRES PLANTA ALTA A2', nave:'A2', activo:true},
+  {id:'in33', nombre:'BAÑOS MUJERES PLANTA ALTA A2', nave:'A2', activo:true},
+  {id:'in34', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'A2', activo:true},
+  // ── Nave B16 ───────────────────────────────────────────────────────────
+  {id:'in35', nombre:'ALMACEN DE MATERIA PRIMA',         nave:'B16', activo:true},
+  {id:'in36', nombre:'ANDÉN EMBARQUES Y MATERIA PRIMA',nave:'B16', activo:true},
+  {id:'in37', nombre:'EMBARQUES',                        nave:'B16', activo:true},
+  {id:'in38', nombre:'BAÑO B16',                     nave:'B16', activo:true},
+  {id:'in39', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'B16', activo:true},
+  // ── Nave B17 ───────────────────────────────────────────────────────────
+  {id:'in40', nombre:'VIGILANCIA',                       nave:'B17', activo:true},
+  {id:'in41', nombre:'VESTIDORES MUJERES B17',           nave:'B17', activo:true},
+  {id:'in42', nombre:'VESTIDORES HOMBRES B17',           nave:'B17', activo:true},
+  {id:'in43', nombre:'COMEDOR',                          nave:'B17', activo:true},
+  {id:'in44', nombre:'ADMINISTRACION',                   nave:'B17', activo:true},
+  {id:'in45', nombre:'BAÑOS HOMBRES PLANTA ALTA B17',nave:'B17', activo:true},
+  {id:'in46', nombre:'BAÑOS MUJERES PLANTA ALTA B17',nave:'B17', activo:true},
+  {id:'in47', nombre:'GERENCIA DE ADMINISTRACIÓN',   nave:'B17', activo:true},
+  {id:'in48', nombre:'EMPAQUE',                          nave:'B17', activo:true},
+  {id:'in49', nombre:'CORTADORA DE CORES',               nave:'B17', activo:true},
+  {id:'in50', nombre:'SUPERVISIÓN DE ACONDICIONADO', nave:'B17', activo:true},
+  {id:'in51', nombre:'CALIDAD B17',                      nave:'B17', activo:true},
+  {id:'in52', nombre:'ANDÉN',                        nave:'B17', activo:true},
+  {id:'in53', nombre:'EDIFICIO PARTE EXTERIOR',          nave:'B17', activo:true}
+];
+
+// Grupo A = Naves A1 y A2 | Grupo B = Naves B16 y B17
+var DEFAULT_MAQUINAS = [
+  // ── Naves A1 y A2 ───────────────────────────────────────────────────────
+  {id:'mq01',  nombre:'FL1',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq02',  nombre:'FL2',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq03',  nombre:'FL3',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq04',  nombre:'FL4',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq05',  nombre:'RT5',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq06',  nombre:'RT6',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq07',  nombre:'RT7',                        naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq08',  nombre:'Omega',                      naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq09',  nombre:'LAM1',                       naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq10',  nombre:'Depuradora',                 naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq11',  nombre:'Montadora',                  naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq12',  nombre:'Compresor',                  naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq13',  nombre:'Cortadora de Cores',         naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq14',  nombre:'Tanque pulmón',           naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq15',  nombre:'Aire acondicionado',         naves:['A1','A2'], desc:'Indicar qué aire requiere atención',       activo:true},
+  {id:'mq16',  nombre:'Patín hidráulico',     naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq17',  nombre:'Mesa elevadora',             naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq18',  nombre:'Polipasto',                  naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq19',  nombre:'Lámpara UV tintas',       naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq20',  nombre:'Secador aire',               naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq21',  nombre:'Extractores (1,2,3,4)',      naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq22',  nombre:'Rampa andén',             naves:['A1','A2'], desc:'',                                               activo:true},
+  // ── Naves B16 y B17 ─────────────────────────────────────────────────────
+  {id:'mq23',  nombre:'REF1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq24',  nombre:'REF2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq25',  nombre:'REF3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq26',  nombre:'PEG1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq27',  nombre:'PEG2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq28',  nombre:'PEG3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq29',  nombre:'REV1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq30',  nombre:'REV2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq31',  nombre:'REV3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq32',  nombre:'REV4',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq33',  nombre:'REV5',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq34',  nombre:'REV6',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq35',  nombre:'REV7',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq36',  nombre:'Depuradora acondicionado',   naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq37',  nombre:'COR1',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq38',  nombre:'COR2',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq39',  nombre:'COR3',                       naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq40',  nombre:'Compresor acondicionado',    naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq41',  nombre:'Cortadora de cores acondicionado', naves:['B16','B17'], desc:'',                                       activo:true},
+  {id:'mq42',  nombre:'Secador aire acondicionado', naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq43',  nombre:'Tanque pulmón acondicionado', naves:['B16','B17'], desc:'',                                        activo:true},
+  {id:'mq44',  nombre:'Mesa inspección',         naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq45',  nombre:'Rebobinador',                naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq46',  nombre:'Aires positivos (1,2,3)',    naves:['B16','B17'], desc:'',                                             activo:true},
+  {id:'mq47',  nombre:'Aire acondicionado',         naves:['B16','B17'], desc:'Indicar qué aire requiere atención',    activo:true},
+  {id:'mq48',  nombre:'Rampa andén almacén',  naves:['B16','B17'], desc:'',                                             activo:true}
+];
+
 // Inicializar catálogo de personal en DB para TODOS los roles
 function initPersonal(){
   if(!DB.personal || DB.personal.length === 0){
@@ -3094,6 +3769,14 @@ function initCatalogos(){
   }
   if(!DB.naves || !DB.naves.length){
     DB.naves = JSON.parse(JSON.stringify(DEFAULT_NAVES));
+    saveDB();
+  }
+  if(!DB.maquinas || !DB.maquinas.length){
+    DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+    saveDB();
+  }
+  if(!DB.infraestructura || !DB.infraestructura.length){
+    DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
     saveDB();
   }
 }
@@ -3576,6 +4259,18 @@ function renderAdmPerfil(){
         <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('nave',null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
       </div>
       <div id="adm-cat-naves"></div>
+      <!-- Máquinas -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Máquinas
+        <button class="btn btn-sm btn-orange" onclick="abrirFormMaquina(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-maquinas"></div>
+      <!-- Infraestructura -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Infraestructura
+        <button class="btn btn-sm btn-orange" onclick="abrirFormInfra(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-infra"></div>
       <div class="spacer"></div>
     </div>
   </div>
@@ -3587,6 +4282,24 @@ function renderAdmPerfil(){
         <svg style="width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <div class="topbar-title">Gestión de OT</div>
+    </div>
+    <div class="search-filters">
+      <div class="search-filters-row">
+        <svg style="width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="sf-input" type="search" id="adm-f-folio" placeholder="Buscar por # de orden..." oninput="renderAdmOTs()">
+      </div>
+      <div class="search-filters-row" style="flex-wrap:wrap;gap:6px">
+        <span class="sf-label">Fecha:</span>
+        <input class="sf-input" type="date" id="adm-f-fecha" style="max-width:140px" onchange="renderAdmOTs()">
+        <span class="sf-label">Prioridad:</span>
+        <select class="sf-select" id="adm-f-prioridad" onchange="renderAdmOTs()">
+          <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+        </select>
+        <span class="sf-label">Tipo:</span>
+        <select class="sf-select" id="adm-f-tipo" onchange="renderAdmOTs()">
+          <option value="">Todos</option><option value="MTTO-MAQ-PROD">Maquinaria</option><option value="MTTO-INFRAESTRUCTURA">Infraestructura</option><option value="MTTO-SEGURIDAD">Seguridad</option>
+        </select>
+      </div>
     </div>
     <div class="scroll-content">
       <div class="list-pad" id="adm-ots-list"></div>
@@ -3715,6 +4428,68 @@ function renderAdmPerfil(){
     <div style="padding:16px;display:flex;gap:8px">
       <button class="btn btn-outline" onclick="closeModal('modal-adm-edit-ot')" style="flex:1">Cancelar</button>
       <button class="btn btn-orange" onclick="admGuardarEditOT()" style="flex:2">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MÁQUINAS -->
+<div class="modal-overlay" id="modal-maquina-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-maq-titulo">Nueva máquina</div>
+    <input type="hidden" id="maq-form-id">
+    <div class="field-row">
+      <div class="field-lbl">Nombre de la máquina <span style="color:var(--red)">*</span></div>
+      <input class="field-input" type="text" id="maq-form-nombre" placeholder="Ej. FL1, REV3...">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Descripción / nota</div>
+      <input class="field-input" type="text" id="maq-form-desc" placeholder="Ej. Indicar qué aire requiere atención">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Naves donde aplica</div>
+      <div id="maq-form-naves" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="maq-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-maquina-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarMaquina()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INFRAESTRUCTURA -->
+<div class="modal-overlay" id="modal-infra-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-infra-titulo">Nueva área de infraestructura</div>
+    <input type="hidden" id="infra-form-id">
+    <div class="field-row">
+      <div class="field-lbl">Nombre del área <span style="color:var(--red)">*</span></div>
+      <input class="field-input" type="text" id="infra-form-nombre" placeholder="Ej. COMEDOR, BAÑOS HOMBRES...">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Nave <span style="color:var(--red)">*</span></div>
+      <select class="field-select" id="infra-form-nave">
+        <option value="">— Selecciona —</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="infra-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-infra-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarInfra()" style="flex:2">Guardar</button>
     </div>
   </div>
 </div>
