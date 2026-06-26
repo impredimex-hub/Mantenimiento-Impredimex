@@ -19,6 +19,7 @@
 <!-- Firebase SDKs (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>IMPREDIMEX — Órdenes de Trabajo</title>
@@ -1141,6 +1142,17 @@ function initFirebase(){
     setSyncState('syncing', 'Conectando…');
 
     // Monitor conexión
+    try{
+      var fcmM=firebase.messaging();
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.register('./firebase-messaging-sw.js').then(function(reg){
+          fcmM.getToken({vapidKey:'BK1bBpDl7FLK1dQH-UStToRK6JolM-EBPDGn_H_8X5k2qtyYlpe36WhpookQ-VXBVxz_VabnT7FgYVZL7T5LWtE',serviceWorkerRegistration:reg})
+            .then(function(tok){if(tok&&currentUser) db.ref('manto_fcm_tokens/'+currentUser.nomina).set({token:tok,role:currentUser.role,nombre:currentUser.nombre,ts:Date.now()});})
+            .catch(function(e){console.warn('FCM getToken:',e);});
+        }).catch(function(e){console.warn('SW:',e);});
+      }
+      fcmM.onMessage(function(p){showFCMToast(p.notification&&p.notification.title||'MantoApp',p.notification&&p.notification.body||'');});
+    }catch(e){console.warn('FCM:',e);}
     db.ref('.info/connected').on('value', function(snap){
       _fbConnected = !!snap.val();
       if(_fbConnected){
@@ -1208,6 +1220,40 @@ function initFirebase(){
 }
 
 // ── reRenderCurrentScreen ─────────────────────────────────────────
+function saveFCMToken(){
+  if(!db||!currentUser) return;
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    var msg=firebase.messaging();
+    navigator.serviceWorker.ready.then(function(reg){
+      msg.getToken({vapidKey:'BK1bBpDl7FLK1dQH-UStToRK6JolM-EBPDGn_H_8X5k2qtyYlpe36WhpookQ-VXBVxz_VabnT7FgYVZL7T5LWtE',serviceWorkerRegistration:reg})
+        .then(function(tok){if(tok) db.ref('manto_fcm_tokens/'+currentUser.nomina).set({token:tok,role:currentUser.role,nombre:currentUser.nombre,ts:Date.now()});})
+        .catch(function(e){console.warn('FCM token:',e);});
+    });
+  }catch(e){console.warn('saveFCMToken:',e);}
+}
+function showFCMToast(title,body){
+  var el=document.createElement('div');
+  el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1B3A6B;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;z-index:9999;max-width:85vw;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+  el.innerHTML='<strong>'+title+'</strong><br>'+body;
+  document.body.appendChild(el);
+  setTimeout(function(){el.style.opacity='0';el.style.transition='opacity .5s';setTimeout(function(){el.remove();},500);},4000);
+}
+function notifyPush(toNominas,title,body,tag){
+  if(!Array.isArray(toNominas)) toNominas=[toNominas];
+  if(currentUser&&toNominas.indexOf(currentUser.nomina)>=0) showFCMToast(title,body);
+  if(db) db.ref('manto_push_queue').push({title:title,body:body,tag:tag||'manto',ts:Date.now(),targets:toNominas}).catch(function(){});
+  if(typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.hidden){
+    try{new Notification(title,{body:body,icon:'./icon-192.png',tag:tag});}catch(e){}
+  }
+}
+function getNominasTecnicos(){
+  return (DB.personal||[]).filter(function(p){return p.estatus==='activo'&&p.depto==='MANTENIMIENTO';}).map(function(p){return p.nomina;});
+}
+function getNominaByName(nombre){
+  var p=(DB.personal||[]).find(function(x){return x.nombre===nombre;});
+  return p?p.nomina:null;
+}
 function reRenderCurrentScreen(){
   if(!currentUser) return;
   var role = currentUser.role;
@@ -1617,6 +1663,8 @@ function crearOT(){
   showScreen('sol-lista');
   renderSolOTs('todas');
   updateNotifDot('sup-notif-dot','supervisor');
+  var _esUrg=ot.prioridad==='urgente'||ot.prioridad==='maquina-parada';
+  notifyPush(getNominasTecnicos(),(_esUrg?'URGENTE':'Nueva OT')+' #'+ot.folio,ot.desc.substring(0,60)+' - '+(ot.equipo||'')+' NAVE '+ot.nave,'nueva-'+ot.folio);
   alert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
 }
 
@@ -2200,6 +2248,8 @@ function tomarOT(id){
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' — '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') se unió a la atención.',
     fecha:new Date().toISOString(), leida:false});
+  var _solNom=getNominaByName(ot.solicitante);
+  if(_solNom) notifyPush([_solNom],'Tecnico asignado',currentUser.nombre+' tomo tu OT '+ot.folio,'tomada-'+ot.folio);
   saveDB();
   currentOTId = id;
   alert('✓ OT '+ot.folio+' tomada. Ahora selecciona el tipo de problema para continuar.');
@@ -2424,6 +2474,8 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
   DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:msgSol,fecha:new Date().toISOString(),leida:false});
     if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' concluida por '+currentUser.nombre+(esErrorOp?' — Error operativo: '+descErrorOp:'')+'. Pendiente validación.',fecha:new Date().toISOString(),leida:false});
+  var _solNom2=getNominaByName(ot.solicitante);
+  if(_solNom2) notifyPush([_solNom2],'OT concluida','Tu OT '+ot.folio+' esta lista para validar','concluida-'+ot.folio);
   }
   saveDB();
   document.getElementById('act-accion').value='';
@@ -2466,6 +2518,8 @@ function ponerEnEspera(){
   DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' está en espera: '+motivo+'. '+comentario+'. Fecha estimada: '+fmtDate(fechaEst),fecha:new Date().toISOString(),leida:false});
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' puesta en espera por '+currentUser.nombre+': '+motivo+'.',fecha:new Date().toISOString(),leida:false});
+  var _solNom3=getNominaByName(ot.solicitante);
+  if(_solNom3) notifyPush([_solNom3],'OT suspendida','Tu OT '+ot.folio+' esta en espera: '+motivo,'espera-'+ot.folio);
   saveDB();
   document.getElementById('espera-comentario').value='';
   document.getElementById('espera-fecha').value='';
@@ -4163,7 +4217,8 @@ function initCatalogos(){
     saveDB();
   }
 }
-initFirebase(); // Firebase init — loads data and sets up real-time listener
+initFirebase();
+    setTimeout(function(){if(typeof Notification!=='undefined'&&Notification.permission==='default'){Notification.requestPermission().then(function(p){if(p==='granted')saveFCMToken();});}else if(typeof Notification!=='undefined'&&Notification.permission==='granted'){saveFCMToken();}},2500);
 
 let admStatusFilter = 'activo';
 let personalEditar = null;
