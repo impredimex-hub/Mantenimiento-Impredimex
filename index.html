@@ -2,6 +2,23 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  FIREBASE CONFIG — impredimex-mantoapp                  ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyB6ZjPeh9bwY5d2M-ZpxIbEW3ZsLzhAz0M",
+    authDomain:        "impredimex-mantoapp.firebaseapp.com",
+    databaseURL:       "https://impredimex-mantoapp-default-rtdb.firebaseio.com",
+    projectId:         "impredimex-mantoapp",
+    storageBucket:     "impredimex-mantoapp.firebasestorage.app",
+    messagingSenderId: "294064610592",
+    appId:             "1:294064610592:web:6a352dbf44ec6749898b45"
+  };
+</script>
+<!-- Firebase SDKs (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>IMPREDIMEX — Órdenes de Trabajo</title>
@@ -29,6 +46,12 @@ input,select,textarea{font-family:inherit;font-size:14px}
 /* ===== LOGIN ===== */
 #page-login{align-items:center;justify-content:center;background:#fff}
 .login-card{background:#fff;width:100%;max-width:380px;padding:48px 28px 32px}
+.fb-sync{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);position:absolute;top:8px;right:60px;z-index:200}
+.fb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.fb-dot-connected{background:#22c55e}
+.fb-dot-offline{background:#ef4444}
+.fb-dot-syncing{background:#f59e0b;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .login-logo{display:flex;align-items:center;gap:14px;margin-bottom:32px}
 .login-logo-icon{width:80px;height:80px;flex-shrink:0}
 .login-logo-icon img{width:100%;height:100%;object-fit:contain}
@@ -355,6 +378,7 @@ input[type=range].green{accent-color:var(--green)}
 </style>
 </head>
 <body>
+<div class="fb-sync" style="position:fixed;top:10px;right:12px;z-index:9999;display:flex;align-items:center;gap:5px"><span class="fb-dot fb-dot-syncing" id="fb-sync-dot"></span><span id="fb-sync-label" style="font-size:10px;color:var(--text3)">Conectando…</span></div>
 
 <!-- ==================== LOGIN ==================== -->
 <div id="page-login" class="page active">
@@ -1056,69 +1080,136 @@ function getTecnicoNombres(){
   return getTecnicos().map(p => p.nombre);
 }
 
-// ── Borrar datos anteriores de ejemplo si existen ──
-(function(){
-  var stored = localStorage.getItem('mantoDB');
-  if(stored){
-    try{
-      var d = JSON.parse(stored);
-      // Si tiene OTs de ejemplo (folios fijos de demo), limpiar y arrancar fresco
-      var demoIds = ['015361','015372','015388'];
-      var hasDemo = d.ots && d.ots.some(function(o){ return demoIds.indexOf(o.id)>=0; });
-      if(hasDemo){ localStorage.removeItem('mantoDB'); stored = null; }
-    }catch(e){ localStorage.removeItem('mantoDB'); stored = null; }
-  }
-})();
+// ══════════════════════════════════════════════════════════════════
+// BASE DE DATOS — Firebase Realtime Database + localStorage fallback
+// ══════════════════════════════════════════════════════════════════
+var db = null;          // Firebase database reference
+var _fbConnected = false;
+var _fbSaveTimer = null; // debounce timer for saves
 
-let DB = JSON.parse(localStorage.getItem('mantoDB')||'null');
-if(!DB){
-  DB = {
-    ots: [],
-    notifs: [],
-    folioSig: 1
-  };
-  saveDB();
-}
-// Asegurar folioSig
-if(!DB.folioSig){ DB.folioSig = (DB.ots.length ? parseInt(DB.ots[DB.ots.length-1].id)+1 : 1); saveDB(); }
-// Nota: DB.personal se inicializa en initPersonal() que se llama tras declarar CATALOG_PERSONAL
+// DB en memoria — se sincroniza con Firebase
+let DB = {
+  ots: [],
+  notifs: [],
+  folioSig: 1,
+  personal: [],
+  tiposServicio: [],
+  naves: [],
+  maquinas: [],
+  infraestructura: []
+};
 
+// ── saveDB: guarda en Firebase (con debounce 300ms) + localStorage cache ──
 function saveDB(){
-  localStorage.setItem('mantoDB', JSON.stringify(DB));
+  // Siempre actualizar localStorage como cache offline
+  try { localStorage.setItem('mantoDB', JSON.stringify(DB)); } catch(e){}
+  // Guardar en Firebase si está conectado
+  if(db && _fbConnected){
+    clearTimeout(_fbSaveTimer);
+    _fbSaveTimer = setTimeout(function(){
+      db.ref('manto_db').set(DB).catch(function(e){
+        console.warn('Firebase save error:', e);
+      });
+    }, 300);
+  }
 }
 
-// Recarga DB desde localStorage (por si otro perfil/pestaña hizo cambios)
+// ── reloadDB: en Firebase el listener ya mantiene DB actualizado,
+//    esta función es no-op excepto en offline donde carga del cache ──
 function reloadDB(){
-  var stored = localStorage.getItem('mantoDB');
-  if(stored){
-    try{ DB = JSON.parse(stored); } catch(e){}
+  if(!_fbConnected){
+    var stored = localStorage.getItem('mantoDB');
+    if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
+  }
+  // Si Firebase está conectado, DB ya es la versión más reciente (listener activo)
+}
+
+// ── setSyncState: indicador visual de conexión ────────────────────
+function setSyncState(state, msg){
+  var dot = document.getElementById('fb-sync-dot');
+  var lbl = document.getElementById('fb-sync-label');
+  if(!dot) return;
+  dot.className = 'fb-dot fb-dot-' + state;
+  if(lbl) lbl.textContent = msg || '';
+}
+
+// ── initFirebase: inicializa y escucha cambios en tiempo real ─────
+function initFirebase(){
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    setSyncState('syncing', 'Conectando…');
+
+    // Monitor conexión
+    db.ref('.info/connected').on('value', function(snap){
+      _fbConnected = !!snap.val();
+      if(_fbConnected){
+        setSyncState('connected', 'En línea');
+      } else {
+        setSyncState('offline', 'Sin conexión');
+      }
+    });
+
+    // Listener principal — escucha TODOS los cambios en tiempo real
+    db.ref('manto_db').on('value', function(snap){
+      if(snap.exists()){
+        var remoto = snap.val();
+        // Merge conservando arrays vacíos
+        DB = Object.assign({
+          ots:[], notifs:[], folioSig:1,
+          personal:[], tiposServicio:[], naves:[],
+          maquinas:[], infraestructura:[]
+        }, remoto);
+        // Asegurar arrays (Firebase omite arrays vacíos)
+        if(!Array.isArray(DB.ots)) DB.ots = DB.ots ? Object.values(DB.ots) : [];
+        if(!Array.isArray(DB.notifs)) DB.notifs = DB.notifs ? Object.values(DB.notifs) : [];
+        if(!Array.isArray(DB.personal)) DB.personal = DB.personal ? Object.values(DB.personal) : [];
+        if(!Array.isArray(DB.tiposServicio)) DB.tiposServicio = DB.tiposServicio ? Object.values(DB.tiposServicio) : [];
+        if(!Array.isArray(DB.naves)) DB.naves = DB.naves ? Object.values(DB.naves) : [];
+        if(!Array.isArray(DB.maquinas)) DB.maquinas = DB.maquinas ? Object.values(DB.maquinas) : [];
+        if(!Array.isArray(DB.infraestructura)) DB.infraestructura = DB.infraestructura ? Object.values(DB.infraestructura) : [];
+        // Cache local
+        try { localStorage.setItem('mantoDB', JSON.stringify(DB)); } catch(e){}
+        // Re-render pantalla activa
+        if(currentUser) reRenderCurrentScreen();
+      } else {
+        // Base de datos vacía — primera vez: inicializar con defaults
+        setSyncState('syncing', 'Inicializando…');
+        initPersonal();
+        initCatalogos();
+        saveDB();
+        setSyncState('connected', 'En línea');
+      }
+    }, function(error){
+      setSyncState('offline', 'Error: ' + error.message);
+      // Cargar desde cache local
+      var stored = localStorage.getItem('mantoDB');
+      if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
+    });
+
+  } catch(e){
+    setSyncState('offline', 'Firebase no disponible');
+    console.error('Firebase init error:', e);
+    // Fallback a localStorage
+    var stored = localStorage.getItem('mantoDB');
+    if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
+    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[]}; }
+    initPersonal(); initCatalogos();
   }
 }
 
-// Escuchar cambios de localStorage desde otras pestañas
-window.addEventListener('storage', function(e){
-  if(e.key === 'mantoDB' && e.newValue){
-    try{
-      DB = JSON.parse(e.newValue);
-      // Re-renderizar la pantalla activa según el rol
-      if(currentUser){
-        var role = currentUser.role;
-        if(role === 'solicitante'){
-          renderSolOTs(currentFilter);
-          renderNotifsSol();
-          updateNotifDot('sol-notif-dot','solicitante');
-        } else if(role === 'tecnico'){
-          renderTecOTs(currentFilter);
-          updateNotifDot('tec-notif-dot','tecnico');
-        } else if(role === 'supervisor'){
-          renderDashboard();
-          renderSupOTs(currentFilter);
-          updateNotifDot('sup-notif-dot','supervisor');
-        }
-      }
-    } catch(e2){}
-  }
-});
+// ── reRenderCurrentScreen ─────────────────────────────────────────
+function reRenderCurrentScreen(){
+  if(!currentUser) return;
+  var role = currentUser.role;
+  try {
+    if(role==='solicitante') renderSolOTs();
+    else if(role==='tecnico') renderTecOTs('todas');
+    else if(role==='supervisor') renderDashboard();
+    else if(role==='admin') renderAdmOTs && renderAdmOTs();
+  } catch(e){}
+}
+
 
 let currentUser = null;
 let currentOTId = null;
@@ -4043,8 +4134,7 @@ function initCatalogos(){
     saveDB();
   }
 }
-initPersonal();
-initCatalogos();
+initFirebase(); // Firebase init — loads data and sets up real-time listener
 
 let admStatusFilter = 'activo';
 let personalEditar = null;
