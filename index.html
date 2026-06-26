@@ -20,6 +20,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+<!-- OneSignal SDK -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  function oneSignalPush(fn){ window.OneSignalDeferred.push(fn); }
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>IMPREDIMEX — Órdenes de Trabajo</title>
@@ -1142,17 +1148,6 @@ function initFirebase(){
     setSyncState('syncing', 'Conectando…');
 
     // Monitor conexión
-    try{
-      var fcmM=firebase.messaging();
-      if('serviceWorker' in navigator){
-        navigator.serviceWorker.register('./firebase-messaging-sw.js').then(function(reg){
-          fcmM.getToken({vapidKey:'BK1bBpDl7FLK1dQH-UStToRK6JolM-EBPDGn_H_8X5k2qtyYlpe36WhpookQ-VXBVxz_VabnT7FgYVZL7T5LWtE',serviceWorkerRegistration:reg})
-            .then(function(tok){if(tok&&currentUser) db.ref('manto_fcm_tokens/'+currentUser.nomina).set({token:tok,role:currentUser.role,nombre:currentUser.nombre,ts:Date.now()});})
-            .catch(function(e){console.warn('FCM getToken:',e);});
-        }).catch(function(e){console.warn('SW:',e);});
-      }
-      fcmM.onMessage(function(p){showFCMToast(p.notification&&p.notification.title||'MantoApp',p.notification&&p.notification.body||'');});
-    }catch(e){console.warn('FCM:',e);}
     db.ref('.info/connected').on('value', function(snap){
       _fbConnected = !!snap.val();
       if(_fbConnected){
@@ -1221,16 +1216,26 @@ function initFirebase(){
 
 // ── reRenderCurrentScreen ─────────────────────────────────────────
 function saveFCMToken(){
-  if(!db||!currentUser) return;
-  if(!('serviceWorker' in navigator)) return;
-  try{
-    var msg=firebase.messaging();
-    navigator.serviceWorker.ready.then(function(reg){
-      msg.getToken({vapidKey:'BK1bBpDl7FLK1dQH-UStToRK6JolM-EBPDGn_H_8X5k2qtyYlpe36WhpookQ-VXBVxz_VabnT7FgYVZL7T5LWtE',serviceWorkerRegistration:reg})
-        .then(function(tok){if(tok) db.ref('manto_fcm_tokens/'+currentUser.nomina).set({token:tok,role:currentUser.role,nombre:currentUser.nombre,ts:Date.now()});})
-        .catch(function(e){console.warn('FCM token:',e);});
-    });
-  }catch(e){console.warn('saveFCMToken:',e);}
+  // Inicializar OneSignal y etiquetar al usuario con su nomina y rol
+  if(!currentUser) return;
+  oneSignalPush(function(OneSignal){
+    OneSignal.init({
+      appId: "1bb0b5c6-1a08-4a5e-a300-715a65a1dcc1",
+      notifyButton: { enable: false },
+      allowLocalhostAsSecureOrigin: true,
+      serviceWorkerPath: '/Mantenimiento-Impredimex/OneSignalSDKWorker.js'
+    }).then(function(){
+      // Pedir permiso de notificaciones
+      OneSignal.Notifications.requestPermission();
+      // Etiquetar al usuario con su nomina y rol para poder filtrar destinatarios
+      OneSignal.User.addTags({
+        nomina: String(currentUser.nomina),
+        role:   currentUser.role,
+        nombre: currentUser.nombre
+      });
+      console.log('OneSignal: usuario etiquetado con nomina', currentUser.nomina);
+    }).catch(function(e){ console.warn('OneSignal init:', e); });
+  });
 }
 function showFCMToast(title,body){
   var el=document.createElement('div');
@@ -1241,11 +1246,33 @@ function showFCMToast(title,body){
 }
 function notifyPush(toNominas,title,body,tag){
   if(!Array.isArray(toNominas)) toNominas=[toNominas];
+  // In-app toast para el usuario actual si es destinatario
   if(currentUser&&toNominas.indexOf(currentUser.nomina)>=0) showFCMToast(title,body);
-  if(db) db.ref('manto_push_queue').push({title:title,body:body,tag:tag||'manto',ts:Date.now(),targets:toNominas}).catch(function(){});
-  if(typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.hidden){
-    try{new Notification(title,{body:body,icon:'./icon-192.png',tag:tag});}catch(e){}
-  }
+  // Enviar push via OneSignal REST API
+  if(!toNominas.length) return;
+  var payload = JSON.stringify({
+    app_id: "1bb0b5c6-1a08-4a5e-a300-715a65a1dcc1",
+    filters: toNominas.map(function(nom,i){
+      var f = [{field:'tag', key:'nomina', relation:'=', value:String(nom)}];
+      if(i>0) f.unshift({operator:'OR'});
+      return f;
+    }).reduce(function(a,b){return a.concat(b);},[]),
+    headings: {en: title, es: title},
+    contents:  {en: body,  es: body},
+    web_url: 'https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/MantoApp.html',
+    chrome_web_icon: 'https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/icon-192.png',
+    ttl: 86400
+  });
+  fetch('https://onesignal.com/api/v1/notifications', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Key os_v2_app_doyllrq2bbff5iyaofnglio4yhcjoud2wjieqvfvoozf7froyj2qaoi2aidu7lne7cuw566nqu34fdlvgh56jitp4o72a22dogm6lcy'
+    },
+    body: payload
+  }).then(function(r){ return r.json(); })
+    .then(function(d){ console.log('OneSignal push sent:', d); })
+    .catch(function(e){ console.warn('OneSignal push error:', e); });
 }
 function getNominasTecnicos(){
   return (DB.personal||[]).filter(function(p){return p.estatus==='activo'&&p.depto==='MANTENIMIENTO';}).map(function(p){return p.nomina;});
