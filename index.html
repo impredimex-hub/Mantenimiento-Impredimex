@@ -1375,6 +1375,9 @@ function doLogin(){
 
   currentUser = {nomina:nomina, nombre:nombreReal, puesto:puestoReal, depto:deptoReal, role:role, turno:turnoReal};
 
+  // Inicializar OneSignal con el usuario ya autenticado
+  saveFCMToken();
+
   // Limpiar campos
   document.getElementById('login-pass').value = '';
 
