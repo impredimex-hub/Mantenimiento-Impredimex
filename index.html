@@ -1223,7 +1223,8 @@ function saveFCMToken(){
       appId: "1bb0b5c6-1a08-4a5e-a300-715a65a1dcc1",
       notifyButton: { enable: false },
       allowLocalhostAsSecureOrigin: true,
-      serviceWorkerPath: '/Mantenimiento-Impredimex/OneSignalSDKWorker.js'
+      serviceWorkerPath: 'OneSignalSDKWorker.js',
+      serviceWorkerParam: { scope: '/Mantenimiento-Impredimex/' }
     }).then(function(){
       // Pedir permiso de notificaciones
       OneSignal.Notifications.requestPermission();
