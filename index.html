@@ -1161,6 +1161,7 @@ function initFirebase(){
           maquinas:[], infraestructura:[]
         }, remoto);
         // Asegurar arrays (Firebase omite arrays vacíos)
+        // Normalize top-level arrays
         if(!Array.isArray(DB.ots)) DB.ots = DB.ots ? Object.values(DB.ots) : [];
         if(!Array.isArray(DB.notifs)) DB.notifs = DB.notifs ? Object.values(DB.notifs) : [];
         if(!Array.isArray(DB.personal)) DB.personal = DB.personal ? Object.values(DB.personal) : [];
@@ -1168,6 +1169,14 @@ function initFirebase(){
         if(!Array.isArray(DB.naves)) DB.naves = DB.naves ? Object.values(DB.naves) : [];
         if(!Array.isArray(DB.maquinas)) DB.maquinas = DB.maquinas ? Object.values(DB.maquinas) : [];
         if(!Array.isArray(DB.infraestructura)) DB.infraestructura = DB.infraestructura ? Object.values(DB.infraestructura) : [];
+        // Normalize arrays inside each OT (Firebase drops empty arrays)
+        DB.ots.forEach(function(ot){
+          if(!ot) return;
+          if(!Array.isArray(ot.actividades)) ot.actividades = ot.actividades ? Object.values(ot.actividades) : [];
+          if(!Array.isArray(ot.refacciones)) ot.refacciones = ot.refacciones ? Object.values(ot.refacciones) : [];
+          if(!Array.isArray(ot.comentarios)) ot.comentarios = ot.comentarios ? Object.values(ot.comentarios) : [];
+          if(!Array.isArray(ot.tecnicos))    ot.tecnicos    = ot.tecnicos    ? Object.values(ot.tecnicos)    : [];
+        });
         // Cache local
         try { localStorage.setItem('mantoDB', JSON.stringify(DB)); } catch(e){}
         // Re-render pantalla activa
@@ -1595,6 +1604,7 @@ function crearOT(){
     espera:     null
   };
   DB.ots.push(ot);
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:     'n'+Date.now(),
     para:   'supervisor',
@@ -1638,9 +1648,11 @@ function confirmarPrimerContacto(id){
   if(!ot.fechaPrimerContacto) ot.fechaPrimerContacto = ahora;
   ot.contactosPorTecnico[tecPendiente.nomina] = ahora;
 
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' — '+tecPendiente.nombre+' confirmado en máquina.',
     fecha:ahora, leida:false});
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'tecnico',
     texto:'OT '+ot.folio+' — el solicitante confirmó tu presencia. Ya puedes registrar actividades.',
     fecha:ahora, leida:false});
@@ -1658,11 +1670,13 @@ function cerrarOT(id){
   if(!ot){ alert('OT no encontrada'); return; }
   ot.status = 'cerrado';
   ot.fechaCierre = new Date().toISOString();
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:'n'+Date.now(), para:'tecnico',
     texto:'OT '+ot.folio+' fue cerrada y validada por el solicitante.',
     fecha:new Date().toISOString(), leida:false
   });
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' cerrada y validada por '+currentUser.nombre+'.',
@@ -1681,16 +1695,19 @@ function confirmarRechazo(){
   var ot = DB.ots.find(function(o){ return o.id===oid; });
   if(!ot){ closeModal('modal-rechazar'); return; }
   ot.status = 'proceso';
+  if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
   ot.comentarios.push({
     autor: currentUser.nombre,
     fecha: new Date().toISOString(),
     texto: 'Cierre rechazado por el solicitante: '+motivo
   });
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:'n'+Date.now(), para:'tecnico',
     texto:'El solicitante rechazó el cierre de '+ot.folio+': '+motivo,
     fecha:new Date().toISOString(), leida:false
   });
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' rechazada por '+currentUser.nombre+': '+motivo,
@@ -1855,6 +1872,7 @@ function confirmarAsignacion(){
   if(!ot.tecnicos) ot.tecnicos = [];
   ot.tecnico = tecnico;
   if(ot.status==='abierto') ot.status = 'proceso';
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:'n'+Date.now(), para:'tecnico',
     texto:'Nueva OT '+ot.folio+' asignada: '+ot.desc.substring(0,60),
@@ -2055,6 +2073,7 @@ function tomarOTConTipo(id){
   // Save tipo de problema permanently
   ot.tipoProblema = tipo;
 
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' tomada por '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') — Tipo: '+tipo,
     fecha:new Date().toISOString(), leida:false});
@@ -2177,6 +2196,7 @@ function tomarOT(id){
   ot.status  = 'proceso';
   if(!ot.fechaTomada) ot.fechaTomada = new Date().toISOString();
 
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
     texto:'OT '+ot.folio+' — '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') se unió a la atención.',
     fecha:new Date().toISOString(), leida:false});
@@ -2374,6 +2394,7 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
   const accion=document.getElementById('act-accion').value.trim();
   // avance: 100 si concluye, mantener el anterior si no
   const avance = concluir ? 100 : (ot.avance||0);
+  if(!Array.isArray(ot.actividades)) ot.actividades = [];
   ot.actividades.push({
     fecha:document.getElementById('act-fecha').value,
     inicio:document.getElementById('act-inicio').value,
@@ -2388,7 +2409,8 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
   ot.status=concluir?'validar':'proceso';
   if(esErrorOp){
     ot.errorOperativo = descErrorOp;
-    ot.comentarios.push({
+    if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
+  ot.comentarios.push({
       autor:currentUser.nombre,
       fecha:new Date().toISOString(),
       texto:'⚠ Error operativo: '+descErrorOp
@@ -2398,8 +2420,10 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
     ot.fechaCierreMantenimiento = new Date().toISOString();
     var msgSol = 'Tu OT '+ot.folio+' fue concluida y está lista para que valides el cierre.'
       +(esErrorOp ? ' El técnico indicó que fue un ERROR OPERATIVO: '+descErrorOp : '');
-    DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:msgSol,fecha:new Date().toISOString(),leida:false});
-    DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' concluida por '+currentUser.nombre+(esErrorOp?' — Error operativo: '+descErrorOp:'')+'. Pendiente validación.',fecha:new Date().toISOString(),leida:false});
+    if(!Array.isArray(DB.notifs)) DB.notifs = [];
+  DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:msgSol,fecha:new Date().toISOString(),leida:false});
+    if(!Array.isArray(DB.notifs)) DB.notifs = [];
+  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' concluida por '+currentUser.nombre+(esErrorOp?' — Error operativo: '+descErrorOp:'')+'. Pendiente validación.',fecha:new Date().toISOString(),leida:false});
   }
   saveDB();
   document.getElementById('act-accion').value='';
@@ -2436,8 +2460,11 @@ function ponerEnEspera(){
   const ot=DB.ots.find(o=>o.id===currentOTId);
   ot.status='espera';
   ot.espera={motivo,comentario,fechaEst};
+  if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
   ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:'OT en espera: '+motivo+' — '+comentario+'. Fecha est. '+fmtDate(fechaEst)});
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' está en espera: '+motivo+'. '+comentario+'. Fecha estimada: '+fmtDate(fechaEst),fecha:new Date().toISOString(),leida:false});
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' puesta en espera por '+currentUser.nombre+': '+motivo+'.',fecha:new Date().toISOString(),leida:false});
   saveDB();
   document.getElementById('espera-comentario').value='';
@@ -2453,6 +2480,7 @@ function guardarRefaccion(){
   const desc=document.getElementById('ref-desc').value.trim();
   if(!desc){alert('Describe la refacción');return;}
   const ot=DB.ots.find(o=>o.id===currentOTId);
+  if(!Array.isArray(ot.refacciones)) ot.refacciones = [];
   ot.refacciones.push({
     tipo:document.getElementById('ref-tipo').value,
     desc,
@@ -3200,6 +3228,7 @@ function asignarOT(){
   var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
   ot.tecnico = tecnico;
   if(ot.status==='abierto') ot.status = 'proceso';
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'tecnico',
     texto:'Nueva OT '+ot.folio+' asignada por '+currentUser.nombre+': '+ot.desc.substring(0,60),
     fecha:new Date().toISOString(), leida:false});
