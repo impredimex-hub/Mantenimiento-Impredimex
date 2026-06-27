@@ -1249,31 +1249,20 @@ function notifyPush(toNominas,title,body,tag){
   if(!Array.isArray(toNominas)) toNominas=[toNominas];
   // In-app toast para el usuario actual si es destinatario
   if(currentUser&&toNominas.indexOf(currentUser.nomina)>=0) showFCMToast(title,body);
-  // Enviar push via OneSignal REST API
+  // Enviar push via Cloudflare Worker (que reenvia a OneSignal)
   if(!toNominas.length) return;
-  var payload = JSON.stringify({
-    app_id: "1bb0b5c6-1a08-4a5e-a300-715a65a1dcc1",
-    filters: toNominas.map(function(nom,i){
-      var f = [{field:'tag', key:'nomina', relation:'=', value:String(nom)}];
-      if(i>0) f.unshift({operator:'OR'});
-      return f;
-    }).reduce(function(a,b){return a.concat(b);},[]),
-    headings: {en: title, es: title},
-    contents:  {en: body,  es: body},
-    web_url: 'https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/MantoApp.html',
-    chrome_web_icon: 'https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/icon-192.png',
-    ttl: 86400
-  });
-  fetch('https://onesignal.com/api/v1/notifications', {
+  fetch('https://mantoapp-push.victormorenogarcia05.workers.dev/', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Key os_v2_app_doyllrq2bbff5iyaofnglio4yhcjoud2wjieqvfvoozf7froyj2qaoi2aidu7lne7cuw566nqu34fdlvgh56jitp4o72a22dogm6lcy'
-    },
-    body: payload
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nominas: toNominas.map(function(n){return String(n);}),
+      title: title,
+      message: body,
+      url: 'https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/'
+    })
   }).then(function(r){ return r.json(); })
-    .then(function(d){ console.log('OneSignal push sent:', d); })
-    .catch(function(e){ console.warn('OneSignal push error:', e); });
+    .then(function(d){ console.log('Push enviado:', d); })
+    .catch(function(e){ console.warn('Push error:', e); });
 }
 function getNominasTecnicos(){
   return (DB.personal||[]).filter(function(p){return p.estatus==='activo'&&p.depto==='MANTENIMIENTO';}).map(function(p){return p.nomina;});
