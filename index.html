@@ -1219,6 +1219,25 @@ function saveFCMToken(){
   // Inicializar OneSignal y etiquetar al usuario con su nomina y rol
   if(!currentUser) return;
   oneSignalPush(function(OneSignal){
+    // Funcion auxiliar para limpiar tags viejos y aplicar los nuevos
+    function aplicarTags(){
+      try {
+        // Limpiar tags previos (importante cuando cambia el usuario en el mismo dispositivo)
+        OneSignal.User.removeTags(['nomina','role','nombre']);
+      } catch(e){}
+      OneSignal.User.addTags({
+        nomina: String(currentUser.nomina),
+        role:   currentUser.role,
+        nombre: currentUser.nombre
+      });
+      console.log('OneSignal: usuario etiquetado con nomina', currentUser.nomina, 'rol', currentUser.role);
+    }
+    // Si ya esta inicializado (segundo login en la misma sesion), solo actualizar tags
+    if(window.__oneSignalReady){
+      OneSignal.Notifications.requestPermission();
+      aplicarTags();
+      return;
+    }
     OneSignal.init({
       appId: "1bb0b5c6-1a08-4a5e-a300-715a65a1dcc1",
       notifyButton: { enable: false },
@@ -1226,15 +1245,10 @@ function saveFCMToken(){
       serviceWorkerPath: '/Mantenimiento-Impredimex/OneSignalSDKWorker.js',
       serviceWorkerParam: { scope: '/Mantenimiento-Impredimex/' }
     }).then(function(){
+      window.__oneSignalReady = true;
       // Pedir permiso de notificaciones
       OneSignal.Notifications.requestPermission();
-      // Etiquetar al usuario con su nomina y rol para poder filtrar destinatarios
-      OneSignal.User.addTags({
-        nomina: String(currentUser.nomina),
-        role:   currentUser.role,
-        nombre: currentUser.nombre
-      });
-      console.log('OneSignal: usuario etiquetado con nomina', currentUser.nomina);
+      aplicarTags();
     }).catch(function(e){ console.warn('OneSignal init:', e); });
   });
 }
@@ -1386,6 +1400,14 @@ function doLogin(){
 }
 
 function logout(){
+  // Limpiar tags de OneSignal para que el dispositivo no quede etiquetado
+  try {
+    if(window.OneSignalDeferred){
+      oneSignalPush(function(OneSignal){
+        try { OneSignal.User.removeTags(['nomina','role','nombre']); } catch(e){}
+      });
+    }
+  } catch(e){}
   currentUser=null;
   showPage('page-login');
 }
