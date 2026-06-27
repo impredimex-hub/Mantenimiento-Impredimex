@@ -18,6 +18,7 @@
 </script>
 <!-- Firebase SDKs (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <!-- OneSignal SDK -->
@@ -1146,6 +1147,11 @@ function initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
     setSyncState('syncing', 'Conectando…');
+
+    // Autenticacion anonima (necesaria para que las reglas de seguridad permitan acceso)
+    firebase.auth().signInAnonymously().catch(function(err){
+      console.warn('Firebase auth error:', err);
+    });
 
     // Monitor conexión
     db.ref('.info/connected').on('value', function(snap){
