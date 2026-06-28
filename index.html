@@ -1666,6 +1666,10 @@ function crearOT(){
       .some(function(id){ var el=document.getElementById(id); return el&&el.checked; });
     if(!alguno){ alert('Selecciona al menos un tipo de riesgo'); return; }
   }
+  // SPEC-002: Si todas las OTs fueron eliminadas, reiniciar el contador de folio a 1
+  if(!DB.ots || DB.ots.length === 0){
+    DB.folioSig = 1;
+  }
   var id = String(DB.folioSig).padStart(6,'0');
   DB.folioSig++;
   var ot = {
