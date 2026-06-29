@@ -6,6 +6,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.0.1] — 2026-06-28
+
+### Corregido
+- **SPEC-001:** Race condition en autenticación de Firebase. La app intentaba leer la base de datos antes de que `signInAnonymously()` terminara, causando `permission_denied` en dispositivos nuevos o con conexión lenta. Ahora se usa `onAuthStateChanged` para garantizar que la auth esté lista antes de iniciar los listeners.
+- **SPEC-009:** Notificaciones push al solicitante no llegaban (solo funcionaba la primera notificación a técnicos). Causa: `getNominaByName(ot.solicitante)` retornaba `null` por comparaciones frágiles de nombres (espacios, acentos, mayúsculas). Solución: usar el campo `ot.nomina` directamente que ya está guardado en cada OT al crearse.
+
+### Cambiado
+- Función `notifyPush()` en eventos "tomar OT", "concluir OT" y "OT en espera" ahora usa `ot.nomina` directamente en lugar de buscar por nombre
+
+---
+
 ## [1.0.0] — 2026-06-27
 
 ### 🎉 Primera versión estable en producción

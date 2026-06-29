@@ -338,6 +338,7 @@ Sistema (automático, no requiere acción del usuario).
 - **Tags de suscripción:** cada dispositivo se etiqueta con `nomina`, `role` y `nombre` al hacer login
 - **Limpieza de tags:** al cambiar de usuario o hacer logout, los tags anteriores se eliminan
 - **Filtrado por nómina:** las notificaciones se envían a nóminas específicas, no a todos
+- **Identificación del solicitante:** las notificaciones dirigidas al solicitante usan el campo `ot.nomina` directamente (guardado al crear la OT), NO se busca por nombre con `getNominaByName()` porque las comparaciones por nombre son frágiles (espacios, mayúsculas, acentos)
 - **API key segura:** la REST API Key de OneSignal NUNCA se expone en el frontend; vive solo en Cloudflare Worker
 - **Eventos que disparan push:**
   - Nueva OT → a todos los técnicos del depto MANTENIMIENTO
