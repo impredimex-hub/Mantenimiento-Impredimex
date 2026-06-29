@@ -1255,6 +1255,8 @@ function saveFCMToken(){
     // Si ya esta inicializado (segundo login en la misma sesion), solo actualizar tags
     if(window.__oneSignalReady){
       OneSignal.Notifications.requestPermission();
+      // SPEC-009: Forzar re-suscripcion por si estaba unsubscribed en OneSignal
+      try { OneSignal.User.PushSubscription.optIn(); } catch(e){}
       aplicarTags();
       return;
     }
@@ -1268,6 +1270,8 @@ function saveFCMToken(){
       window.__oneSignalReady = true;
       // Pedir permiso de notificaciones
       OneSignal.Notifications.requestPermission();
+      // SPEC-009: Forzar re-suscripcion por si estaba unsubscribed en OneSignal
+      try { OneSignal.User.PushSubscription.optIn(); } catch(e){}
       aplicarTags();
     }).catch(function(e){ console.warn('OneSignal init:', e); });
   });

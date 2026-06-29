@@ -6,6 +6,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.0.2] — 2026-06-28
+
+### Corregido
+- **SPEC-009:** Suscriptores marcados como "unsubscribed" en OneSignal Dashboard no se re-activaban automáticamente al volver a entrar a la app. Solución: agregar llamada explícita a `OneSignal.User.PushSubscription.optIn()` en cada login, tanto en la primera inicialización como en logins subsecuentes.
+
+---
+
 ## [1.0.1] — 2026-06-28
 
 ### Corregido
