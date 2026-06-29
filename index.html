@@ -1148,23 +1148,22 @@ function initFirebase(){
     db = firebase.database();
     setSyncState('syncing', 'Conectando…');
 
-    // Autenticacion anonima (necesaria para que las reglas de seguridad permitan acceso)
-    firebase.auth().signInAnonymously().catch(function(err){
-      console.warn('Firebase auth error:', err);
-    });
+    // SPEC-001: Esperar a que la autenticacion anonima termine ANTES de leer la BD
+    // Esto evita race condition donde la lectura falla por permission_denied
+    // en dispositivos lentos o primera carga sin cache
+    function startDatabaseListeners(){
+      // Monitor conexión
+      db.ref('.info/connected').on('value', function(snap){
+        _fbConnected = !!snap.val();
+        if(_fbConnected){
+          setSyncState('connected', 'En línea');
+        } else {
+          setSyncState('offline', 'Sin conexión');
+        }
+      });
 
-    // Monitor conexión
-    db.ref('.info/connected').on('value', function(snap){
-      _fbConnected = !!snap.val();
-      if(_fbConnected){
-        setSyncState('connected', 'En línea');
-      } else {
-        setSyncState('offline', 'Sin conexión');
-      }
-    });
-
-    // Listener principal — escucha TODOS los cambios en tiempo real
-    db.ref('manto_db').on('value', function(snap){
+      // Listener principal — escucha TODOS los cambios en tiempo real
+      db.ref('manto_db').on('value', function(snap){
       if(snap.exists()){
         var remoto = snap.val();
         // Merge conservando arrays vacíos
@@ -1207,6 +1206,21 @@ function initFirebase(){
       // Cargar desde cache local
       var stored = localStorage.getItem('mantoDB');
       if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
+    });
+    } // fin startDatabaseListeners
+
+    // Disparar el flujo: primero auth anonima, despues iniciar listeners
+    firebase.auth().onAuthStateChanged(function(user){
+      if(user){
+        // Usuario ya autenticado (anonimo o no) — iniciar listeners
+        startDatabaseListeners();
+      } else {
+        // Sin usuario — hacer login anonimo
+        firebase.auth().signInAnonymously().catch(function(err){
+          console.warn('Firebase auth error:', err);
+          setSyncState('offline', 'Error de autenticacion');
+        });
+      }
     });
 
   } catch(e){
