@@ -1,0 +1,27 @@
+{
+  "name": "IMPREDIMEX — Órdenes de Trabajo",
+  "short_name": "MantoApp",
+  "description": "Sistema de gestión de Órdenes de Trabajo de mantenimiento — IMPREDIMEX",
+  "start_url": "/Mantenimiento-Impredimex/",
+  "scope": "/Mantenimiento-Impredimex/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1B3A6B",
+  "lang": "es-MX",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

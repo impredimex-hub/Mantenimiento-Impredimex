@@ -6,6 +6,22 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.0.3] — 2026-06-29
+
+### Agregado
+- **Soporte completo de PWA (Progressive Web App):**
+  - Archivo `manifest.json` con metadatos de la aplicación
+  - Íconos personalizados de IMPREDIMEX (192x192 y 512x512)
+  - Meta tags en `<head>` para soporte Android e iOS
+- En Android Chrome ahora aparece la opción "Instalar app" (en lugar de solo "Agregar acceso directo")
+- Una vez instalada como PWA, la app se ve sin barra de URL de Chrome (pantalla completa)
+- Las notificaciones push ahora llegan correctamente en Android aunque Chrome esté cerrado
+
+### Corregido
+- Notificaciones push en Android no llegaban cuando Chrome estaba cerrado porque la app estaba instalada como acceso directo de Chrome (no como PWA real). Solución: agregar `manifest.json` y meta tags para convertir la aplicación en PWA instalable.
+
+---
+
 ## [1.0.2] — 2026-06-28
 
 ### Corregido
