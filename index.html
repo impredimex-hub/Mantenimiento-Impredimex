@@ -1330,6 +1330,19 @@ function notifyPush(toNominas,title,body,tag){
 function getNominasTecnicos(){
   return (DB.personal||[]).filter(function(p){return p.estatus==='activo'&&p.depto==='MANTENIMIENTO';}).map(function(p){return p.nomina;});
 }
+// SPEC-011: Enrutamiento de notificaciones de nueva OT según tipo de servicio.
+// MTTO-MAQ-PROD -> todo el depto MANTENIMIENTO activo.
+// MTTO-INFRAESTRUCTURA y MTTO-SEGURIDAD -> solo Auxiliar (2047), Analista (2324) y Jefe (1237) de Mantenimiento.
+function getNominasByTipoServicio(tipo){
+  if(tipo==='MTTO-INFRAESTRUCTURA' || tipo==='MTTO-SEGURIDAD'){
+    var destino = ['2047','2324','1237'];
+    return (DB.personal||[])
+      .filter(function(p){ return p.estatus==='activo' && destino.indexOf(String(p.nomina))!==-1; })
+      .map(function(p){ return p.nomina; });
+  }
+  // MTTO-MAQ-PROD o cualquier otro tipo: todo el departamento
+  return getNominasTecnicos();
+}
 function getNominaByName(nombre){
   var p=(DB.personal||[]).find(function(x){return x.nombre===nombre;});
   return p?p.nomina:null;
@@ -1759,7 +1772,7 @@ function crearOT(){
   renderSolOTs('todas');
   updateNotifDot('sup-notif-dot','supervisor');
   var _esUrg=ot.prioridad==='urgente'||ot.prioridad==='maquina-parada';
-  notifyPush(getNominasTecnicos(),(_esUrg?'URGENTE':'Nueva OT')+' #'+ot.folio,ot.desc.substring(0,60)+' - '+(ot.equipo||'')+' NAVE '+ot.nave,'nueva-'+ot.folio);
+  notifyPush(getNominasByTipoServicio(ot.tipo),(_esUrg?'URGENTE':'Nueva OT')+' #'+ot.folio,ot.desc.substring(0,60)+' - '+(ot.equipo||'')+' NAVE '+ot.nave,'nueva-'+ot.folio); // SPEC-011
   alert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
 }
 

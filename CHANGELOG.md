@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.1.0] — 2026-07-27
+
+### Agregado
+- **SPEC-011:** Enrutamiento de notificaciones push de nueva OT según el tipo de servicio.
+  - Nueva función `getNominasByTipoServicio(tipo)` que determina los destinatarios del push según `ot.tipo`.
+  - **MTTO-MAQ-PROD:** notifica a todo el departamento de Mantenimiento activo (comportamiento previo, sin cambios).
+  - **MTTO-INFRAESTRUCTURA** y **MTTO-SEGURIDAD:** notifican únicamente al Auxiliar (nómina 2047), Analista (nómina 2324) y Jefe de Mantenimiento (nómina 1237).
+
+### Cambiado
+- La creación de OT ahora llama a `getNominasByTipoServicio(ot.tipo)` en lugar de `getNominasTecnicos()` directamente para decidir a quién notificar.
+- SPEC-009 actualizada: la regla "Nueva OT" ahora remite a SPEC-011 para el detalle de destinatarios.
+
+### Notas
+- El filtro afecta solo la **entrega del push**, no la visibilidad de la OT: cualquier técnico sigue viendo y pudiendo tomar todas las OTs abiertas en la app.
+- Solo se notifica a las nóminas destino que estén con estatus `activo`; si alguna se marca inactiva, deja de recibir automáticamente.
+
+---
+
 ## [1.0.3] — 2026-06-29
 
 ### Agregado
@@ -218,4 +236,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 27 de junio de 2026*
+*Última actualización: 27 de julio de 2026*

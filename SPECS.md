@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.0
-**Fecha:** 27 de junio de 2026
+**Versión:** 1.1
+**Fecha:** 27 de julio de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -342,7 +342,7 @@ Sistema (automático, no requiere acción del usuario).
 - **Re-suscripción forzada:** en cada login, la app llama a `OneSignal.User.PushSubscription.optIn()` para reactivar automáticamente cualquier suscriptor que haya sido marcado como "unsubscribed" en OneSignal Dashboard
 - **API key segura:** la REST API Key de OneSignal NUNCA se expone en el frontend; vive solo en Cloudflare Worker
 - **Eventos que disparan push:**
-  - Nueva OT → a todos los técnicos del depto MANTENIMIENTO
+  - Nueva OT → destinatarios según tipo de servicio (ver SPEC-011)
   - Técnico toma OT → al solicitante
   - OT concluida → al solicitante
   - OT en espera → al solicitante con motivo
@@ -384,6 +384,44 @@ Usuario con rol **admin**.
 - **Máquinas:** agrupadas por nave; cada nave tiene su catálogo independiente
 - **Infraestructura:** agrupadas por nave; cada nave tiene sus áreas
 - Las modificaciones de catálogo afectan solo a OTs nuevas (no a OTs ya creadas)
+
+---
+
+# SPEC-011 — Enrutamiento de notificaciones por tipo de servicio
+
+### Actor
+Sistema (automático, se dispara al crear una OT).
+
+### Precondiciones
+- Se está creando una nueva OT (ver SPEC-002)
+- El objeto `ot` ya tiene asignado su campo `tipo` (uno de los tres tipos de servicio)
+- El catálogo `DB.personal` está cargado
+
+### Flujo principal
+1. Al finalizar la creación de la OT, el sistema determina el tipo de servicio (`ot.tipo`)
+2. Sistema invoca `getNominasByTipoServicio(ot.tipo)` para obtener la lista de destinatarios
+3. Según el tipo, la función retorna:
+   - **MTTO-MAQ-PROD** → todas las nóminas activas del depto MANTENIMIENTO (equivale a `getNominasTecnicos()`)
+   - **MTTO-INFRAESTRUCTURA** → solo las nóminas 2047, 2324 y 1237 (activas)
+   - **MTTO-SEGURIDAD** → solo las nóminas 2047, 2324 y 1237 (activas)
+4. Sistema invoca `notifyPush()` con la lista resultante (ver SPEC-009)
+
+### Postcondiciones
+- La notificación de nueva OT llega únicamente a los destinatarios correspondientes al tipo de servicio
+- Ningún otro miembro del departamento recibe push para OTs de Infraestructura o Seguridad
+
+### Reglas de negocio
+- **Destinatarios de Infraestructura y Seguridad (lista fija):**
+  - `2047` — (nombre retirado) — Auxiliar de Mantenimiento
+  - `2324` — (nombre retirado) — Analista de Mantenimiento
+  - `1237` — (nombre retirado) — Jefe de Mantenimiento
+- **Filtro por estatus:** solo se notifica a las nóminas destino que estén `activo` en el catálogo; si alguna se marca inactiva, deja de recibir automáticamente
+- **Tipo por defecto:** cualquier tipo distinto a Infraestructura o Seguridad (incluyendo MAQ-PROD) notifica a todo el departamento
+- **Alcance del filtro:** este enrutamiento afecta **solo la entrega de la notificación push**, no la visibilidad de la OT en la app. Cualquier técnico sigue viendo y pudiendo tomar todas las OTs abiertas
+- **Solo aplica a la notificación de creación:** las notificaciones posteriores (técnico asignado, OT concluida, OT en espera) se dirigen al solicitante y no se ven afectadas por esta spec
+
+### Flujos alternativos
+- **Ninguna de las 3 nóminas destino está activa:** la lista queda vacía y no se envía push (el sistema no falla; la OT se crea normalmente y es visible en la app)
 
 ---
 
@@ -461,5 +499,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento generado el 27 de junio de 2026 — versión 1.0*
+*Documento actualizado el 27 de julio de 2026 — versión 1.1 (agrega SPEC-011).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
