@@ -346,7 +346,7 @@ Sistema (automático, no requiere acción del usuario).
   - Técnico toma OT → al solicitante
   - OT concluida → al solicitante
   - OT en espera → al solicitante con motivo
-  - OT rechazada (cierre rechazado por solicitante) → notificación interna al técnico asignado y al supervisor (no envía push)
+  - OT rechazada (cierre rechazado por solicitante) → notificación interna al técnico y supervisor, y push a los destinatarios según tipo de servicio (ver SPEC-011)
 
 ### Flujos alternativos
 - **Permiso de notificaciones denegado:** El sistema sigue funcionando pero el usuario no recibe push (solo ve cambios al abrir la app)
@@ -420,7 +420,7 @@ Sistema (automático, se dispara al crear una OT).
 - **Filtro por estatus y depto:** solo se notifica a quienes estén `activo` y en depto `MANTENIMIENTO`
 - **Tipo por defecto:** cualquier tipo distinto a Infraestructura o Seguridad (incluyendo MAQ-PROD) notifica a todo el departamento
 - **Alcance del filtro:** este enrutamiento afecta **solo la entrega de la notificación push**, no la visibilidad de la OT en la app. Cualquier técnico sigue viendo y pudiendo tomar todas las OTs abiertas
-- **Solo aplica a la notificación de creación:** las notificaciones posteriores (técnico asignado, OT concluida, OT en espera) se dirigen al solicitante y no se ven afectadas por esta spec
+- **Aplica a la creación y al rechazo de cierre:** el enrutamiento por tipo se usa tanto al crear una OT como cuando el solicitante rechaza el cierre. Las notificaciones dirigidas al solicitante (técnico asignado, OT concluida, OT en espera) no se ven afectadas por esta spec
 
 ### Flujos alternativos
 - **Ningún puesto destino está activo:** la lista queda vacía y no se envía push (el sistema no falla; la OT se crea normalmente y es visible en la app)

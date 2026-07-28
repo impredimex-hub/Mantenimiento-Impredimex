@@ -18,7 +18,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 - La creación de OT ahora llama a `getNominasByTipoServicio(ot.tipo)` en lugar de `getNominasTecnicos()` directamente para decidir a quién notificar.
-- SPEC-009 actualizada: la regla "Nueva OT" ahora remite a SPEC-011, y se corrigió la descripción de "OT rechazada" para reflejar el código real (genera notificación interna al técnico y supervisor, no envía push).
+- SPEC-009 actualizada: la regla "Nueva OT" ahora remite a SPEC-011, y se documentó que "OT rechazada" envía notificación interna al técnico y supervisor más push enrutado por tipo de servicio (SPEC-011).
 
 ### Notas
 - El filtro afecta solo la **entrega del push**, no la visibilidad de la OT: cualquier técnico sigue viendo y pudiendo tomar todas las OTs abiertas en la app.
