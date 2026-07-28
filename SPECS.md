@@ -346,7 +346,7 @@ Sistema (automático, no requiere acción del usuario).
   - Técnico toma OT → al solicitante
   - OT concluida → al solicitante
   - OT en espera → al solicitante con motivo
-  - OT rechazada → a todos los técnicos
+  - OT rechazada (cierre rechazado por solicitante) → notificación interna al técnico asignado y al supervisor (no envía push)
 
 ### Flujos alternativos
 - **Permiso de notificaciones denegado:** El sistema sigue funcionando pero el usuario no recibe push (solo ve cambios al abrir la app)
@@ -402,8 +402,8 @@ Sistema (automático, se dispara al crear una OT).
 2. Sistema invoca `getNominasByTipoServicio(ot.tipo)` para obtener la lista de destinatarios
 3. Según el tipo, la función retorna:
    - **MTTO-MAQ-PROD** → todas las nóminas activas del depto MANTENIMIENTO (equivale a `getNominasTecnicos()`)
-   - **MTTO-INFRAESTRUCTURA** → solo las nóminas 2047, 2324 y 1237 (activas)
-   - **MTTO-SEGURIDAD** → solo las nóminas 2047, 2324 y 1237 (activas)
+   - **MTTO-INFRAESTRUCTURA** → solo el personal activo cuyo puesto sea Jefe, Auxiliar o Analista de Mantenimiento
+   - **MTTO-SEGURIDAD** → solo el personal activo cuyo puesto sea Jefe, Auxiliar o Analista de Mantenimiento
 4. Sistema invoca `notifyPush()` con la lista resultante (ver SPEC-009)
 
 ### Postcondiciones
@@ -411,17 +411,19 @@ Sistema (automático, se dispara al crear una OT).
 - Ningún otro miembro del departamento recibe push para OTs de Infraestructura o Seguridad
 
 ### Reglas de negocio
-- **Destinatarios de Infraestructura y Seguridad (lista fija):**
-  - `2047` — (nombre retirado) — Auxiliar de Mantenimiento
-  - `2324` — (nombre retirado) — Analista de Mantenimiento
-  - `1237` — (nombre retirado) — Jefe de Mantenimiento
-- **Filtro por estatus:** solo se notifica a las nóminas destino que estén `activo` en el catálogo; si alguna se marca inactiva, deja de recibir automáticamente
+- **Destinatarios de Infraestructura y Seguridad (por puesto):**
+  - `JEFE DE MANTENIMIENTO`
+  - `AUXILIAR DE MANTENIMIENTO`
+  - `ANALISTA DE MANTENIMIENTO`
+- **Filtro por puesto, no por nómina:** el enrutamiento identifica a los destinatarios por su **puesto** dentro del depto MANTENIMIENTO, no por su número de nómina. Esto permite que, ante rotación de personal, el reemplazo reciba las notificaciones automáticamente con solo tener el puesto correcto en el catálogo, sin modificar código
+- **Comparación robusta:** la coincidencia de puesto ignora mayúsculas/minúsculas, acentos y espacios extra
+- **Filtro por estatus y depto:** solo se notifica a quienes estén `activo` y en depto `MANTENIMIENTO`
 - **Tipo por defecto:** cualquier tipo distinto a Infraestructura o Seguridad (incluyendo MAQ-PROD) notifica a todo el departamento
 - **Alcance del filtro:** este enrutamiento afecta **solo la entrega de la notificación push**, no la visibilidad de la OT en la app. Cualquier técnico sigue viendo y pudiendo tomar todas las OTs abiertas
 - **Solo aplica a la notificación de creación:** las notificaciones posteriores (técnico asignado, OT concluida, OT en espera) se dirigen al solicitante y no se ven afectadas por esta spec
 
 ### Flujos alternativos
-- **Ninguna de las 3 nóminas destino está activa:** la lista queda vacía y no se envía push (el sistema no falla; la OT se crea normalmente y es visible en la app)
+- **Ningún puesto destino está activo:** la lista queda vacía y no se envía push (el sistema no falla; la OT se crea normalmente y es visible en la app)
 
 ---
 

@@ -1332,12 +1332,24 @@ function getNominasTecnicos(){
 }
 // SPEC-011: Enrutamiento de notificaciones de nueva OT según tipo de servicio.
 // MTTO-MAQ-PROD -> todo el depto MANTENIMIENTO activo.
-// MTTO-INFRAESTRUCTURA y MTTO-SEGURIDAD -> solo Auxiliar (2047), Analista (2324) y Jefe (1237) de Mantenimiento.
+// MTTO-INFRAESTRUCTURA y MTTO-SEGURIDAD -> solo Jefe, Auxiliar y Analista de Mantenimiento.
+// Se filtra por PUESTO (no por nómina) para que sobreviva a la rotación de personal.
 function getNominasByTipoServicio(tipo){
   if(tipo==='MTTO-INFRAESTRUCTURA' || tipo==='MTTO-SEGURIDAD'){
-    var destino = ['2047','2324','1237'];
+    var puestosDestino = ['JEFE DE MANTENIMIENTO','AUXILIAR DE MANTENIMIENTO','ANALISTA DE MANTENIMIENTO'];
+    var norm = function(s){
+      return String(s||'')
+        .toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // quita acentos
+        .replace(/\s+/g,' ').trim();
+    };
+    var destinoNorm = puestosDestino.map(norm);
     return (DB.personal||[])
-      .filter(function(p){ return p.estatus==='activo' && destino.indexOf(String(p.nomina))!==-1; })
+      .filter(function(p){
+        return p.estatus==='activo'
+          && p.depto==='MANTENIMIENTO'
+          && destinoNorm.indexOf(norm(p.puesto))!==-1;
+      })
       .map(function(p){ return p.nomina; });
   }
   // MTTO-MAQ-PROD o cualquier otro tipo: todo el departamento
@@ -1869,6 +1881,8 @@ function confirmarRechazo(){
     texto:'OT '+ot.folio+' rechazada por '+currentUser.nombre+': '+motivo,
     fecha:new Date().toISOString(), leida:false
   });
+  // SPEC-011: push del rechazo enrutado por tipo de servicio
+  notifyPush(getNominasByTipoServicio(ot.tipo),'Cierre rechazado #'+ot.folio,(ot.equipo||'')+' — '+motivo.substring(0,60),'rechazo-'+ot.folio);
   saveDB();
   closeModal('modal-rechazar');
   document.getElementById('rechazar-motivo').value = '';

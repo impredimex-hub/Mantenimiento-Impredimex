@@ -12,15 +12,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **SPEC-011:** Enrutamiento de notificaciones push de nueva OT según el tipo de servicio.
   - Nueva función `getNominasByTipoServicio(tipo)` que determina los destinatarios del push según `ot.tipo`.
   - **MTTO-MAQ-PROD:** notifica a todo el departamento de Mantenimiento activo (comportamiento previo, sin cambios).
-  - **MTTO-INFRAESTRUCTURA** y **MTTO-SEGURIDAD:** notifican únicamente al Auxiliar (nómina 2047), Analista (nómina 2324) y Jefe de Mantenimiento (nómina 1237).
+  - **MTTO-INFRAESTRUCTURA** y **MTTO-SEGURIDAD:** notifican únicamente a quienes tengan puesto de Jefe, Auxiliar o Analista de Mantenimiento.
+  - El filtro identifica a los destinatarios **por puesto, no por número de nómina**, para que sobreviva a la rotación de personal: el reemplazo recibe las notificaciones automáticamente con solo tener el puesto correcto en el catálogo.
+  - La comparación de puesto ignora mayúsculas, acentos y espacios extra.
 
 ### Cambiado
 - La creación de OT ahora llama a `getNominasByTipoServicio(ot.tipo)` en lugar de `getNominasTecnicos()` directamente para decidir a quién notificar.
-- SPEC-009 actualizada: la regla "Nueva OT" ahora remite a SPEC-011 para el detalle de destinatarios.
+- SPEC-009 actualizada: la regla "Nueva OT" ahora remite a SPEC-011, y se corrigió la descripción de "OT rechazada" para reflejar el código real (genera notificación interna al técnico y supervisor, no envía push).
 
 ### Notas
 - El filtro afecta solo la **entrega del push**, no la visibilidad de la OT: cualquier técnico sigue viendo y pudiendo tomar todas las OTs abiertas en la app.
-- Solo se notifica a las nóminas destino que estén con estatus `activo`; si alguna se marca inactiva, deja de recibir automáticamente.
+- Solo se notifica a personal con estatus `activo` en el depto MANTENIMIENTO.
 
 ---
 
