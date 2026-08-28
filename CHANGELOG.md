@@ -6,6 +6,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.5.0] — 2026-08-01
+
+### Agregado
+- **SPEC-016: Módulo de Turnos.** Nueva pestaña **"Turnos"** en la barra del supervisor, entre Técnicos y Alertas.
+  - Permite crear **roles de turnos** por periodo: semanal (7 días), quincenal (14 días) o mensual (mes completo).
+  - Cuadrícula con una fila por persona activa de Mantenimiento y una columna por día, con desplazamiento horizontal y columna de personal fija.
+  - **Catálogo de 7 turnos:** 06:00–14:00, 14:00–21:30, 21:30–06:00, 06:00–18:00, 18:00–06:00, 08:00–18:00 y horario libre con captura manual de entrada y salida.
+  - Celda vacía = descanso.
+  - Exportación del rol a Excel, edición y eliminación.
+- Nueva colección `DB.turnos` en el modelo de datos, sincronizada con Firebase.
+
+### Notas
+- El módulo es de **planeación**: no altera el campo `turno` del catálogo de personal ni la función `turnoActual()`, que sigue calculando el turno por la hora del sistema al tomar una OT.
+- Las horas del turno libre se validan en formato HH:MM de 24 horas.
+
+---
+
 ## [1.4.0] — 2026-07-31
 
 ### Agregado
@@ -287,4 +304,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 31 de julio de 2026*
+*Última actualización: 1 de agosto de 2026*

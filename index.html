@@ -349,6 +349,25 @@ input[type=range].green{accent-color:var(--green)}
 
 
 /* Admin hub */
+/* ── SPEC-016: Rol de turnos ─────────────────────────────────── */
+.turno-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 12px 12px}
+.turno-grid{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
+.turno-grid th,.turno-grid td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:6px 8px;white-space:nowrap;background:var(--surface)}
+.turno-grid thead th{position:sticky;top:0;z-index:3;background:#F3F6FA;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--text2);font-weight:700}
+.turno-grid .tg-per{position:sticky;left:0;z-index:2;background:var(--surface);min-width:170px;max-width:170px;white-space:normal;font-weight:600;box-shadow:1px 0 0 var(--border)}
+.turno-grid thead .tg-per{z-index:4;background:#F3F6FA}
+.turno-grid .tg-nom{display:block;font-weight:400;font-size:10px;color:var(--text3);margin-top:1px}
+.turno-grid .tg-dom{color:var(--red)}
+.turno-sel{width:100%;min-width:96px;border:1px solid var(--border);border-radius:6px;padding:4px 5px;font-size:11px;background:var(--surface);color:var(--text);font-family:inherit}
+.turno-sel.has-val{background:var(--blue-light);border-color:var(--blue);font-weight:600}
+.turno-libre{font-size:10px;color:var(--blue);margin-top:2px;display:block;font-weight:600}
+.turno-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin:0 12px 10px;cursor:pointer}
+.turno-card:active{transform:scale(.99)}
+.turno-card-t{font-weight:700;font-size:14px;color:var(--blue-dark)}
+.turno-card-s{font-size:12px;color:var(--text2);margin-top:3px}
+.turno-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:20px;background:var(--blue-light);color:var(--blue-dark);margin-top:6px}
+.turno-leyenda{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 12px}
+.turno-leyenda span{font-size:10px;background:#F3F6FA;border:1px solid var(--border);border-radius:20px;padding:3px 9px;color:var(--text2)}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .adm-tabbar::-webkit-scrollbar{display:none}
 .adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
@@ -850,6 +869,10 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        Turnos
+      </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
@@ -918,6 +941,10 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        Turnos
+      </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
@@ -946,6 +973,10 @@ input[type=range].green{accent-color:var(--green)}
       <button class="tabbar-item active purple" onclick="showScreen('sup-tecnicos');renderTecnicos()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        Turnos
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
@@ -976,6 +1007,10 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
         Técnicos
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        Turnos
+      </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
@@ -986,6 +1021,49 @@ input[type=range].green{accent-color:var(--green)}
         Perfil
       </button>
     </nav>
+  </div>
+
+  <!-- SCREEN: Turnos (lista de roles) -->
+  <div id="sup-turnos" class="screen">
+    <div class="topbar topbar-purple"><div class="topbar-title">Turnos</div></div>
+    <div class="scroll-content" id="sup-turnos-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+        Panel
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+        OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+        Técnicos
+      </button>
+      <button class="tabbar-item active purple" onclick="showScreen('sup-turnos');renderTurnos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        Turnos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+        Alertas
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
+        Perfil
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Editor de rol de turnos -->
+  <div id="sup-turno-edit" class="screen">
+    <div class="topbar topbar-purple">
+      <button class="topbar-back" onclick="showScreen('sup-turnos');renderTurnos()">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Rol de turnos</div>
+    </div>
+    <div class="scroll-content" id="sup-turno-edit-content"></div>
   </div>
 
   <!-- SCREEN: Detalle OT supervisor -->
@@ -1015,6 +1093,10 @@ input[type=range].green{accent-color:var(--green)}
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>Técnicos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        Turnos
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>Alertas
@@ -1129,7 +1211,8 @@ let DB = {
   tiposServicio: [],
   naves: [],
   maquinas: [],
-  infraestructura: []
+  infraestructura: [],
+  turnos: []          // SPEC-016: roles de turnos del personal
 };
 
 // ── saveDB: guarda en Firebase (con debounce 300ms) + localStorage cache ──
@@ -1254,7 +1337,7 @@ function initFirebase(){
     // Fallback a localStorage
     var stored = localStorage.getItem('mantoDB');
     if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
-    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[]}; }
+    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[],turnos:[]}; }
     initPersonal(); initCatalogos();
   }
 }
@@ -3829,6 +3912,292 @@ function injectAdmBackBar(pageId, firstScreenId){
 function returnToAdmin(){
   showPage('page-admin');
   showScreen('adm-hub');
+}
+
+/* ══════════════════ SPEC-016: MÓDULO DE TURNOS ══════════════════ */
+
+// Catálogo de turnos disponibles
+var CAT_TURNOS = [
+  {id:'T1',  label:'06:00 – 14:00', corto:'06–14'},
+  {id:'T2',  label:'14:00 – 21:30', corto:'14–21:30'},
+  {id:'T3',  label:'21:30 – 06:00', corto:'21:30–06'},
+  {id:'D12', label:'06:00 – 18:00', corto:'06–18'},
+  {id:'N12', label:'18:00 – 06:00', corto:'18–06'},
+  {id:'G8',  label:'08:00 – 18:00', corto:'08–18'},
+  {id:'LIB', label:'Horario libre', corto:'Libre'}
+];
+var DIAS_SEM = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+var currentRolId = null;
+
+function catTurnoById(id){
+  for(var i=0;i<CAT_TURNOS.length;i++){ if(CAT_TURNOS[i].id===id) return CAT_TURNOS[i]; }
+  return null;
+}
+
+// Etiqueta legible de una asignación
+function asignLabel(a){
+  if(!a || !a.t) return '';
+  if(a.t==='LIB') return (a.ini||'--')+' – '+(a.fin||'--');
+  var c = catTurnoById(a.t);
+  return c ? c.label : a.t;
+}
+
+// Días que abarca el periodo a partir de la fecha de inicio
+function diasDelPeriodo(inicioISO, periodo){
+  var out = [];
+  if(!inicioISO) return out;
+  var partes = inicioISO.split('-');
+  var d = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  var n = 7;
+  if(periodo==='quincenal') n = 14;
+  else if(periodo==='mensual'){
+    n = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  }
+  for(var i=0;i<n;i++){
+    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()+i);
+    out.push({
+      iso: x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'),
+      dia: DIAS_SEM[x.getDay()],
+      num: x.getDate(),
+      dow: x.getDay()
+    });
+  }
+  return out;
+}
+
+function personalManto(){
+  return (DB.personal||[]).filter(function(p){
+    return p.estatus==='activo' && p.depto==='MANTENIMIENTO';
+  });
+}
+
+function periodoLabel(p){
+  return p==='quincenal' ? 'Quincenal' : (p==='mensual' ? 'Mensual' : 'Semanal');
+}
+
+// ── Pantalla 1: lista de roles de turnos ──────────────────────────
+function renderTurnos(){
+  var cont = document.getElementById('sup-turnos-content');
+  if(!cont) return;
+  var roles = (DB.turnos||[]).slice().sort(function(a,b){
+    return (b.fechaInicio||'').localeCompare(a.fechaInicio||'');
+  });
+
+  var html = '<div class="section-head">Roles de turnos</div>'
+    + '<div style="padding:12px 12px 8px">'
+    + '<button class="btn btn-green btn-block" onclick="nuevoRolTurnos()">+ Nuevo rol de turnos</button>'
+    + '</div>';
+
+  if(!roles.length){
+    html += '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:13px">'
+      + 'Aún no hay roles de turnos.<br>Crea el primero con el botón de arriba.</div>';
+    cont.innerHTML = html;
+    return;
+  }
+
+  html += '<div style="padding-top:4px">';
+  roles.forEach(function(r){
+    var dias = diasDelPeriodo(r.fechaInicio, r.periodo);
+    var fin  = dias.length ? dias[dias.length-1].iso : r.fechaInicio;
+    var nPer = Object.keys(r.asignaciones||{}).length;
+    html += '<div class="turno-card" onclick="abrirRolTurnos(\'' + r.id + '\')">'
+      + '<div class="turno-card-t">'+(r.nombre||'Sin nombre')+'</div>'
+      + '<div class="turno-card-s">'+fmtDate(r.fechaInicio)+' — '+fmtDate(fin)+'</div>'
+      + '<div class="turno-card-s">'+nPer+' persona'+(nPer===1?'':'s')+' con turno asignado</div>'
+      + '<span class="turno-badge">'+periodoLabel(r.periodo)+'</span>'
+      + '</div>';
+  });
+  html += '</div>';
+  cont.innerHTML = html;
+}
+
+// ── Crear / abrir ────────────────────────────────────────────────
+function nuevoRolTurnos(){
+  var hoy = new Date();
+  var iso = hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+  var rol = {
+    id: 'rt'+Date.now(),
+    nombre: '',
+    periodo: 'semanal',
+    fechaInicio: iso,
+    asignaciones: {},
+    creadoPor: currentUser ? currentUser.nombre : '',
+    fechaCreacion: new Date().toISOString()
+  };
+  if(!Array.isArray(DB.turnos)) DB.turnos = [];
+  DB.turnos.push(rol);
+  currentRolId = rol.id;
+  showScreen('sup-turno-edit');
+  renderTurnoEditor();
+}
+
+function abrirRolTurnos(id){
+  currentRolId = id;
+  showScreen('sup-turno-edit');
+  renderTurnoEditor();
+}
+
+function getRolActual(){
+  return (DB.turnos||[]).find(function(r){ return r.id===currentRolId; });
+}
+
+// ── Pantalla 2: editor de cuadrícula ─────────────────────────────
+function renderTurnoEditor(){
+  var cont = document.getElementById('sup-turno-edit-content');
+  if(!cont) return;
+  var rol = getRolActual();
+  if(!rol){ cont.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Rol no encontrado.</div>'; return; }
+
+  var dias  = diasDelPeriodo(rol.fechaInicio, rol.periodo);
+  var gente = personalManto();
+
+  var html = '<div class="section-head">Datos del rol</div>'
+    + '<div class="field-row"><div class="field-lbl">Nombre del rol</div>'
+    + '<input class="field-input" id="rol-nombre" placeholder="Ej. Semana del 3 al 9 de agosto" value="'+(rol.nombre||'').replace(/"/g,'&quot;')+'" oninput="setRolCampo(\'nombre\',this.value)"></div>'
+    + '<div class="field-row"><div class="field-lbl">Periodo</div>'
+    + '<select class="field-select" id="rol-periodo" onchange="setRolCampo(\'periodo\',this.value)">'
+      + '<option value="semanal"'  +(rol.periodo==='semanal'  ?' selected':'')+'>Semanal (7 días)</option>'
+      + '<option value="quincenal"'+(rol.periodo==='quincenal'?' selected':'')+'>Quincenal (14 días)</option>'
+      + '<option value="mensual"'  +(rol.periodo==='mensual'  ?' selected':'')+'>Mensual (mes completo)</option>'
+    + '</select></div>'
+    + '<div class="field-row"><div class="field-lbl">Fecha de inicio</div>'
+    + '<input type="date" class="field-input" id="rol-inicio" value="'+(rol.fechaInicio||'')+'" onchange="setRolCampo(\'fechaInicio\',this.value)"></div>';
+
+  if(!gente.length){
+    html += '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:13px">No hay personal activo en el departamento de Mantenimiento.</div>';
+    cont.innerHTML = html;
+    return;
+  }
+
+  html += '<div class="section-head">Asignación de turnos</div>'
+    + '<div class="turno-leyenda">';
+  CAT_TURNOS.forEach(function(c){ html += '<span>'+c.label+'</span>'; });
+  html += '<span>Vacío = descanso</span></div>';
+
+  html += '<div class="turno-wrap"><table class="turno-grid"><thead><tr>'
+        + '<th class="tg-per">Personal</th>';
+  dias.forEach(function(d){
+    html += '<th'+(d.dow===0?' class="tg-dom"':'')+'>'+d.dia+'<br>'+d.num+'</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  gente.forEach(function(p){
+    html += '<tr><td class="tg-per">'+p.nombre+'<span class="tg-nom">Nóm. '+p.nomina+' · '+(p.puesto||'')+'</span></td>';
+    dias.forEach(function(d){
+      var a = (rol.asignaciones[p.nomina]||{})[d.iso] || null;
+      var val = a && a.t ? a.t : '';
+      html += '<td><select class="turno-sel'+(val?' has-val':'')+'" onchange="setAsignacion(\''+p.nomina+'\',\''+d.iso+'\',this.value)">'
+        + '<option value=""'+(val===''?' selected':'')+'>—</option>';
+      CAT_TURNOS.forEach(function(c){
+        html += '<option value="'+c.id+'"'+(val===c.id?' selected':'')+'>'+c.corto+'</option>';
+      });
+      html += '</select>';
+      if(a && a.t==='LIB') html += '<span class="turno-libre">'+(a.ini||'--')+'–'+(a.fin||'--')+'</span>';
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  html += '<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
+    + '<button class="btn btn-green btn-block" onclick="guardarRolTurnos()">Guardar rol de turnos</button>'
+    + '<button class="btn btn-outline btn-block" onclick="exportarRolTurnos()">Exportar a Excel</button>'
+    + '<button class="btn btn-outline btn-block" style="color:var(--red);border-color:var(--red)" onclick="eliminarRolTurnos()">Eliminar rol</button>'
+    + '</div>';
+
+  cont.innerHTML = html;
+}
+
+function setRolCampo(campo, valor){
+  var rol = getRolActual();
+  if(!rol) return;
+  rol[campo] = valor;
+  if(campo==='periodo' || campo==='fechaInicio') renderTurnoEditor();
+}
+
+function setAsignacion(nomina, fechaISO, valor){
+  var rol = getRolActual();
+  if(!rol) return;
+  if(!rol.asignaciones[nomina]) rol.asignaciones[nomina] = {};
+
+  if(valor===''){
+    delete rol.asignaciones[nomina][fechaISO];
+    if(!Object.keys(rol.asignaciones[nomina]).length) delete rol.asignaciones[nomina];
+    renderTurnoEditor();
+    return;
+  }
+
+  if(valor==='LIB'){
+    var ini = prompt('Hora de entrada (formato HH:MM)', '08:00');
+    if(ini===null){ renderTurnoEditor(); return; }
+    var fin = prompt('Hora de salida (formato HH:MM)', '17:00');
+    if(fin===null){ renderTurnoEditor(); return; }
+    var re = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if(!re.test(ini.trim()) || !re.test(fin.trim())){
+      alert('Formato de hora inválido. Usa HH:MM, por ejemplo 08:30.');
+      renderTurnoEditor();
+      return;
+    }
+    rol.asignaciones[nomina][fechaISO] = {t:'LIB', ini:ini.trim(), fin:fin.trim()};
+  } else {
+    rol.asignaciones[nomina][fechaISO] = {t:valor};
+  }
+  renderTurnoEditor();
+}
+
+function guardarRolTurnos(){
+  var rol = getRolActual();
+  if(!rol) return;
+  if(!(rol.nombre||'').trim()){ alert('Escribe un nombre para el rol de turnos.'); return; }
+  if(!rol.fechaInicio){ alert('Selecciona la fecha de inicio.'); return; }
+  rol.fechaMod = new Date().toISOString();
+  rol.modificadoPor = currentUser ? currentUser.nombre : '';
+  saveDB();
+  alert('✓ Rol de turnos guardado.');
+  showScreen('sup-turnos');
+  renderTurnos();
+}
+
+function eliminarRolTurnos(){
+  var rol = getRolActual();
+  if(!rol) return;
+  if(!confirm('¿Eliminar el rol "'+(rol.nombre||'sin nombre')+'"?\n\nEsta acción no se puede deshacer.')) return;
+  DB.turnos = (DB.turnos||[]).filter(function(r){ return r.id!==rol.id; });
+  currentRolId = null;
+  saveDB();
+  showScreen('sup-turnos');
+  renderTurnos();
+}
+
+function exportarRolTurnos(){
+  var rol = getRolActual();
+  if(!rol) return;
+  if(typeof XLSX==='undefined'){ alert('La librería de Excel no está disponible.'); return; }
+  var dias  = diasDelPeriodo(rol.fechaInicio, rol.periodo);
+  var gente = personalManto();
+
+  var head = ['Nómina','Nombre','Puesto'];
+  dias.forEach(function(d){ head.push(d.dia+' '+d.num); });
+
+  var data = [head];
+  gente.forEach(function(p){
+    var fila = [p.nomina, p.nombre, p.puesto||''];
+    dias.forEach(function(d){
+      var a = (rol.asignaciones[p.nomina]||{})[d.iso] || null;
+      fila.push(asignLabel(a));
+    });
+    data.push(fila);
+  });
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(data);
+  var cols = [{wch:9},{wch:32},{wch:26}];
+  dias.forEach(function(){ cols.push({wch:14}); });
+  ws['!cols'] = cols;
+  ws['!freeze'] = {xSplit:3, ySplit:1};
+  XLSX.utils.book_append_sheet(wb, ws, 'Rol de turnos');
+  var nom = (rol.nombre||'rol-turnos').replace(/[^\w\sáéíóúñÁÉÍÓÚÑ-]/g,'').trim().replace(/\s+/g,'_');
+  XLSX.writeFile(wb, 'Turnos_'+nom+'.xlsx');
 }
 
 function renderAlertas(){

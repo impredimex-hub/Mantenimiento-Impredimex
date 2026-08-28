@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.4
-**Fecha:** 31 de julio de 2026
+**Versión:** 1.5
+**Fecha:** 1 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -541,6 +541,67 @@ Mecánico · Eléctrico · Neumático · Electrónico · Hidráulico · Guardas 
 
 ---
 
+# SPEC-016 — Módulo de Turnos (rol de turnos del personal)
+
+### Actor
+Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
+
+### Ubicación
+Pestaña **"Turnos"** en la barra inferior del supervisor, entre **Técnicos** y **Alertas**.
+
+### Precondiciones
+- Existe personal activo en el departamento MANTENIMIENTO
+
+### Flujo principal
+1. El supervisor entra a **Turnos** y ve la lista de roles existentes
+2. Pulsa **"+ Nuevo rol de turnos"**
+3. Captura nombre, periodo (semanal / quincenal / mensual) y fecha de inicio
+4. El sistema genera la cuadrícula: una fila por persona activa de Mantenimiento, una columna por día del periodo
+5. Asigna un turno por celda desde el catálogo
+6. Guarda el rol
+
+### Catálogo de turnos
+
+| Clave | Horario |
+|---|---|
+| `T1`  | 06:00 – 14:00 |
+| `T2`  | 14:00 – 21:30 |
+| `T3`  | 21:30 – 06:00 |
+| `D12` | 06:00 – 18:00 |
+| `N12` | 18:00 – 06:00 |
+| `G8`  | 08:00 – 18:00 |
+| `LIB` | Horario libre (el supervisor captura entrada y salida manualmente) |
+
+Una celda **vacía** significa descanso / sin turno asignado.
+
+### Periodos
+
+| Periodo | Días |
+|---|---|
+| Semanal | 7 |
+| Quincenal | 14 |
+| Mensual | Los días naturales del mes de la fecha de inicio (28–31) |
+
+Los días se generan a partir de la fecha de inicio y pueden cruzar de mes.
+
+### Postcondiciones
+- El rol se guarda en `DB.turnos` y se sincroniza a Firebase
+- El rol puede consultarse, editarse, exportarse a Excel o eliminarse
+
+### Reglas de negocio
+- Se listan **todas las personas activas** del depto MANTENIMIENTO, sin importar su rol en la app
+- El nombre del rol y la fecha de inicio son **obligatorios** al guardar
+- Al elegir `LIB` se piden las horas de entrada y salida, validadas en formato **HH:MM** (24 h)
+- Cambiar el periodo o la fecha de inicio **regenera la cuadrícula** conservando las asignaciones de las fechas que sigan dentro del rango
+- Los domingos se resaltan en el encabezado
+- La exportación a Excel genera una hoja con una fila por persona y una columna por día
+
+### Notas de integración
+- Este módulo es **informativo y de planeación**: no modifica el campo `turno` del catálogo de personal ni la función `turnoActual()`, que sigue derivando el turno de la hora del sistema al tomar una OT
+- Si en el futuro se desea que el rol determine el turno registrado en las OT, el punto de integración sería `turnoActual()`
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -615,5 +676,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 31 de julio de 2026 — versión 1.4 (agrega SPEC-015).*
+*Documento actualizado el 1 de agosto de 2026 — versión 1.5 (agrega SPEC-016).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
