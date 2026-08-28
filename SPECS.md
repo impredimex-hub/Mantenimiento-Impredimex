@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.9
-**Fecha:** 5 de agosto de 2026
+**Versión:** 2.0
+**Fecha:** 6 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -683,6 +683,55 @@ Si el navegador bloquea la ventana emergente, se avisa al usuario para que la pe
 
 ---
 
+# SPEC-018 — Sincronización granular con Firebase
+
+### Actor
+Sistema (automático).
+
+### Problema que resuelve
+La app escribía con `set(DB)` sobre `manto_db` y escuchaba con un único `on('value')` sobre la misma ruta. En consecuencia, **cada cambio escribía la base completa y se la reenviaba entera a todos los usuarios conectados**.
+
+Marcar una actividad enviaba los 120 empleados, las 48 máquinas, las 53 áreas y todo el histórico de OT a cada dispositivo con la app abierta. El costo crecía en dos direcciones a la vez: la base engordaba con cada OT, y ese peso se multiplicaba por cada cambio y por cada usuario. En un escenario de 15 OT diarias con 15 usuarios, el tráfico superaba los 20 GB el primer mes, contra un límite gratuito de 10 GB.
+
+### Escritura granular
+`saveDB()` conserva su firma, de modo que ningún punto de llamada cambió. Internamente ahora:
+
+1. Mantiene `_snap`, un mapa de ruta a JSON de lo último sincronizado
+2. Al guardar, compara y arma un **update multi-ruta** con lo que realmente cambió
+3. Escribe OTs y notificaciones **elemento por elemento** (`manto_db/ots/<id>`)
+4. Escribe los catálogos completos, pero solo cuando cambian
+5. Si nada cambió, no escribe
+
+### Lectura granular
+- Un listener `on('value')` **por cada catálogo**, en vez de uno sobre toda la base. Modificar una OT ya no vuelve a descargar personal, máquinas, infraestructura, turnos ni programas preventivos
+- OTs y notificaciones usan **eventos por elemento**: `child_added`, `child_changed` y `child_removed`. Solo viaja el registro que cambió
+- El re-render se agrupa con un retardo de 120 ms para no repintar por cada evento
+
+### Formato de almacenamiento
+OTs y notificaciones pasan de guardarse como arreglo (claves `0`, `1`, `2`…) a estar **indexadas por su `id`**, que es lo que permite escribir y recibir por elemento. En memoria se siguen manejando como arreglos, así que el resto del código no cambió.
+
+La migración es **automática y única**: al detectar claves numéricas, la app reescribe la colección indexada por id.
+
+### Unicidad de identificadores
+Los ids de notificación se generaban con `Date.now()` y en varios puntos se crean dos seguidas, que podían colisionar en el mismo milisegundo. Antes esto era inocuo; al escribir por clave habría causado sobrescritura. `_asegurarIds()` garantiza unicidad antes de cada escritura.
+
+### Archivado de OT antiguas
+Desde **Perfil** del supervisor, la opción *Archivar OT cerradas antiguas* mueve las OT cerradas con más de N meses (3 por omisión) a `manto_db_archivo/ots/<id>`.
+
+Las OT archivadas se conservan en Firebase pero dejan de cargarse en la app, lo que evita que la colección viva crezca sin límite.
+
+### Resultados medidos
+
+| Operación | Antes | Después |
+|---|---|---|
+| Cambiar una OT | 158 KB | 436 bytes |
+| Nueva notificación | 158 KB | 85 bytes |
+| Guardar sin cambios | 158 KB | no escribe |
+
+Proyección con 15 OT diarias y 15 usuarios: de **126 GB al mes a 1.4 GB**, y con el archivado el consumo deja de crecer a partir del tercer mes.
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -757,5 +806,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 5 de agosto de 2026 — versión 1.9 (exportación PDF en SPEC-017).*
+*Documento actualizado el 6 de agosto de 2026 — versión 2.0 (agrega SPEC-018).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

@@ -1323,19 +1323,124 @@ let DB = {
   preventivos: []     // SPEC-017: programas mensuales de mantenimiento preventivo
 };
 
-// ── saveDB: guarda en Firebase (con debounce 300ms) + localStorage cache ──
+// ── SPEC-018: Sincronización granular ────────────────────────────
+// Antes se escribía y se recibía la base COMPLETA en cada cambio, lo que
+// multiplicaba el tráfico por el tamaño de la base y por cada usuario
+// conectado. Ahora solo viaja lo que realmente cambió.
+var _snap = {};              // ruta -> JSON de lo último sincronizado
+var _renderTimer = null;
+var _migrar = {};
+
+var CATALOGOS_FB  = ['personal','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos'];
+var COLECCIONES_FB = ['ots','notifs'];
+
+function _js(v){ try{ return JSON.stringify(v===undefined?null:v); }catch(e){ return ''; } }
+
 function saveDB(){
-  // Siempre actualizar localStorage como cache offline
   try { localStorage.setItem('mantoDB', JSON.stringify(DB)); } catch(e){}
-  // Guardar en Firebase si está conectado
-  if(db && _fbConnected){
-    clearTimeout(_fbSaveTimer);
-    _fbSaveTimer = setTimeout(function(){
-      db.ref('manto_db').set(DB).catch(function(e){
-        console.warn('Firebase save error:', e);
-      });
-    }, 300);
+  if(!(db && _fbConnected)) return;
+  clearTimeout(_fbSaveTimer);
+  _fbSaveTimer = setTimeout(flushDB, 300);
+}
+
+// Los ids de notificación usan Date.now(); dos creadas en el mismo
+// milisegundo colisionarían al escribirse por clave. Aquí se garantizan únicos.
+function _asegurarIds(col){
+  var vistos = {}, n = 0;
+  (DB[col]||[]).forEach(function(it, i){
+    if(!it) return;
+    if(!it.id) it.id = col.charAt(0) + Date.now() + '_' + i;
+    while(vistos[it.id]){ it.id = it.id + '_' + (++n); }
+    vistos[it.id] = true;
+  });
+}
+
+// Escribe únicamente las rutas que cambiaron, en una sola petición.
+function flushDB(){
+  if(!(db && _fbConnected)) return;
+  var upd = {};
+
+  if(_snap['folioSig'] !== _js(DB.folioSig)){
+    upd['folioSig'] = DB.folioSig;
+    _snap['folioSig'] = _js(DB.folioSig);
   }
+
+  // Catálogos: se escriben completos, pero cambian rara vez
+  CATALOGOS_FB.forEach(function(k){
+    var v = DB[k] || [], sj = _js(v);
+    if(_snap[k] !== sj){ upd[k] = v; _snap[k] = sj; }
+  });
+
+  // OTs y notificaciones: elemento por elemento
+  COLECCIONES_FB.forEach(function(col){
+    _asegurarIds(col);
+    var vivos = {};
+    (DB[col]||[]).forEach(function(it){
+      if(!it || !it.id) return;
+      vivos[it.id] = true;
+      var sj = _js(it), key = col + '/' + it.id;
+      if(_snap[key] !== sj){ upd[key] = it; _snap[key] = sj; }
+    });
+    Object.keys(_snap).forEach(function(key){
+      if(key.indexOf(col + '/') !== 0) return;
+      if(!vivos[key.slice(col.length+1)]){ upd[key] = null; delete _snap[key]; }
+    });
+  });
+
+  if(!Object.keys(upd).length) return;
+  db.ref('manto_db').update(upd).catch(function(e){
+    console.warn('Firebase save error:', e);
+  });
+}
+
+// Normaliza los arreglos internos de una OT (Firebase omite los vacíos)
+function _normOT(ot){
+  if(!ot) return ot;
+  ['actividades','refacciones','comentarios','tecnicos','esperas'].forEach(function(k){
+    if(!Array.isArray(ot[k])) ot[k] = ot[k] ? Object.values(ot[k]) : [];
+  });
+  return ot;
+}
+
+function _renderDebounced(){
+  clearTimeout(_renderTimer);
+  _renderTimer = setTimeout(function(){
+    try { localStorage.setItem('mantoDB', JSON.stringify(DB)); } catch(e){}
+    if(currentUser) reRenderCurrentScreen();
+  }, 120);
+}
+
+function _aplicarHijo(col, key, val){
+  if(!val) return;
+  if(/^\d+$/.test(key)) _migrar[col] = true;   // dato legado con índice numérico
+  if(col === 'ots') _normOT(val);
+  if(!val.id) val.id = key;
+  if(!Array.isArray(DB[col])) DB[col] = [];
+  var i = DB[col].findIndex(function(x){ return x && x.id === val.id; });
+  if(i >= 0) DB[col][i] = val; else DB[col].push(val);
+  _snap[col + '/' + val.id] = _js(val);
+  _renderDebounced();
+}
+
+function _quitarHijo(col, key){
+  if(!Array.isArray(DB[col])) return;
+  var i = DB[col].findIndex(function(x){ return x && x.id === key; });
+  if(i >= 0) DB[col].splice(i, 1);
+  delete _snap[col + '/' + key];
+  _renderDebounced();
+}
+
+// Migración única: datos guardados como arreglo (claves 0,1,2…) pasan a
+// estar indexados por id, que es lo que permite escribir y recibir por elemento.
+function _migrarColeccion(col){
+  var obj = {};
+  (DB[col]||[]).forEach(function(it){ if(it && it.id) obj[it.id] = it; });
+  if(!Object.keys(obj).length) return;
+  db.ref('manto_db/' + col).set(obj).catch(function(e){
+    console.warn('Error migrando ' + col + ':', e);
+  });
+  Object.keys(_snap).forEach(function(k){ if(k.indexOf(col + '/') === 0) delete _snap[k]; });
+  (DB[col]||[]).forEach(function(it){ if(it && it.id) _snap[col + '/' + it.id] = _js(it); });
 }
 
 // ── reloadDB: en Firebase el listener ya mantiene DB actualizado,
@@ -1378,51 +1483,50 @@ function initFirebase(){
         }
       });
 
-      // Listener principal — escucha TODOS los cambios en tiempo real
-      db.ref('manto_db').on('value', function(snap){
-      if(snap.exists()){
-        var remoto = snap.val();
-        // Merge conservando arrays vacíos
-        DB = Object.assign({
-          ots:[], notifs:[], folioSig:1,
-          personal:[], tiposServicio:[], naves:[],
-          maquinas:[], infraestructura:[]
-        }, remoto);
-        // Asegurar arrays (Firebase omite arrays vacíos)
-        // Normalize top-level arrays
-        if(!Array.isArray(DB.ots)) DB.ots = DB.ots ? Object.values(DB.ots) : [];
-        if(!Array.isArray(DB.notifs)) DB.notifs = DB.notifs ? Object.values(DB.notifs) : [];
-        if(!Array.isArray(DB.personal)) DB.personal = DB.personal ? Object.values(DB.personal) : [];
-        if(!Array.isArray(DB.tiposServicio)) DB.tiposServicio = DB.tiposServicio ? Object.values(DB.tiposServicio) : [];
-        if(!Array.isArray(DB.naves)) DB.naves = DB.naves ? Object.values(DB.naves) : [];
-        if(!Array.isArray(DB.maquinas)) DB.maquinas = DB.maquinas ? Object.values(DB.maquinas) : [];
-        if(!Array.isArray(DB.infraestructura)) DB.infraestructura = DB.infraestructura ? Object.values(DB.infraestructura) : [];
-        // Normalize arrays inside each OT (Firebase drops empty arrays)
-        DB.ots.forEach(function(ot){
-          if(!ot) return;
-          if(!Array.isArray(ot.actividades)) ot.actividades = ot.actividades ? Object.values(ot.actividades) : [];
-          if(!Array.isArray(ot.refacciones)) ot.refacciones = ot.refacciones ? Object.values(ot.refacciones) : [];
-          if(!Array.isArray(ot.comentarios)) ot.comentarios = ot.comentarios ? Object.values(ot.comentarios) : [];
-          if(!Array.isArray(ot.tecnicos))    ot.tecnicos    = ot.tecnicos    ? Object.values(ot.tecnicos)    : [];
-        });
-        // Cache local
-        try { localStorage.setItem('mantoDB', JSON.stringify(DB)); } catch(e){}
-        // Re-render pantalla activa
-        if(currentUser) reRenderCurrentScreen();
-      } else {
-        // Base de datos vacía — primera vez: inicializar con defaults
-        setSyncState('syncing', 'Inicializando…');
-        initPersonal();
-        initCatalogos();
-        saveDB();
-        setSyncState('connected', 'En línea');
-      }
-    }, function(error){
-      setSyncState('offline', 'Error: ' + error.message);
-      // Cargar desde cache local
-      var stored = localStorage.getItem('mantoDB');
-      if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
-    });
+      // SPEC-018: un listener por colección en lugar de uno sobre toda la base.
+      // Modificar una OT ya no vuelve a descargar personal, máquinas,
+      // infraestructura, turnos ni programas preventivos.
+      CATALOGOS_FB.forEach(function(k){
+        db.ref('manto_db/' + k).on('value', function(s){
+          var v = s.val();
+          DB[k] = v ? (Array.isArray(v) ? v : Object.values(v)) : [];
+          _snap[k] = _js(DB[k]);
+          _renderDebounced();
+        }, function(err){ console.warn('Listener ' + k + ':', err.message); });
+      });
+
+      db.ref('manto_db/folioSig').on('value', function(s){
+        if(s.exists()){ DB.folioSig = s.val(); _snap['folioSig'] = _js(DB.folioSig); }
+      });
+
+      // OTs y notificaciones: eventos por elemento. Solo viaja el registro
+      // que cambió, no la colección completa.
+      COLECCIONES_FB.forEach(function(col){
+        var ref = db.ref('manto_db/' + col);
+        ref.on('child_added',   function(s){ _aplicarHijo(col, s.key, s.val()); });
+        ref.on('child_changed', function(s){ _aplicarHijo(col, s.key, s.val()); });
+        ref.on('child_removed', function(s){ _quitarHijo(col, s.key); });
+      });
+
+      // Primera carga: si no hay personal, sembrar los catálogos por defecto.
+      db.ref('manto_db/personal').once('value', function(s){
+        if(!s.exists()){
+          setSyncState('syncing', 'Inicializando…');
+          initPersonal(); initCatalogos();
+          _snap = {};
+          flushDB();
+        }
+        // Migración de datos guardados con índice numérico
+        setTimeout(function(){
+          if(_migrar.ots){    _migrarColeccion('ots');    _migrar.ots = false; }
+          if(_migrar.notifs){ _migrarColeccion('notifs'); _migrar.notifs = false; }
+        }, 2500);
+      }, function(err){
+        setSyncState('offline', 'Error: ' + err.message);
+        var stored = localStorage.getItem('mantoDB');
+        if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
+      });
+
     } // fin startDatabaseListeners
 
     // Disparar el flujo: primero auth anonima, despues iniciar listeners
@@ -4752,6 +4856,36 @@ function renderAlertas(){
 // ══════════════════════════════════════
 // AJUSTE 2 — Perfil supervisor
 // ══════════════════════════════════════
+// SPEC-018: Archiva OT cerradas antiguas en un nodo aparte para que la
+// colección viva no crezca sin límite. Las archivadas siguen en Firebase,
+// pero dejan de descargarse en cada sesión.
+function archivarOTsAntiguas(){
+  if(!(db && _fbConnected)){ alert('Necesitas conexión para archivar.'); return; }
+  var meses = parseInt(prompt('Archivar OT cerradas con más de cuántos meses de antigüedad?','3'),10);
+  if(!meses || meses < 1){ return; }
+  var corte = new Date(); corte.setMonth(corte.getMonth() - meses);
+  var viejas = (DB.ots||[]).filter(function(ot){
+    if(!ot || ot.status !== 'cerrado') return false;
+    var f = ot.fechaCierre || ot.fechaCierreMantenimiento || ot.fechaAlta;
+    return f && new Date(f) < corte;
+  });
+  if(!viejas.length){ alert('No hay OT cerradas con más de ' + meses + ' meses.'); return; }
+  if(!confirm('Se archivarán ' + viejas.length + ' OT cerradas anteriores al ' +
+      corte.toLocaleDateString('es-MX') + '.\n\nSeguirán guardadas en el archivo histórico, ' +
+      'pero dejarán de cargarse en la app.\n\n¿Continuar?')) return;
+
+  var upd = {};
+  viejas.forEach(function(ot){
+    upd['manto_db_archivo/ots/' + ot.id] = ot;
+    upd['manto_db/ots/' + ot.id] = null;
+  });
+  db.ref().update(upd).then(function(){
+    viejas.forEach(function(ot){ delete _snap['ots/' + ot.id]; });
+    alert('✓ ' + viejas.length + ' OT archivadas correctamente.');
+    renderSupPerfil();
+  }).catch(function(e){ alert('Error al archivar: ' + e.message); });
+}
+
 function renderSupPerfil(){
   var ots = DB.ots || [];
   document.getElementById('sup-perfil-content').innerHTML =
@@ -4771,6 +4905,14 @@ function renderSupPerfil(){
         +'<svg style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>'
         +'Activar Face ID / Huella'
       +'</button>'
+    +'</div>'
+    +'<div class="section-head">Mantenimiento de datos</div>'
+    +'<div style="padding:4px 16px 0;font-size:11px;color:var(--text3);line-height:1.5">'
+      +'Archivar las OT cerradas antiguas reduce el consumo de datos y mantiene la app ágil. '
+      +'Las OT archivadas se conservan en el histórico de Firebase.'
+    +'</div>'
+    +'<div style="padding:10px 16px;display:flex;flex-direction:column;gap:8px">'
+      +'<button class="btn btn-outline btn-block" onclick="archivarOTsAntiguas()">Archivar OT cerradas antiguas</button>'
     +'</div>'
     +'<div style="padding:0 16px 16px">'
       +'<button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>'

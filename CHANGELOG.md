@@ -6,6 +6,28 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.7.0] — 2026-08-06
+
+### Cambiado
+- **SPEC-018: sincronización granular con Firebase.** Cambio de arquitectura para evitar agotar el ancho de banda del plan gratuito.
+  - **Escritura:** `saveDB()` ahora compara contra la última versión sincronizada y escribe **solo las rutas que cambiaron**, con OTs y notificaciones guardadas elemento por elemento. Si nada cambió, no escribe.
+  - **Lectura:** se sustituyó el listener único sobre `manto_db` por **un listener por colección**, y por **eventos por elemento** (`child_added`, `child_changed`, `child_removed`) en OTs y notificaciones. Modificar una OT ya no vuelve a descargar personal, máquinas, infraestructura, turnos ni preventivos.
+  - **Formato:** OTs y notificaciones pasan de guardarse como arreglo a estar indexadas por `id`. La migración es automática y ocurre una sola vez.
+  - El re-render se agrupa con 120 ms de retardo para no repintar en cada evento.
+
+### Agregado
+- **Archivar OT cerradas antiguas**, desde Perfil del supervisor. Mueve las OT cerradas con más de N meses (3 por omisión) a `manto_db_archivo`, donde se conservan pero dejan de cargarse en la app.
+
+### Corregido
+- Los ids de notificación se generaban con `Date.now()` y podían colisionar cuando se creaban dos en el mismo milisegundo. Ahora se garantiza su unicidad antes de escribir.
+
+### Resultados medidos
+- Cambiar una OT: de **158 KB a 436 bytes**.
+- Nueva notificación: de **158 KB a 85 bytes**.
+- Proyección con 15 OT diarias y 15 usuarios: de **126 GB a 1.4 GB al mes**, y con el archivado el consumo deja de crecer a partir del tercer mes.
+
+---
+
 ## [1.6.2] — 2026-08-05
 
 ### Agregado
@@ -374,4 +396,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 5 de agosto de 2026*
+*Última actualización: 6 de agosto de 2026*
