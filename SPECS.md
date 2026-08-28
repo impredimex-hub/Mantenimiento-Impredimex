@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.2
-**Fecha:** 8 de agosto de 2026
+**Versión:** 2.3
+**Fecha:** 9 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -780,6 +780,56 @@ El criterio de ordenamiento es seleccionable. En cantidades, más es mejor; en t
 
 ---
 
+# SPEC-020 — Aviso de técnicos ocupados al levantar una OT
+
+### Actor
+Solicitante (al crear una orden de trabajo).
+
+### Motivación
+El solicitante creaba su OT sin saber si había alguien disponible para atenderla. Si los técnicos del turno ya estaban trabajando en otra orden, la suya quedaba en espera sin explicación.
+
+### Flujo principal
+1. El solicitante crea la OT (SPEC-002)
+2. El sistema determina **qué técnicos están en turno** en ese momento, según el rol de turnos (SPEC-016)
+3. Para cada uno revisa si tiene una **OT activa asignada**
+4. Si **al menos uno está libre**, la OT se confirma con el mensaje normal
+5. Si **todos están ocupados**, se muestra una ventana emergente con la situación de cada técnico
+
+### Contenido de la ventana emergente
+Por cada técnico ocupado:
+
+| Dato | Origen |
+|---|---|
+| Nombre y puesto | Catálogo de personal |
+| OT que atiende | Folio de la orden activa |
+| Ubicación | Nave y equipo de esa orden |
+| Etapa de intervención | Calculada según el avance de la orden |
+
+### Etapas de intervención
+
+| Condición | Etapa mostrada |
+|---|---|
+| OT suspendida | *Suspendida en espera — <motivo>* |
+| Sin confirmación del solicitante | *Asignado, en camino a la máquina* |
+| Confirmado, sin tipo de problema | *En máquina, diagnosticando la falla* |
+| Con tipo de problema | *Trabajando — <tipo> (avance N%)* |
+
+### Cómo se determina quién está en turno
+Se consulta el rol de turnos vigente (`DB.turnos`) buscando la asignación de cada persona para la fecha actual, y se compara la hora del sistema con el rango del turno asignado.
+
+El catálogo de turnos incluye `ini` y `fin` en minutos desde medianoche. Cuando `fin <= ini`, el turno **cruza la medianoche** (T3 y N12); en ese caso también se revisa la asignación del **día anterior**, de modo que a las 02:00 se reconoce al técnico que entró a las 21:30 del día previo.
+
+Para el turno libre (`LIB`) se usan las horas capturadas manualmente.
+
+### Reglas de negocio
+- Solo se considera personal **activo** del departamento MANTENIMIENTO
+- Un técnico cuenta como **ocupado** si tiene una OT en estado `proceso` o `espera` en la que participa y de la que no ha registrado salida (SPEC-012)
+- Si **no hay rol de turnos** que cubra la fecha, no se puede determinar quién está en turno y **no se muestra el aviso**. La función depende de mantener el rol actualizado
+- Con un solo técnico en turno y ocupado, el aviso se muestra igualmente
+- El aviso **no bloquea** la creación: la OT ya quedó registrada y el mensaje lo confirma
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -854,5 +904,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 8 de agosto de 2026 — versión 2.2 (ajusta SPEC-019).*
+*Documento actualizado el 9 de agosto de 2026 — versión 2.3 (agrega SPEC-020).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

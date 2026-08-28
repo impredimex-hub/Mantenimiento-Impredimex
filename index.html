@@ -414,6 +414,12 @@ input[type=range].green{accent-color:var(--green)}
 .rk-nom{font-weight:600;color:var(--blue-dark);line-height:1.3}
 .rk-puesto{display:block;font-weight:400;font-size:10px;color:var(--text3);margin-top:1px}
 .rk-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dispo-card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--surface)}
+.dispo-nom{font-weight:700;font-size:14px;color:var(--blue-dark)}
+.dispo-puesto{font-size:11px;color:var(--text3);margin-bottom:8px}
+.dispo-fila{display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:12px}
+.dispo-fila span{color:var(--text3);width:78px;flex-shrink:0}
+.dispo-fila b{color:var(--text);font-weight:600;flex:1;line-height:1.35}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .adm-tabbar::-webkit-scrollbar{display:none}
 .adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
@@ -1111,6 +1117,19 @@ input[type=range].green{accent-color:var(--green)}
 </div>
 
 <!-- ==================== MODAL REFACCIONES ==================== -->
+<!-- SPEC-020: aviso de técnicos ocupados al crear una OT -->
+<div class="modal-overlay" id="modal-dispo">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Todos los técnicos están ocupados</div>
+    <div id="dispo-msg" style="padding:0 16px 12px;font-size:13px;color:var(--text2);line-height:1.55"></div>
+    <div id="dispo-lista" style="padding:0 16px"></div>
+    <div style="padding:14px 16px 18px">
+      <button class="btn btn-green btn-block" onclick="closeModal('modal-dispo')">Entendido</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-refaccion">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -1958,7 +1977,10 @@ function crearOT(){
   updateNotifDot('sup-notif-dot','supervisor');
   var _esUrg=ot.prioridad==='urgente'||ot.prioridad==='maquina-parada';
   notifyPush(getNominasByTipoServicio(ot.tipo),(_esUrg?'URGENTE':'Nueva OT')+' #'+ot.folio,ot.desc.substring(0,60)+' - '+(ot.equipo||'')+' NAVE '+ot.nave,'nueva-'+ot.folio); // SPEC-011
-  alert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
+  // SPEC-020: si todos los técnicos en turno están ocupados, avisar al solicitante
+  if(!avisarSiNoHayTecnicoLibre(ot)){
+    alert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
+  }
 }
 
 
@@ -4182,13 +4204,15 @@ function returnToAdmin(){
 /* ══════════════════ SPEC-016: MÓDULO DE TURNOS ══════════════════ */
 
 // Catálogo de turnos disponibles
+// SPEC-020: ini/fin en minutos desde medianoche para poder evaluar si un
+// técnico está en turno a una hora dada. Si fin <= ini, el turno cruza la medianoche.
 var CAT_TURNOS = [
-  {id:'T1',  label:'06:00 – 14:00', corto:'06–14'},
-  {id:'T2',  label:'14:00 – 21:30', corto:'14–21:30'},
-  {id:'T3',  label:'21:30 – 06:00', corto:'21:30–06'},
-  {id:'D12', label:'06:00 – 18:00', corto:'06–18'},
-  {id:'N12', label:'18:00 – 06:00', corto:'18–06'},
-  {id:'G8',  label:'08:00 – 18:00', corto:'08–18'},
+  {id:'T1',  label:'06:00 – 14:00', corto:'06–14',     ini:360,  fin:840},
+  {id:'T2',  label:'14:00 – 21:30', corto:'14–21:30',  ini:840,  fin:1290},
+  {id:'T3',  label:'21:30 – 06:00', corto:'21:30–06',  ini:1290, fin:360},
+  {id:'D12', label:'06:00 – 18:00', corto:'06–18',     ini:360,  fin:1080},
+  {id:'N12', label:'18:00 – 06:00', corto:'18–06',     ini:1080, fin:360},
+  {id:'G8',  label:'08:00 – 18:00', corto:'08–18',     ini:480,  fin:1080},
   {id:'LIB', label:'Horario libre', corto:'Libre'}
 ];
 var DIAS_SEM = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -4257,6 +4281,138 @@ function purgarTurnosAntiguos(){
   });
   if(DB.turnos.length !== antes){ saveDB(); return true; }
   return false;
+}
+
+/* ═══════ SPEC-020: DISPONIBILIDAD DE TÉCNICOS AL LEVANTAR UNA OT ═══════ */
+
+function _hhmmAMin(t){
+  if(!t) return null;
+  var p = String(t).split(':');
+  if(p.length<2) return null;
+  var h = parseInt(p[0],10), m = parseInt(p[1],10);
+  if(isNaN(h)||isNaN(m)) return null;
+  return h*60+m;
+}
+
+// Rango horario de una asignación. null si no se puede determinar.
+function rangoDeAsignacion(a){
+  if(!a || !a.t) return null;
+  if(a.t==='LIB'){
+    var i = _hhmmAMin(a.ini), f = _hhmmAMin(a.fin);
+    return (i===null||f===null) ? null : {ini:i, fin:f};
+  }
+  var c = catTurnoById(a.t);
+  return (c && c.ini!==undefined) ? {ini:c.ini, fin:c.fin} : null;
+}
+
+// ¿El minuto del día cae dentro del rango? Contempla turnos que cruzan medianoche.
+function minutoEnRango(min, r){
+  if(!r) return false;
+  if(r.fin > r.ini) return min >= r.ini && min < r.fin;   // mismo día
+  return min >= r.ini || min < r.fin;                     // cruza medianoche
+}
+
+// Asignación de una persona en una fecha concreta, buscando en todos los roles.
+function asignacionDe(nomina, fechaISO){
+  var roles = DB.turnos || [];
+  for(var i=0;i<roles.length;i++){
+    var a = (roles[i].asignaciones||{})[nomina];
+    if(a && a[fechaISO]) return a[fechaISO];
+  }
+  return null;
+}
+
+function _isoDe(d){
+  return d.getFullYear()+'-'+pvPad(d.getMonth()+1)+'-'+pvPad(d.getDate());
+}
+
+// Técnicos en turno en un momento dado, según el rol de turnos.
+// Considera también los turnos nocturnos que arrancaron el día anterior.
+function tecnicosEnTurno(fecha){
+  fecha = fecha || new Date();
+  var min = fecha.getHours()*60 + fecha.getMinutes();
+  var hoy = _isoDe(fecha);
+  var ayer = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()-1);
+  var ayerISO = _isoDe(ayer);
+
+  var out = [];
+  (DB.personal||[]).forEach(function(p){
+    if(p.estatus!=='activo' || p.depto!=='MANTENIMIENTO') return;
+
+    // Turno asignado hoy
+    var rHoy = rangoDeAsignacion(asignacionDe(p.nomina, hoy));
+    if(rHoy && minutoEnRango(min, rHoy)){ out.push(p); return; }
+
+    // Turno de ayer que cruza la medianoche y sigue vigente
+    var aAyer = asignacionDe(p.nomina, ayerISO);
+    var rAyer = rangoDeAsignacion(aAyer);
+    if(rAyer && rAyer.fin <= rAyer.ini && min < rAyer.fin){ out.push(p); }
+  });
+  return out;
+}
+
+// OT que un técnico tiene asignada y activa en este momento.
+function otActivaDeTecnico(nombre){
+  var lista = (DB.ots||[]).filter(function(ot){
+    if(!ot || (ot.status!=='proceso' && ot.status!=='espera')) return false;
+    return (ot.tecnicos||[]).some(function(t){
+      return t && t.nombre===nombre && !t.fechaSalida;
+    });
+  });
+  // La más reciente por fecha de alta
+  lista.sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
+  return lista[0] || null;
+}
+
+// Etapa legible en la que va la intervención.
+function etapaDeOT(ot, nomina){
+  if(!ot) return '';
+  if(ot.status==='espera'){
+    var mot = (ot.espera && ot.espera.motivo) ? ot.espera.motivo : 'sin motivo registrado';
+    return 'Suspendida en espera — ' + mot;
+  }
+  var confirmado = (ot.contactosPorTecnico && ot.contactosPorTecnico[nomina]) || ot.fechaPrimerContacto;
+  if(!confirmado) return 'Asignado, en camino a la máquina';
+  if(!ot.tipoProblema) return 'En máquina, diagnosticando la falla';
+  var av = (typeof ot.avance==='number') ? ot.avance : 0;
+  return 'Trabajando — ' + ot.tipoProblema + ' (avance ' + av + '%)';
+}
+
+// Se llama al crear una OT. Devuelve true si mostró el aviso.
+function avisarSiNoHayTecnicoLibre(nuevaOT){
+  var enTurno = tecnicosEnTurno(new Date());
+
+  // Sin rol de turnos cargado para hoy no hay forma de saberlo: no se avisa.
+  if(!enTurno.length) return false;
+
+  var ocupados = [], hayLibre = false;
+  enTurno.forEach(function(p){
+    var ot = otActivaDeTecnico(p.nombre);
+    if(!ot){ hayLibre = true; return; }
+    ocupados.push({persona:p, ot:ot});
+  });
+
+  if(hayLibre || !ocupados.length) return false;
+
+  var filas = ocupados.map(function(o){
+    var naveEq = [o.ot.nave ? 'Nave '+o.ot.nave : '', o.ot.equipo].filter(Boolean).join(' · ');
+    return '<div class="dispo-card">'
+      + '<div class="dispo-nom">'+o.persona.nombre+'</div>'
+      + '<div class="dispo-puesto">'+(o.persona.puesto||'')+'</div>'
+      + '<div class="dispo-fila"><span>Atendiendo</span><b>OT '+o.ot.folio+'</b></div>'
+      + '<div class="dispo-fila"><span>Ubicación</span><b>'+(naveEq||'No especificada')+'</b></div>'
+      + '<div class="dispo-fila"><span>Etapa</span><b>'+etapaDeOT(o.ot, o.persona.nomina)+'</b></div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('dispo-msg').innerHTML =
+      'Tu orden <b>'+nuevaOT.folio+'</b> quedó registrada correctamente.<br><br>'
+    + 'En este momento <b>'+(ocupados.length===1?'el único técnico':'todos los técnicos')
+    + ' en turno'+(ocupados.length===1?' está':' están')+' atendiendo otra orden</b>. '
+    + 'Tu solicitud será atendida en cuanto se desocupen.';
+  document.getElementById('dispo-lista').innerHTML = filas;
+  openModal('modal-dispo');
+  return true;
 }
 
 function renderTurnos(){

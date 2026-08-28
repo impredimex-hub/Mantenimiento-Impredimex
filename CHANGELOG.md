@@ -6,6 +6,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.9.0] — 2026-08-09
+
+### Agregado
+- **SPEC-020: aviso de técnicos ocupados al levantar una OT.** Cuando el solicitante crea una orden y **todos los técnicos en turno están atendiendo otra**, se muestra una ventana emergente con el nombre y puesto de cada técnico, la OT que atiende, la nave y equipo donde se encuentra, y la etapa de la intervención.
+  - Si **al menos un técnico del turno está libre**, no se muestra el aviso.
+  - Los técnicos en turno se determinan a partir del **rol de turnos** (SPEC-016), cruzando la asignación del día con la hora del sistema.
+  - Se contemplan los **turnos que cruzan la medianoche** (T3 y N12): a las 02:00 se reconoce al técnico que entró a las 21:30 del día anterior.
+  - El turno libre usa las horas capturadas manualmente.
+- El catálogo `CAT_TURNOS` ahora incluye `ini` y `fin` en minutos desde medianoche.
+
+### Notas
+- Un técnico cuenta como ocupado si tiene una OT en `proceso` o `espera` de la que no ha registrado salida.
+- Si no hay rol de turnos que cubra la fecha, no se puede saber quién está en turno y el aviso no se muestra. La función depende de mantener el rol actualizado.
+- El aviso es informativo: la OT ya quedó registrada y el propio mensaje lo confirma.
+
+---
+
 ## [1.8.1] — 2026-08-08
 
 ### Cambiado
@@ -430,4 +447,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 8 de agosto de 2026*
+*Última actualización: 9 de agosto de 2026*
