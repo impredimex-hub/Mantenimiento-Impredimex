@@ -6,6 +6,20 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.3.0] — 2026-07-30
+
+### Cambiado
+- **SPEC-011:** Las OT de **MTTO-INFRAESTRUCTURA** y **MTTO-SEGURIDAD** vuelven a notificar a **todo el personal activo del departamento de Mantenimiento**, igual que MTTO-MAQ-PROD.
+- Se desactivó el enrutamiento diferenciado por puesto (Jefe, Auxiliar y Analista) introducido en 1.1.0. Decisión operativa.
+- La función `getNominasByTipoServicio()` se conserva como punto único de cambio: ahora retorna todo el departamento para cualquier tipo. Si se requiere reactivar el filtrado, solo se modifica esa función.
+- SPEC-009 actualizada: "Nueva OT" y "OT rechazada" ahora indican todo el departamento como destinatario.
+
+### Notas
+- Aplica a los dos eventos enrutados: creación de OT y rechazo de cierre.
+- Las notificaciones dirigidas al solicitante (técnico asignado, OT concluida, OT en espera) no cambian.
+
+---
+
 ## [1.2.0] — 2026-07-29
 
 ### Agregado
@@ -256,4 +270,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 29 de julio de 2026*
+*Última actualización: 30 de julio de 2026*

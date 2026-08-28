@@ -1330,29 +1330,12 @@ function notifyPush(toNominas,title,body,tag){
 function getNominasTecnicos(){
   return (DB.personal||[]).filter(function(p){return p.estatus==='activo'&&p.depto==='MANTENIMIENTO';}).map(function(p){return p.nomina;});
 }
-// SPEC-011: Enrutamiento de notificaciones de nueva OT según tipo de servicio.
-// MTTO-MAQ-PROD -> todo el depto MANTENIMIENTO activo.
-// MTTO-INFRAESTRUCTURA y MTTO-SEGURIDAD -> solo Jefe, Auxiliar y Analista de Mantenimiento.
-// Se filtra por PUESTO (no por nómina) para que sobreviva a la rotación de personal.
+// SPEC-011: Destinatarios de las notificaciones de OT según tipo de servicio.
+// Actualmente TODOS los tipos (MTTO-MAQ-PROD, MTTO-INFRAESTRUCTURA y MTTO-SEGURIDAD)
+// notifican a todo el departamento MANTENIMIENTO activo.
+// El enrutamiento diferenciado por puesto quedó desactivado por decisión operativa;
+// si se requiere reactivar, filtrar aquí por p.puesto según el tipo recibido.
 function getNominasByTipoServicio(tipo){
-  if(tipo==='MTTO-INFRAESTRUCTURA' || tipo==='MTTO-SEGURIDAD'){
-    var puestosDestino = ['JEFE DE MANTENIMIENTO','AUXILIAR DE MANTENIMIENTO','ANALISTA DE MANTENIMIENTO'];
-    var norm = function(s){
-      return String(s||'')
-        .toUpperCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // quita acentos
-        .replace(/\s+/g,' ').trim();
-    };
-    var destinoNorm = puestosDestino.map(norm);
-    return (DB.personal||[])
-      .filter(function(p){
-        return p.estatus==='activo'
-          && p.depto==='MANTENIMIENTO'
-          && destinoNorm.indexOf(norm(p.puesto))!==-1;
-      })
-      .map(function(p){ return p.nomina; });
-  }
-  // MTTO-MAQ-PROD o cualquier otro tipo: todo el departamento
   return getNominasTecnicos();
 }
 function getNominaByName(nombre){

@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.2
-**Fecha:** 29 de julio de 2026
+**Versión:** 1.3
+**Fecha:** 30 de julio de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -342,11 +342,11 @@ Sistema (automático, no requiere acción del usuario).
 - **Re-suscripción forzada:** en cada login, la app llama a `OneSignal.User.PushSubscription.optIn()` para reactivar automáticamente cualquier suscriptor que haya sido marcado como "unsubscribed" en OneSignal Dashboard
 - **API key segura:** la REST API Key de OneSignal NUNCA se expone en el frontend; vive solo en Cloudflare Worker
 - **Eventos que disparan push:**
-  - Nueva OT → destinatarios según tipo de servicio (ver SPEC-011)
+  - Nueva OT → a todo el personal activo del depto MANTENIMIENTO (ver SPEC-011)
   - Técnico toma OT → al solicitante
   - OT concluida → al solicitante
   - OT en espera → al solicitante con motivo
-  - OT rechazada (cierre rechazado por solicitante) → notificación interna al técnico y supervisor, y push a los destinatarios según tipo de servicio (ver SPEC-011)
+  - OT rechazada (cierre rechazado por solicitante) → notificación interna al técnico y supervisor, y push a todo el depto MANTENIMIENTO (ver SPEC-011)
 
 ### Flujos alternativos
 - **Permiso de notificaciones denegado:** El sistema sigue funcionando pero el usuario no recibe push (solo ve cambios al abrir la app)
@@ -387,43 +387,28 @@ Usuario con rol **admin**.
 
 ---
 
-# SPEC-011 — Enrutamiento de notificaciones por tipo de servicio
+# SPEC-011 — Destinatarios de las notificaciones por tipo de servicio
 
 ### Actor
-Sistema (automático, se dispara al crear una OT).
+Sistema (automático).
 
 ### Precondiciones
-- Se está creando una nueva OT (ver SPEC-002)
-- El objeto `ot` ya tiene asignado su campo `tipo` (uno de los tres tipos de servicio)
+- Se crea una OT (SPEC-002) o el solicitante rechaza un cierre (SPEC-007)
 - El catálogo `DB.personal` está cargado
 
 ### Flujo principal
-1. Al finalizar la creación de la OT, el sistema determina el tipo de servicio (`ot.tipo`)
-2. Sistema invoca `getNominasByTipoServicio(ot.tipo)` para obtener la lista de destinatarios
-3. Según el tipo, la función retorna:
-   - **MTTO-MAQ-PROD** → todas las nóminas activas del depto MANTENIMIENTO (equivale a `getNominasTecnicos()`)
-   - **MTTO-INFRAESTRUCTURA** → solo el personal activo cuyo puesto sea Jefe, Auxiliar o Analista de Mantenimiento
-   - **MTTO-SEGURIDAD** → solo el personal activo cuyo puesto sea Jefe, Auxiliar o Analista de Mantenimiento
-4. Sistema invoca `notifyPush()` con la lista resultante (ver SPEC-009)
-
-### Postcondiciones
-- La notificación de nueva OT llega únicamente a los destinatarios correspondientes al tipo de servicio
-- Ningún otro miembro del departamento recibe push para OTs de Infraestructura o Seguridad
+1. El sistema invoca `getNominasByTipoServicio(ot.tipo)`
+2. La función retorna **todas las nóminas activas del departamento MANTENIMIENTO**, sin distinguir el tipo de servicio
+3. Se invoca `notifyPush()` con esa lista (ver SPEC-009)
 
 ### Reglas de negocio
-- **Destinatarios de Infraestructura y Seguridad (por puesto):**
-  - `JEFE DE MANTENIMIENTO`
-  - `AUXILIAR DE MANTENIMIENTO`
-  - `ANALISTA DE MANTENIMIENTO`
-- **Filtro por puesto, no por nómina:** el enrutamiento identifica a los destinatarios por su **puesto** dentro del depto MANTENIMIENTO, no por su número de nómina. Esto permite que, ante rotación de personal, el reemplazo reciba las notificaciones automáticamente con solo tener el puesto correcto en el catálogo, sin modificar código
-- **Comparación robusta:** la coincidencia de puesto ignora mayúsculas/minúsculas, acentos y espacios extra
+- **Todos los tipos de servicio notifican a todo el departamento:** MTTO-MAQ-PROD, MTTO-INFRAESTRUCTURA y MTTO-SEGURIDAD tienen los mismos destinatarios
 - **Filtro por estatus y depto:** solo se notifica a quienes estén `activo` y en depto `MANTENIMIENTO`
-- **Tipo por defecto:** cualquier tipo distinto a Infraestructura o Seguridad (incluyendo MAQ-PROD) notifica a todo el departamento
-- **Alcance del filtro:** este enrutamiento afecta **solo la entrega de la notificación push**, no la visibilidad de la OT en la app. Cualquier técnico sigue viendo y pudiendo tomar todas las OTs abiertas
-- **Aplica a la creación y al rechazo de cierre:** el enrutamiento por tipo se usa tanto al crear una OT como cuando el solicitante rechaza el cierre. Las notificaciones dirigidas al solicitante (técnico asignado, OT concluida, OT en espera) no se ven afectadas por esta spec
+- **Aplica a la creación y al rechazo de cierre.** Las notificaciones dirigidas al solicitante (técnico asignado, OT concluida, OT en espera) no se ven afectadas por esta spec
 
-### Flujos alternativos
-- **Ningún puesto destino está activo:** la lista queda vacía y no se envía push (el sistema no falla; la OT se crea normalmente y es visible en la app)
+### Historial de esta spec
+- **v1.1.0:** se introdujo enrutamiento diferenciado — Infraestructura y Seguridad notificaban solo a Jefe, Auxiliar y Analista de Mantenimiento (filtrado por puesto)
+- **v1.3.0:** se desactivó el enrutamiento diferenciado por decisión operativa. Todos los tipos notifican a todo el departamento. La función `getNominasByTipoServicio()` se conserva como punto único de cambio por si se requiere reactivar
 
 ---
 
@@ -593,5 +578,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 29 de julio de 2026 — versión 1.2 (agrega SPEC-012, SPEC-013 y SPEC-014).*
+*Documento actualizado el 30 de julio de 2026 — versión 1.3 (actualiza SPEC-011).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
