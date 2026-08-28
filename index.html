@@ -894,6 +894,8 @@ input[type=range].green{accent-color:var(--green)}
         Excel
       </button>
     </div>
+    <div class="scroll-content">
+      <div class="kpi-grid" id="sup-kpis"></div>
     <div class="search-filters">
       <div class="sf-search-row">
         <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -933,8 +935,6 @@ input[type=range].green{accent-color:var(--green)}
       </div>
       <div class="filter-chips-row"><button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer;flex-shrink:0" onclick="setStatusFilter('todas','supervisor')">Todas</button><button class="badge badge-abierto" onclick="setStatusFilter('abierto','supervisor')" style="cursor:pointer;flex-shrink:0">Nuevas</button><button class="badge badge-proceso" onclick="setStatusFilter('proceso','supervisor')" style="cursor:pointer;flex-shrink:0">Proceso</button><button class="badge badge-espera" onclick="setStatusFilter('espera','supervisor')" style="cursor:pointer;flex-shrink:0">Espera</button><button class="badge badge-validar" onclick="setStatusFilter('validar','supervisor')" style="cursor:pointer;flex-shrink:0">Validar</button></div>
     </div>
-    <div class="scroll-content">
-      <div class="kpi-grid" id="sup-kpis"></div>
       <div class="list-pad" id="sup-ot-list"></div>
       <div class="spacer"></div>
     </div>
@@ -1538,7 +1538,7 @@ function reRenderCurrentScreen(){
   try {
     if(role==='solicitante') renderSolOTs();
     else if(role==='tecnico') renderTecOTs('todas');
-    else if(role==='supervisor') renderDashboard();
+    else if(role==='supervisor') renderSupOTs();
     else if(role==='admin') renderAdmOTs && renderAdmOTs();
   } catch(e){}
 }
@@ -3009,7 +3009,10 @@ function renderTecPerfil(){
 
 // ==================== SUPERVISOR ====================
 function initSupervisor(){
-  renderSupOTs('todas');
+  // SPEC-019: al entrar no se muestra ninguna orden hasta pulsar "Aplicar filtros"
+  currentFilter = 'todas';
+  supFiltrosAplicados = false;
+  renderSupOTs();
 }
 
 // SPEC-019: las tarjetas de estado viven ahora en el encabezado del módulo de OT

@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.1
-**Fecha:** 7 de agosto de 2026
+**Versión:** 2.2
+**Fecha:** 8 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -743,8 +743,8 @@ Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
 
 La barra inferior queda con cinco pestañas: **OT · Técnicos · Turnos · Preventivo · Perfil**. El módulo de OT es ahora la pantalla inicial del supervisor.
 
-### Tarjetas de estado
-Las cuatro tarjetas (Abiertas, En proceso, En espera, Por validar) se muestran arriba del listado de OT y se recalculan en cada render del módulo.
+### Orden de la pantalla de OT
+De arriba hacia abajo: **tarjetas de estado → filtros → listado**. Las cuatro tarjetas (Abiertas, En proceso, En espera, Por validar) encabezan la pantalla y se recalculan en cada render. El bloque de filtros vive dentro del área desplazable, debajo de las tarjetas.
 
 ### Filtros del listado de OT
 Se agregaron dos filtros y un botón de aplicación:
@@ -754,7 +754,9 @@ Se agregaron dos filtros y un botón de aplicación:
 | **Mes** | Se arma con los meses que tienen órdenes registradas, del más reciente al más antiguo |
 | **Técnico** | Lista el personal activo de Mantenimiento; coincide si el técnico **participó** en la OT, no solo si fue el primero |
 
-**Regla de visualización:** el listado **no muestra ninguna orden** hasta que se pulsa *Aplicar filtros*. Si no se seleccionó ningún criterio, el botón muestra **todas** las órdenes.
+**Regla de visualización:** el listado **no muestra ninguna orden** hasta que se pulsa *Aplicar filtros*, ni siquiera al entrar al módulo. Si no se seleccionó ningún criterio, el botón muestra **todas** las órdenes.
+
+`initSupervisor()` deja el estado en "sin aplicar", y el re-render disparado por datos nuevos respeta ese estado: si el supervisor ya aplicó filtros, la lista se refresca; si no, sigue mostrando la invitación.
 
 El botón *Limpiar* vacía los filtros y devuelve la pantalla al estado inicial. Los chips de estado (Todas, Nuevas, Proceso…) cuentan como aplicación explícita.
 
@@ -852,5 +854,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 7 de agosto de 2026 — versión 2.1 (agrega SPEC-019).*
+*Documento actualizado el 8 de agosto de 2026 — versión 2.2 (ajusta SPEC-019).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

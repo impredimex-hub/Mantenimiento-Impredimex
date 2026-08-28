@@ -6,6 +6,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.8.1] — 2026-08-08
+
+### Cambiado
+- **SPEC-019:** En el módulo de OT del supervisor, las **cuatro tarjetas de estado ahora van primero**, seguidas de los filtros y después el listado. El bloque de filtros pasó al área desplazable.
+
+### Corregido
+- El listado del supervisor mostraba todas las órdenes al entrar al módulo. La causa: `initSupervisor()` llamaba a `renderSupOTs('todas')`, y pasar un filtro marcaba los filtros como aplicados. Ahora al entrar no se muestra ninguna orden hasta pulsar **Aplicar filtros**.
+- El re-render disparado por datos nuevos respeta el estado de los filtros: refresca la lista solo si ya se habían aplicado.
+
+---
+
 ## [1.8.0] — 2026-08-07
 
 ### Eliminado
@@ -419,4 +430,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 7 de agosto de 2026*
+*Última actualización: 8 de agosto de 2026*
