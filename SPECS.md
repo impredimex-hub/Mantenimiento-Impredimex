@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.3
-**Fecha:** 30 de julio de 2026
+**Versión:** 1.4
+**Fecha:** 31 de julio de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -504,6 +504,43 @@ Antes, el tiempo del último técnico corría hasta que el **solicitante** valid
 
 ---
 
+# SPEC-015 — Tipos de problema según el tipo de servicio
+
+### Actor
+Técnico de mantenimiento (al seleccionar el tipo de problema, Paso 2).
+
+### Precondiciones
+- La OT fue tomada y el solicitante confirmó la presencia del técnico
+- La OT aún no tiene `tipoProblema` definido
+
+### Flujo principal
+1. El sistema invoca `getTipoFallas(ot.tipo)`
+2. Se pintan como chips únicamente las opciones correspondientes al tipo de servicio de la OT
+3. El técnico selecciona una y confirma
+
+### Catálogos por tipo de servicio
+
+**MTTO-MAQ-PROD** (7 opciones)
+Mecánico · Eléctrico · Neumático · Electrónico · Hidráulico · Parámetros · Infraestructura
+
+**MTTO-INFRAESTRUCTURA** (8 opciones)
+Eléctrico · Hidráulico · Mobiliario · Pintura · Edificios · Fontanería · Alarmas · Otros
+
+**MTTO-SEGURIDAD** (9 opciones)
+Mecánico · Eléctrico · Neumático · Electrónico · Hidráulico · Guardas · Infraestructura · Riesgo de incendio · Riesgo de caídas
+
+### Postcondiciones
+- `ot.tipoProblema` guarda el texto seleccionado
+- El valor sigue siendo **inmutable** una vez guardado (SPEC-003)
+
+### Reglas de negocio
+- Si el tipo de servicio no coincide con ninguno de los tres, se usa el catálogo de MTTO-MAQ-PROD como respaldo
+- No hay validación contra el catálogo al guardar: se almacena el texto del chip seleccionado
+- **Retrocompatibilidad:** las OT antiguas conservan y muestran su `tipoProblema` original aunque ese valor ya no exista en el catálogo de su tipo, porque la vista de solo lectura muestra el texto guardado
+- El catálogo se define en la función `getTipoFallas()`, punto único de cambio
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -578,5 +615,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 30 de julio de 2026 — versión 1.3 (actualiza SPEC-011).*
+*Documento actualizado el 31 de julio de 2026 — versión 1.4 (agrega SPEC-015).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

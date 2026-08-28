@@ -2402,6 +2402,18 @@ function tomarOT(id){
   renderTecOTs('todas');
 }
 
+// SPEC-015: Las opciones de tipo de problema dependen del tipo de servicio de la OT.
+function getTipoFallas(tipoServicio){
+  if(tipoServicio==='MTTO-INFRAESTRUCTURA'){
+    return ['Eléctrico','Hidráulico','Mobiliario','Pintura','Edificios','Fontanería','Alarmas','Otros'];
+  }
+  if(tipoServicio==='MTTO-SEGURIDAD'){
+    return ['Mecánico','Eléctrico','Neumático','Electrónico','Hidráulico','Guardas','Infraestructura','Riesgo de incendio','Riesgo de caídas'];
+  }
+  // MTTO-MAQ-PROD o cualquier otro tipo
+  return ['Mecánico','Eléctrico','Neumático','Electrónico','Hidráulico','Parámetros','Infraestructura'];
+}
+
 function buildDetalleTec(ot){
   var now=new Date();
   var hh=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
@@ -2414,7 +2426,7 @@ function buildDetalleTec(ot){
     // avance se guarda como hidden field — no necesita actualización visual
   },100);
 
-  var tipoFallas=['Mecánico','Eléctrico','Neumático','Electrónico','Hidráulico','Parámetros','Infraestructura'];
+  var tipoFallas=getTipoFallas(ot.tipo); // SPEC-015
 
   // Declarar ANTES de tipoProblemaSection para que estén disponibles
   var yaSoy         = tecnicoEnOT(ot, currentUser.nombre);

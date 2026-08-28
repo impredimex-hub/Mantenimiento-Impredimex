@@ -6,6 +6,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.4.0] — 2026-07-31
+
+### Agregado
+- **SPEC-015:** Los tipos de problema ahora dependen del **tipo de servicio** de la OT. Nueva función `getTipoFallas(tipoServicio)`.
+  - **MTTO-MAQ-PROD** (sin cambios, 7 opciones): Mecánico, Eléctrico, Neumático, Electrónico, Hidráulico, Parámetros, Infraestructura.
+  - **MTTO-INFRAESTRUCTURA** (8 opciones): Eléctrico, Hidráulico, Mobiliario, Pintura, Edificios, Fontanería, Alarmas, Otros.
+  - **MTTO-SEGURIDAD** (9 opciones): Mecánico, Eléctrico, Neumático, Electrónico, Hidráulico, Guardas, Infraestructura, Riesgo de incendio, Riesgo de caídas.
+
+### Corregido
+- Las OT de Infraestructura y Seguridad mostraban las mismas opciones de tipo de problema que las de maquinaria de producción, que no correspondían a su naturaleza.
+
+### Notas
+- Las OT ya registradas conservan y muestran su tipo de problema original, aunque ese valor no exista en el nuevo catálogo de su tipo.
+- El tipo de problema sigue siendo inmutable una vez guardado.
+
+---
+
 ## [1.3.0] — 2026-07-30
 
 ### Cambiado
@@ -270,4 +287,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 30 de julio de 2026*
+*Última actualización: 31 de julio de 2026*
