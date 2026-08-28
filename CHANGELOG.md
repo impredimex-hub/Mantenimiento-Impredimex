@@ -6,6 +6,21 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.6.1] — 2026-08-04
+
+### Cambiado
+- **SPEC-017:** Ajustes de formato del programa preventivo para acercarlo al documento impreso.
+  - Se eliminaron los **colores de fondo** (verde del mes, amarillo del año, naranja de los días y gris de las celdas fuera del mes) y el **texto en rojo** del recuadro de control. El documento queda en blanco y negro.
+  - Los renglones **Código**, **Creado** y **Actualizado** ahora tienen la **misma altura**, mediante una tabla anidada en el recuadro de control.
+  - Las columnas de los **siete días miden exactamente lo mismo**, con `table-layout:fixed` y anchos declarados en un `colgroup`. Antes el domingo se veía más ancho.
+  - Las **firmas del pie se alinean con el calendario**, repartidas en cuatro columnas iguales dentro del mismo contenedor de la tabla.
+  - El campo *Actualizado* del encabezado ahora muestra la fecha fija del formato, **03/09/2026**, en lugar de la fecha del último guardado.
+
+### Notas
+- En la lista de programas, la fecha del último guardado se etiqueta ahora como **"Guardado"**, para no confundirla con el *Actualizado* del formato.
+
+---
+
 ## [1.6.0] — 2026-08-03
 
 ### Agregado
@@ -340,4 +355,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 3 de agosto de 2026*
+*Última actualización: 4 de agosto de 2026*

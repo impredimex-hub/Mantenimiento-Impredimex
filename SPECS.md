@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.7
-**Fecha:** 3 de agosto de 2026
+**Versión:** 1.8
+**Fecha:** 4 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -627,7 +627,11 @@ Pestaña **"Preventivo"** en la barra inferior del supervisor, entre **Turnos** 
 
 ### Documento que reproduce
 Formato controlado **F20-PR-MA-01, Rev. C** — "Programa mensual de mantenimiento preventivo".
-Creado: 02/12/2016. El campo *Actualizado* se llena con la fecha del último guardado.
+Creado: 02/12/2016. Actualizado: 03/09/2026.
+
+El documento se presenta **sin colores de fondo ni texto de color**, en blanco y negro, como el formato impreso. Los tres renglones del recuadro de control (Código, Creado y Actualizado) se construyen con una tabla anidada para que midan **exactamente la misma altura**.
+
+Las columnas de los siete días tienen **el mismo ancho** entre sí, fijado con `table-layout:fixed` y un `colgroup` explícito. Las firmas del pie se alinean con el ancho del calendario, repartidas en cuatro columnas iguales.
 
 ### Flujo principal
 1. El supervisor entra a **Preventivo** y ve la lista de programas capturados
@@ -652,6 +656,7 @@ Creado: 02/12/2016. El campo *Actualizado* se llena con la fecha del último gua
 | Año | Lista desplegable, del año actual −3 al +3 |
 | Máquina | Lista desplegable con las máquinas **activas** del catálogo |
 | Número de día | Calculado automáticamente; no editable |
+| Código, Creado, Actualizado | Fijos del formato; no editables |
 
 ### Postcondiciones
 - El programa se guarda en `DB.preventivos` y se sincroniza a Firebase
@@ -740,5 +745,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 3 de agosto de 2026 — versión 1.7 (agrega SPEC-017).*
+*Documento actualizado el 4 de agosto de 2026 — versión 1.8 (ajusta formato de SPEC-017).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

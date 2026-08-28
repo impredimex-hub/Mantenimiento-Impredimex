@@ -378,27 +378,30 @@ input[type=range].green{accent-color:var(--green)}
 .tg-rowbtn{margin-top:5px;border:1px solid var(--blue);background:var(--blue-light);color:var(--blue-dark);border-radius:6px;font-size:10px;padding:3px 7px;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap}
 /* ── SPEC-017: Programa mensual de mantenimiento preventivo ──── */
 .pv-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 12px 12px}
-.pv-doc{border-collapse:collapse;background:#fff;min-width:900px;font-size:11px}
-.pv-doc td,.pv-doc th{border:1px solid #000;padding:3px 5px;text-align:center;vertical-align:middle}
-.pv-titulo{font-size:17px;font-weight:600;padding:5px 10px !important;text-align:center}
-.pv-ctrl{font-size:9px;padding:2px 6px !important;white-space:nowrap}
-.pv-ctrl-v{font-size:9px;color:#C00000;font-weight:600;white-space:nowrap}
-.pv-mes-cell{background:#E2EFDA;padding:4px !important}
-.pv-anio-cell{background:#FFFF00;padding:4px !important;width:110px}
-.pv-sel-mes{font-size:22px;font-weight:700;text-align:center;border:none;background:transparent;font-family:inherit;color:#000;width:100%;cursor:pointer;text-transform:uppercase}
-.pv-sel-anio{font-size:20px;font-weight:700;text-align:center;border:none;background:transparent;font-family:inherit;color:#000;width:100%;cursor:pointer}
-.pv-dia-head{font-size:15px;font-weight:700;padding:5px !important}
-.pv-turno-head{font-size:9px;font-weight:700;width:34px}
-.pv-turno-n{font-size:10px;font-weight:700;color:#7030A0;width:34px}
-.pv-num{font-size:14px;font-weight:700;width:38px;color:#000;background:#FBE5D6}
-.pv-num.vacio{background:#F2F2F2}
-.pv-maq{padding:1px !important;min-width:104px}
-.pv-sel-maq{width:100%;border:none;background:transparent;font-size:10px;font-family:inherit;color:#000;padding:2px;cursor:pointer}
-.pv-sel-maq.has-val{background:#DDEBF7;font-weight:600}
+.pv-doc{border-collapse:collapse;background:#fff;font-size:11px;table-layout:fixed;width:1056px}
+.pv-doc td{border:1px solid #000;padding:3px 4px;text-align:center;vertical-align:middle;overflow:hidden;color:#000}
+.pv-titulo{font-size:16px;font-weight:600;padding:6px 10px !important}
+.pv-ctrl-box{padding:0 !important;vertical-align:top}
+.pv-ctrl-tbl{border-collapse:collapse;width:100%;height:100%;table-layout:fixed}
+.pv-ctrl-tbl td{border:0;border-bottom:1px solid #000;font-size:9px;padding:2px 5px !important;white-space:nowrap;text-align:center;color:#000}
+.pv-ctrl-tbl tr:last-child td{border-bottom:0}
+.pv-ctrl-l{border-right:1px solid #000 !important;width:62px}
+.pv-ctrl-v{font-weight:600}
+.pv-mes-cell{padding:3px !important}
+.pv-anio-cell{padding:3px !important}
+.pv-sel-mes{font-size:20px;font-weight:700;text-align:center;border:none;background:transparent;font-family:inherit;color:#000;width:100%;cursor:pointer;text-transform:uppercase}
+.pv-sel-anio{font-size:18px;font-weight:700;text-align:center;border:none;background:transparent;font-family:inherit;color:#000;width:100%;cursor:pointer}
+.pv-dia-head{font-size:14px;font-weight:700;padding:5px 2px !important}
+.pv-turno-head{font-size:9px;font-weight:700}
+.pv-turno-n{font-size:10px;font-weight:700;color:#7030A0}
+.pv-num{font-size:14px;font-weight:700;color:#000}
+.pv-maq{padding:1px !important}
+.pv-sel-maq{width:100%;border:none;background:transparent;font-size:10px;font-family:inherit;color:#000;padding:2px 1px;cursor:pointer}
+.pv-sel-maq.has-val{font-weight:600}
 .pv-sem-sep td{border-top:2px solid #000}
-.pv-firmas{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-around;padding:22px 16px 8px}
-.pv-firma{text-align:center;min-width:150px}
-.pv-firma-l{border-top:1px solid #000;padding-top:4px;font-size:10px;color:#333}
+.pv-firmas{width:1056px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:26px 0 6px}
+.pv-firma{text-align:center;padding:0 14px}
+.pv-firma-l{border-top:1px solid #000;padding-top:4px;font-size:10px;color:#000}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .adm-tabbar::-webkit-scrollbar{display:none}
 .adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
@@ -4377,6 +4380,7 @@ var DIAS_PV  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domi
 var PV_CODIGO = 'F20-PR-MA-01';
 var PV_REV    = 'Rev. C';
 var PV_CREADO = '02/12/2016';
+var PV_ACTUALIZADO = '03/09/2026';
 var currentPvId = null;
 
 function pvPad(n){ return String(n).padStart(2,'0'); }
@@ -4443,7 +4447,7 @@ function renderPreventivos(){
     html += '<div class="turno-card" onclick="abrirPreventivo(\'' + pv.id + '\')">'
       + '<div class="turno-card-t">'+MESES_PV[pv.mes]+' '+pv.anio+'</div>'
       + '<div class="turno-card-s">'+n+' asignación'+(n===1?'':'es')+' de máquina</div>'
-      + '<div class="turno-card-s">Actualizado: '+(pv.fechaMod?fechaCorta(pv.fechaMod):'sin guardar')+'</div>'
+      + '<div class="turno-card-s">Guardado: '+(pv.fechaMod?fechaCorta(pv.fechaMod):'sin guardar')+'</div>'
       + '<span class="turno-badge">'+PV_CODIGO+' '+PV_REV+'</span>'
       + '</div>';
   });
@@ -4491,34 +4495,37 @@ function renderPreventivoEditor(){
 
   var html = '<div class="pv-wrap"><table class="pv-doc">';
 
-  // Encabezado del documento
+  // Anchos fijos: todas las columnas de día miden exactamente lo mismo
+  html += '<colgroup><col style="width:34px">';
+  for(var ci=0; ci<7; ci++){ html += '<col style="width:112px"><col style="width:34px">'; }
+  html += '</colgroup>';
+
+  // Encabezado del documento. El recuadro de control es una tabla anidada
+  // para que Código, Creado y Actualizado midan exactamente lo mismo.
   html += '<tr>'
     + '<td class="pv-titulo" colspan="12">Programa mensual de mantenimiento preventivo</td>'
-    + '<td class="pv-ctrl">Código</td>'
-    + '<td class="pv-ctrl pv-ctrl-v" colspan="2">'+PV_CODIGO+'<br>'+PV_REV+'</td>'
+    + '<td class="pv-ctrl-box" colspan="3" rowspan="2">'
+      + '<table class="pv-ctrl-tbl">'
+        + '<tr><td class="pv-ctrl-l">Código</td><td class="pv-ctrl-v">'+PV_CODIGO+' '+PV_REV+'</td></tr>'
+        + '<tr><td class="pv-ctrl-l">Creado</td><td class="pv-ctrl-v">'+PV_CREADO+'</td></tr>'
+        + '<tr><td class="pv-ctrl-l">Actualizado</td><td class="pv-ctrl-v">'+PV_ACTUALIZADO+'</td></tr>'
+      + '</table>'
+    + '</td>'
     + '</tr>';
 
   html += '<tr>'
-    + '<td class="pv-mes-cell" colspan="10" rowspan="2">'
+    + '<td class="pv-mes-cell" colspan="10">'
       + '<select class="pv-sel-mes" onchange="setPvCampo(\'mes\',parseInt(this.value))">';
   MESES_PV.forEach(function(m,i){
     html += '<option value="'+i+'"'+(pv.mes===i?' selected':'')+'>'+m+'</option>';
   });
   html += '</select></td>'
-    + '<td class="pv-anio-cell" colspan="2" rowspan="2">'
+    + '<td class="pv-anio-cell" colspan="2">'
       + '<select class="pv-sel-anio" onchange="setPvCampo(\'anio\',parseInt(this.value))">';
   for(var y=actual-3; y<=actual+3; y++){
     html += '<option value="'+y+'"'+(pv.anio===y?' selected':'')+'>'+y+'</option>';
   }
-  html += '</select></td>'
-    + '<td class="pv-ctrl">Creado</td>'
-    + '<td class="pv-ctrl pv-ctrl-v" colspan="2">'+PV_CREADO+'</td>'
-    + '</tr>';
-
-  html += '<tr>'
-    + '<td class="pv-ctrl">Actualizado</td>'
-    + '<td class="pv-ctrl pv-ctrl-v" colspan="2">'+(pv.fechaMod?fechaCorta(pv.fechaMod):'—')+'</td>'
-    + '</tr>';
+  html += '</select></td></tr>';
 
   // Encabezado de días
   html += '<tr><td class="pv-turno-head">TURNO</td>';
@@ -4543,22 +4550,22 @@ function renderPreventivoEditor(){
         }
         html += '</td>';
         if(t===1){
-          html += '<td class="pv-num'+(dia?'':' vacio')+'" rowspan="3">'+(dia?dia.num:'')+'</td>';
+          html += '<td class="pv-num" rowspan="3">'+(dia?dia.num:'')+'</td>';
         }
       });
       html += '</tr>';
     }
   });
 
-  html += '</table></div>';
+  html += '</table>';
 
-  // Firmas
+  // Firmas — dentro del mismo contenedor para que se alineen con el calendario
   html += '<div class="pv-firmas">'
     + '<div class="pv-firma"><div class="pv-firma-l">Planeación</div></div>'
     + '<div class="pv-firma"><div class="pv-firma-l">Jefe de producción</div></div>'
     + '<div class="pv-firma"><div class="pv-firma-l">Gerente de operaciones</div></div>'
     + '<div class="pv-firma"><div class="pv-firma-l">Jefe de Mantenimiento</div></div>'
-    + '</div>';
+    + '</div></div>';
 
   html += '<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
     + '<button class="btn btn-green btn-block" onclick="guardarPreventivo()">Guardar programa</button>'
