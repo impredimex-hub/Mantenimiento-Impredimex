@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.1
-**Fecha:** 27 de julio de 2026
+**Versión:** 1.2
+**Fecha:** 29 de julio de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -427,6 +427,98 @@ Sistema (automático, se dispara al crear una OT).
 
 ---
 
+# SPEC-012 — Fin de turno del técnico (paro de fin de semana)
+
+### Actor
+Técnico de mantenimiento.
+
+### Contexto
+Entre semana aplica la **regla de relevo continuo**: el técnico no abandona la OT hasta que el técnico del siguiente turno la toma. Por eso el corte de su tiempo es la entrada del relevo y no se necesita registrar salida.
+
+En el paro de fin de semana no hay relevo, así que el técnico necesita cerrar su participación explícitamente para que no se le siga contando el tiempo.
+
+### Precondiciones
+- El técnico tiene una participación abierta en la OT (una entrada en `ot.tecnicos` sin `fechaSalida`)
+- La fecha/hora actual está dentro de la ventana de paro
+
+### Ventana de disponibilidad
+El botón **"Fin de mi turno"** solo se muestra:
+- **Sábado** desde las **21:20**
+- **Domingo** completo
+- **Lunes** hasta las **06:00**
+
+Fuera de esa ventana el botón no aparece, y la función lo revalida por si se invoca de otro modo.
+
+### Flujo principal
+1. El técnico abre la OT y pulsa **"Fin de mi turno"**
+2. El sistema pide confirmación
+3. Se registra `fechaSalida` en su entrada de `ot.tecnicos`
+4. Se cierra cualquier periodo de espera abierto (ver SPEC-013)
+5. Se agrega comentario en la OT y notificación interna al supervisor
+
+### Postcondiciones
+- El tiempo de intervención del técnico deja de correr en ese instante
+- **La OT permanece abierta** y disponible para el siguiente turno
+- El técnico puede volver a tomarla después (genera una nueva entrada)
+
+### Reglas de negocio
+- No cambia el estatus de la OT
+- Si el técnico tiene varias participaciones, se cierra la más reciente abierta
+- El corte por `fechaSalida` tiene **prioridad** sobre cualquier otro criterio al calcular su tiempo
+
+---
+
+# SPEC-013 — Registro y descuento del tiempo en espera
+
+### Actor
+Sistema (automático).
+
+### Motivación
+El tiempo que una OT pasa suspendida (falta de refacción, sin tiempo, etc.) no es tiempo de trabajo del técnico y no debe cargársele.
+
+### Flujo principal
+1. Al poner la OT en espera (SPEC-008) se agrega un registro a `ot.esperas`:
+   `{inicio, fin: null, motivo, tecnico, nomina}`
+2. Al reanudar la OT registrando una actividad, se cierra el periodo (`fin`)
+3. Al calcular el tiempo de un técnico, se descuentan los segundos de espera que caen dentro de su ventana
+
+### Postcondiciones
+- El tiempo de intervención reportado es **neto de esperas**
+- El tiempo en espera se reporta en su **propia columna**
+
+### Reglas de negocio
+- Se calcula por intersección de rangos: solo se descuenta la parte de la espera que cae dentro de la ventana del técnico
+- Una espera abierta (sin `fin`) se considera vigente hasta el corte de esa ventana
+- El resultado nunca es negativo
+- El "Fin de mi turno" (SPEC-012) también cierra la espera abierta
+
+---
+
+# SPEC-014 — Separación del tiempo de validación del solicitante
+
+### Actor
+Sistema (automático).
+
+### Motivación
+Antes, el tiempo del último técnico corría hasta que el **solicitante** validaba el cierre, cargándole una espera que no dependía de él.
+
+### Flujo principal
+1. El técnico concluye la OT → se guarda `fechaCierreMantenimiento`
+2. El solicitante valida → se guarda `fechaCierre`
+3. El tiempo de intervención del último técnico corta en `fechaCierreMantenimiento`
+4. La diferencia entre ambos se reporta como **tiempo de validación del solicitante**
+
+### Postcondiciones
+- El técnico ya no absorbe la espera de validación
+- Se obtiene un indicador de qué tan rápido validan los solicitantes
+
+### Reglas de negocio
+- La columna de validación solo se llena en la fila del **último técnico**
+- Si no existe `fechaCierreMantenimiento`, se usa la última actividad con avance 100% (retrocompatibilidad)
+- El tiempo total de la orden **sigue midiendo** de `fechaAlta` a `fechaCierre`
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -501,5 +593,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 27 de julio de 2026 — versión 1.1 (agrega SPEC-011).*
+*Documento actualizado el 29 de julio de 2026 — versión 1.2 (agrega SPEC-012, SPEC-013 y SPEC-014).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

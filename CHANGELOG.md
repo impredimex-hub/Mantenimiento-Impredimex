@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.2.0] — 2026-07-29
+
+### Agregado
+- **SPEC-012:** Botón **"Fin de mi turno"** para que el técnico cierre su participación en una OT durante el paro de fin de semana. Disponible únicamente de **sábado 21:20 a lunes 06:00**; fuera de esa ventana no se muestra. Registra `fechaSalida` en la entrada del técnico y deja la OT abierta para el siguiente turno.
+- **SPEC-013:** Registro del tiempo en espera. Al suspender una OT se guarda el periodo en `ot.esperas` con hora de inicio y fin, y ese tiempo se **descuenta** del tiempo de intervención del técnico. Nueva columna "Tiempo en espera" en el reporte.
+- **SPEC-014:** Nueva columna "Tiempo validación solicitante", que mide desde que Mantenimiento concluyó hasta que el solicitante validó el cierre.
+
+### Cambiado
+- El tiempo de intervención del **último técnico** ahora corta en `fechaCierreMantenimiento` en lugar de `fechaCierre`. Antes absorbía la espera de validación del solicitante, que no dependía de él.
+- El corte del tiempo de intervención sigue esta prioridad: salida propia registrada (SPEC-012) → entrada del siguiente técnico (relevo continuo) → cierre de mantenimiento si es el último.
+- El reporte de Excel pasa de 30 a 32 columnas.
+
+### Notas
+- La regla operativa de **relevo continuo** (el técnico no se va hasta que el del siguiente turno toma la OT) hace que el tiempo de intervención entre semana refleje la realidad sin necesidad de registrar salida.
+- El tiempo total de la orden sigue midiéndose de la creación a la validación del solicitante.
+
+---
+
 ## [1.1.0] — 2026-07-27
 
 ### Agregado
@@ -238,4 +256,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 27 de julio de 2026*
+*Última actualización: 29 de julio de 2026*

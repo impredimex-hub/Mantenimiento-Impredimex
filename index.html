@@ -2289,6 +2289,46 @@ function turnoActual(){
   return 'T3 (21:30–07:00)';
 }
 
+// SPEC-012: El botón "Fin de mi turno" solo está disponible en el paro de fin de
+// semana: desde el sábado 21:20 hasta el lunes 06:00. Entre semana no se necesita,
+// porque aplica la regla de relevo continuo (el técnico no se va hasta que llega
+// el del siguiente turno y toma la OT).
+function puedeFinTurno(){
+  var now  = new Date();
+  var dia  = now.getDay();                          // 0=Dom, 1=Lun ... 6=Sáb
+  var mins = now.getHours()*60 + now.getMinutes();
+  if(dia===6 && mins >= 1280) return true;          // Sábado desde 21:20
+  if(dia===0)                 return true;          // Domingo completo
+  if(dia===1 && mins < 360)   return true;          // Lunes antes de 06:00
+  return false;
+}
+
+// SPEC-013: Cierra el periodo de espera abierto (si lo hay) al reanudar la OT.
+function cerrarEsperaAbierta(ot){
+  if(!Array.isArray(ot.esperas)) return;
+  for(var i=ot.esperas.length-1; i>=0; i--){
+    if(!ot.esperas[i].fin){ ot.esperas[i].fin = new Date().toISOString(); return; }
+  }
+}
+
+// SPEC-013: Segundos que la OT estuvo en espera dentro de un rango dado.
+// Se usa para descontar la espera del tiempo de intervención del técnico.
+function segsEsperaEnRango(ot, iniISO, finISO){
+  if(!ot.esperas || !ot.esperas.length || !iniISO || !finISO) return 0;
+  var ini = new Date(iniISO).getTime();
+  var fin = new Date(finISO).getTime();
+  var tot = 0;
+  ot.esperas.forEach(function(e){
+    if(!e.inicio) return;
+    var a = new Date(e.inicio).getTime();
+    var b = e.fin ? new Date(e.fin).getTime() : fin;
+    var s = Math.max(a, ini);
+    var t = Math.min(b, fin);
+    if(t > s) tot += Math.floor((t - s)/1000);
+  });
+  return tot;
+}
+
 function turnoLabel(){
   var t = turnoActual();
   if(t.startsWith('T1')) return 'Turno 1  ·  06:00–14:00';
@@ -2505,7 +2545,15 @@ function buildDetalleTec(ot){
     var btnEsp=ot.status!=='espera'
       ?'<button class="btn btn-warn btn-block" onclick="showScreen(&quot;tec-espera&quot;)">Poner en espera</button>'
       :'<button class="btn btn-outline btn-block" onclick="showScreen(&quot;tec-actividad&quot;)">Reanudar y registrar actividad</button>';
-    acciones=btnRef+'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'+btnAct+btnEsp+'</div>';
+    // SPEC-012: "Fin de mi turno" solo en el paro de fin de semana (sáb 21:20 → lun 06:00)
+    // y solo si el técnico tiene una participación abierta en esta OT.
+    var tengoAbierta = (ot.tecnicos||[]).some(function(t){
+      return String(t.nomina)===String(currentUser.nomina) && !t.fechaSalida;
+    });
+    var btnFin = (puedeFinTurno() && tengoAbierta)
+      ? '<button class="btn btn-outline btn-block" onclick="finDeMiTurno()">Fin de mi turno</button>'
+      : '';
+    acciones=btnRef+'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'+btnAct+btnEsp+btnFin+'</div>';
   } else if(ot.status==='validar'){
     acciones='<div class="alert alert-ok" style="margin:12px"><div class="alert-icon">✓</div>'
       +'<div>OT concluida — pendiente de validación por el solicitante.</div></div>';
@@ -2578,6 +2626,8 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
     errorOperativo: esErrorOp ? descErrorOp : null
   });
   ot.avance=avance;
+  // SPEC-013: si la OT venía en espera, cerrar ese periodo antes de reanudar
+  if(ot.status==='espera') cerrarEsperaAbierta(ot);
   ot.status=concluir?'validar':'proceso';
   if(esErrorOp){
     ot.errorOperativo = descErrorOp;
@@ -2624,6 +2674,42 @@ function confirmarErrorOperativo(esError){
   guardarActividadFinal(true, esError, desc);
 }
 
+// SPEC-012: Registra la salida del técnico en la OT (paro de fin de semana).
+// A partir de este momento deja de correrle el tiempo de intervención.
+function finDeMiTurno(){
+  var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
+  if(!ot){ alert('OT no encontrada'); return; }
+  if(!puedeFinTurno()){
+    alert('Esta opción solo está disponible del sábado 21:20 al lunes 06:00.');
+    return;
+  }
+  var mias = (ot.tecnicos||[]).filter(function(t){
+    return String(t.nomina)===String(currentUser.nomina) && !t.fechaSalida;
+  });
+  if(!mias.length){
+    alert('No tienes una participación abierta en esta OT.');
+    return;
+  }
+  if(!confirm('¿Cerrar tu participación en la OT '+ot.folio+'?\n\nDejará de contarte el tiempo. La OT queda abierta para el siguiente turno.')) return;
+
+  var ahora = new Date().toISOString();
+  mias[mias.length-1].fechaSalida = ahora;
+  cerrarEsperaAbierta(ot);
+
+  if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
+  ot.comentarios.push({autor:currentUser.nombre, fecha:ahora,
+    texto:'Fin de turno — '+currentUser.nombre+' cerró su participación.'});
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
+  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
+    texto:'OT '+ot.folio+' — '+currentUser.nombre+' (Nóm. '+currentUser.nomina+') cerró su turno. La OT sigue abierta.',
+    fecha:ahora, leida:false});
+
+  saveDB();
+  alert('✓ Turno cerrado en la OT '+ot.folio+'.');
+  showScreen('tec-lista');
+  renderTecOTs('todas');
+}
+
 function ponerEnEspera(){
   const chip=document.querySelector('#espera-motivo-chips .chip.selected');
   const motivo=chip?chip.textContent:'Sin especificar';
@@ -2634,6 +2720,15 @@ function ponerEnEspera(){
   const ot=DB.ots.find(o=>o.id===currentOTId);
   ot.status='espera';
   ot.espera={motivo,comentario,fechaEst};
+  // SPEC-013: registrar inicio del periodo de espera para descontarlo del tiempo del técnico
+  if(!Array.isArray(ot.esperas)) ot.esperas = [];
+  ot.esperas.push({
+    inicio:  new Date().toISOString(),
+    fin:     null,
+    motivo:  motivo,
+    tecnico: currentUser.nombre,
+    nomina:  currentUser.nomina
+  });
   if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
   ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:'OT en espera: '+motivo+' — '+comentario+'. Fecha est. '+fmtDate(fechaEst)});
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
@@ -2838,6 +2933,9 @@ function exportarExcelOTs(){
     'Precio',
     'Tiempo de confirmación (HH:MM:SS)',
     'Tiempo de intervención (HH:MM:SS)',
+    // Tiempo en espera descontado y validación del solicitante
+    'Tiempo en espera (HH:MM:SS)',
+    'Tiempo validación solicitante (HH:MM:SS)',
     // Tiempo total (solo en fila del último técnico)
     'Tiempo total de orden (HH:MM:SS)',
     'Fecha cierre Mantenimiento',
@@ -2870,7 +2968,7 @@ function exportarExcelOTs(){
         '',
         '',
         '', '', '',
-        '--:--:--', '--:--:--', '--:--:--',
+        '--:--:--', '--:--:--', '--:--:--', '--:--:--', '--:--:--',
         '', '', '', ''
       ]);
       return;
@@ -2886,17 +2984,33 @@ function exportarExcelOTs(){
         tEncuentro = toHHMMSS(diffSecs2(ot.fechaAlta, tec.fecha));
       }
 
-      // Tiempo de intervención de ESTE técnico:
-      // desde que este técnico toma hasta que el siguiente toma (o hasta cierre si es el último)
+      // Tiempo de intervención de ESTE técnico. Prioridad del corte:
+      // SPEC-012: 1) su propia salida registrada ("Fin de mi turno")
+      //           2) si no es el último, cuando toma el siguiente (relevo continuo)
+      //           3) si es el último, cuando MANTENIMIENTO concluyó (no la validación
+      //              del solicitante, que se mide aparte en su propia columna)
+      // SPEC-013: al resultado se le descuenta el tiempo que la OT estuvo en espera.
       var tIntervencion = '--:--:--';
+      var tEspera       = '--:--:--';
       if(tec.fecha){
-        var finTec = esUltimo
-          ? (ot.fechaCierre || null)           // último: hasta cierre
-          : (tecs[idx+1] ? tecs[idx+1].fecha : null); // no último: hasta que el siguiente toma
+        var finTec = tec.fechaSalida
+          ? tec.fechaSalida
+          : (esUltimo
+              ? (ot.fechaCierreMantenimiento || ot.fechaCierre || null)
+              : (tecs[idx+1] ? tecs[idx+1].fecha : null));
         if(finTec){
-          tIntervencion = toHHMMSS(diffSecs2(tec.fecha, finTec));
+          var brutoSecs  = diffSecs2(tec.fecha, finTec);
+          var esperaSecs = segsEsperaEnRango(ot, tec.fecha, finTec);
+          var netoSecs   = brutoSecs - esperaSecs;
+          if(netoSecs < 0) netoSecs = 0;
+          tIntervencion = toHHMMSS(netoSecs);
+          tEspera       = toHHMMSS(esperaSecs);
         }
       }
+
+      // SPEC-014: Tiempo de validación del solicitante — desde que Mantenimiento
+      // concluyó hasta que el solicitante validó. Solo en la fila del último técnico.
+      var tValidacion = '--:--:--';
 
       // Tiempo total: solo en la última fila de la OT (para no repetirlo)
       var tTotal = '--:--:--';
@@ -2947,6 +3061,13 @@ function exportarExcelOTs(){
       var cierreUsrF    = esUltimo && ot.fechaCierre  ? fLocal(ot.fechaCierre) : '';
       var cierreUsrH    = esUltimo && ot.fechaCierre  ? hLocal(ot.fechaCierre) : '';
 
+      // SPEC-014: espera del solicitante para validar (solo en la fila del último técnico)
+      if(esUltimo && cierreMantoISO && ot.fechaCierre){
+        var vSecs = diffSecs2(cierreMantoISO, ot.fechaCierre);
+        if(vSecs < 0) vSecs = 0;
+        tValidacion = toHHMMSS(vSecs);
+      }
+
       rows.push([
         ot.folio,
         status,
@@ -2973,6 +3094,8 @@ function exportarExcelOTs(){
         '',
         tEncuentro,
         tIntervencion,
+        tEspera,
+        tValidacion,
         tTotal,
         cierreMantoF,
         cierreMantoH,
@@ -3010,6 +3133,8 @@ function exportarExcelOTs(){
           parseFloat((ref.qty * ref.costo).toFixed(2)),// Precio (número)
           '',   // T. confirmación
           '',   // T. intervención
+          '',   // T. en espera
+          '',   // T. validación solicitante
           '',   // T. total
           '',   // Fecha cierre manto
           '',   // Hora cierre manto
