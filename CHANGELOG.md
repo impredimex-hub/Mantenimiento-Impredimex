@@ -6,6 +6,25 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.6.2] — 2026-08-05
+
+### Agregado
+- **SPEC-017:** Botón **Exportar a PDF** en el programa preventivo, en sustitución del de Excel.
+  - Genera el documento ya formateado, con las máquinas en **texto** en lugar de listas desplegables.
+  - Hoja configurada en **carta horizontal** (`letter landscape`) con márgenes de 8 mm, para que el calendario completo entre en una sola página.
+  - Incluye el recuadro de control y las cuatro firmas.
+  - Si el navegador bloquea la ventana emergente, se avisa al usuario.
+
+### Cambiado
+- Los botones de acción se redujeron un **20 %** y quedaron **centrados**.
+- El calendario se **expande y alinea** al mismo ancho que los botones: ambos comparten un contenedor centrado del 80 % del ancho.
+- Los anchos de columna pasaron de píxeles fijos a **porcentajes**, conservando la proporción original y manteniendo idénticas las columnas de los siete días.
+
+### Eliminado
+- Exportación a Excel del programa preventivo, reemplazada por la de PDF. La exportación a Excel del módulo de Turnos no cambia.
+
+---
+
 ## [1.6.1] — 2026-08-04
 
 ### Cambiado
@@ -355,4 +374,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 4 de agosto de 2026*
+*Última actualización: 5 de agosto de 2026*

@@ -377,8 +377,10 @@ input[type=range].green{accent-color:var(--green)}
 .tcell-btn.paste{border-color:var(--blue);color:var(--blue-dark);background:var(--blue-light);font-weight:700}
 .tg-rowbtn{margin-top:5px;border:1px solid var(--blue);background:var(--blue-light);color:var(--blue-dark);border-radius:6px;font-size:10px;padding:3px 7px;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap}
 /* ── SPEC-017: Programa mensual de mantenimiento preventivo ──── */
-.pv-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 12px 12px}
-.pv-doc{border-collapse:collapse;background:#fff;font-size:11px;table-layout:fixed;width:1056px}
+.pv-outer{width:80%;margin:0 auto;min-width:300px}
+.pv-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 0 12px}
+.pv-acciones{display:flex;flex-direction:column;gap:8px;padding:14px 0 4px}
+.pv-doc{border-collapse:collapse;background:#fff;font-size:11px;table-layout:fixed;width:100%;min-width:900px}
 .pv-doc td{border:1px solid #000;padding:3px 4px;text-align:center;vertical-align:middle;overflow:hidden;color:#000}
 .pv-titulo{font-size:16px;font-weight:600;padding:6px 10px !important}
 .pv-ctrl-box{padding:0 !important;vertical-align:top}
@@ -399,7 +401,7 @@ input[type=range].green{accent-color:var(--green)}
 .pv-sel-maq{width:100%;border:none;background:transparent;font-size:10px;font-family:inherit;color:#000;padding:2px 1px;cursor:pointer}
 .pv-sel-maq.has-val{font-weight:600}
 .pv-sem-sep td{border-top:2px solid #000}
-.pv-firmas{width:1056px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:26px 0 6px}
+.pv-firmas{width:100%;min-width:900px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:26px 0 6px}
 .pv-firma{text-align:center;padding:0 14px}
 .pv-firma-l{border-top:1px solid #000;padding-top:4px;font-size:10px;color:#000}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
@@ -4388,6 +4390,7 @@ function pvPad(n){ return String(n).padStart(2,'0'); }
 // Distribuye los días del mes en semanas que arrancan en lunes.
 // Devuelve un arreglo de semanas; cada semana son 7 posiciones (null = fuera del mes).
 function semanasDelMes(anio, mes){
+  anio = Number(anio); mes = Number(mes);   // Firebase puede devolverlos como texto
   var primero = new Date(anio, mes, 1);
   var nDias   = new Date(anio, mes+1, 0).getDate();
   var offset  = (primero.getDay()+6)%7;            // lunes = 0
@@ -4493,11 +4496,11 @@ function renderPreventivoEditor(){
   var maqs    = maquinasActivas();
   var actual  = new Date().getFullYear();
 
-  var html = '<div class="pv-wrap"><table class="pv-doc">';
+  var html = '<div class="pv-outer"><div class="pv-wrap"><table class="pv-doc">';
 
   // Anchos fijos: todas las columnas de día miden exactamente lo mismo
-  html += '<colgroup><col style="width:34px">';
-  for(var ci=0; ci<7; ci++){ html += '<col style="width:112px"><col style="width:34px">'; }
+  html += '<colgroup><col style="width:3.22%">';
+  for(var ci=0; ci<7; ci++){ html += '<col style="width:10.606%"><col style="width:3.22%">'; }
   html += '</colgroup>';
 
   // Encabezado del documento. El recuadro de control es una tabla anidada
@@ -4567,11 +4570,11 @@ function renderPreventivoEditor(){
     + '<div class="pv-firma"><div class="pv-firma-l">Jefe de Mantenimiento</div></div>'
     + '</div></div>';
 
-  html += '<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
+  html += '<div class="pv-acciones">'
     + '<button class="btn btn-green btn-block" onclick="guardarPreventivo()">Guardar programa</button>'
-    + '<button class="btn btn-outline btn-block" onclick="exportarPreventivo()">Exportar a Excel</button>'
+    + '<button class="btn btn-outline btn-block" onclick="exportarPreventivoPDF()">Exportar a PDF</button>'
     + '<button class="btn btn-outline btn-block" style="color:var(--red);border-color:var(--red)" onclick="eliminarPreventivo()">Eliminar programa</button>'
-    + '</div>';
+    + '</div></div>';
 
   cont.innerHTML = html;
 }
@@ -4579,7 +4582,7 @@ function renderPreventivoEditor(){
 function setPvCampo(campo, valor){
   var pv = getPvActual();
   if(!pv) return;
-  pv[campo] = valor;
+  pv[campo] = (campo==='mes'||campo==='anio') ? Number(valor) : valor;
   renderPreventivoEditor();
 }
 
@@ -4622,44 +4625,89 @@ function eliminarPreventivo(){
   renderPreventivos();
 }
 
-function exportarPreventivo(){
+// SPEC-017: Exporta el programa a PDF conservando el formato del documento.
+// Abre una ventana de impresión configurada en hoja carta horizontal; el usuario
+// elige "Guardar como PDF" en el diálogo del navegador.
+function exportarPreventivoPDF(){
   var pv = getPvActual();
   if(!pv) return;
-  if(typeof XLSX==='undefined'){ alert('La librería de Excel no está disponible.'); return; }
   var semanas = semanasDelMes(pv.anio, pv.mes);
 
-  var data = [];
-  data.push(['Programa mensual de mantenimiento preventivo','','','','','','','','','','','','Código',PV_CODIGO+' '+PV_REV]);
-  data.push([MESES_PV[pv.mes],'','','','','','','','','',pv.anio,'','Creado',PV_CREADO]);
-  data.push(['','','','','','','','','','','','','Actualizado', pv.fechaMod?fechaCorta(pv.fechaMod):'—']);
-  data.push([]);
+  var h = '';
+  h += '<table class="doc">';
+  h += '<colgroup><col style="width:3.22%">';
+  for(var ci=0; ci<7; ci++){ h += '<col style="width:10.606%"><col style="width:3.22%">'; }
+  h += '</colgroup>';
 
-  var head = ['TURNO'];
-  DIAS_PV.forEach(function(d){ head.push(d); head.push('Día'); });
-  data.push(head);
+  h += '<tr><td class="tit" colspan="12">Programa mensual de mantenimiento preventivo</td>'
+     + '<td class="ctrlbox" colspan="3" rowspan="2">'
+     + '<table class="ctrl">'
+     + '<tr><td class="cl">C\u00f3digo</td><td class="cv">'+PV_CODIGO+' '+PV_REV+'</td></tr>'
+     + '<tr><td class="cl">Creado</td><td class="cv">'+PV_CREADO+'</td></tr>'
+     + '<tr><td class="cl">Actualizado</td><td class="cv">'+PV_ACTUALIZADO+'</td></tr>'
+     + '</table></td></tr>';
 
-  semanas.forEach(function(sem){
+  h += '<tr><td class="mes" colspan="10">'+MESES_PV[pv.mes]+'</td>'
+     + '<td class="anio" colspan="2">'+pv.anio+'</td></tr>';
+
+  h += '<tr><td class="th">TURNO</td>';
+  DIAS_PV.forEach(function(d){ h += '<td class="diah" colspan="2">'+d+'</td>'; });
+  h += '</tr>';
+
+  semanas.forEach(function(sem, si){
     for(var t=1; t<=3; t++){
-      var fila = [t];
+      h += '<tr'+(t===1 && si>0 ? ' class="sep"' : '')+'><td class="tn">'+t+'</td>';
       sem.forEach(function(dia){
-        fila.push(dia ? maquinaNombre((pv.asignaciones[dia.iso]||{})[t] || '') : '');
-        fila.push(t===1 && dia ? dia.num : '');
+        var nom = dia ? maquinaNombre((pv.asignaciones[dia.iso]||{})[t] || '') : '';
+        h += '<td class="maq">'+(nom||'&nbsp;')+'</td>';
+        if(t===1) h += '<td class="num" rowspan="3">'+(dia?dia.num:'')+'</td>';
       });
-      data.push(fila);
+      h += '</tr>';
     }
-    data.push([]);
   });
+  h += '</table>';
 
-  data.push([]);
-  data.push(['Planeación','','','Jefe de producción','','','Gerente de operaciones','','','Jefe de Mantenimiento']);
+  h += '<table class="firmas"><tr>'
+     + '<td><div class="fl">Planeaci\u00f3n</div></td>'
+     + '<td><div class="fl">Jefe de producci\u00f3n</div></td>'
+     + '<td><div class="fl">Gerente de operaciones</div></td>'
+     + '<td><div class="fl">Jefe de Mantenimiento</div></td>'
+     + '</tr></table>';
 
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.aoa_to_sheet(data);
-  var cols = [{wch:7}];
-  DIAS_PV.forEach(function(){ cols.push({wch:16}); cols.push({wch:5}); });
-  ws['!cols'] = cols;
-  XLSX.utils.book_append_sheet(wb, ws, 'Preventivo');
-  XLSX.writeFile(wb, 'Preventivo_'+MESES_PV[pv.mes]+'_'+pv.anio+'.xlsx');
+  var css = '@page{size:letter landscape;margin:8mm}'
+    + 'html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact}'
+    + 'table.doc{border-collapse:collapse;table-layout:fixed;width:100%}'
+    + 'table.doc>*>tr>td{border:1px solid #000;text-align:center;vertical-align:middle;padding:1px 2px;font-size:7pt;overflow:hidden}'
+    + '.tit{font-size:11pt;font-weight:600;padding:3px !important}'
+    + '.ctrlbox{padding:0 !important}'
+    + 'table.ctrl{border-collapse:collapse;table-layout:fixed;width:100%;height:100%}'
+    + 'table.ctrl td{border:0;border-bottom:1px solid #000;font-size:5.5pt;text-align:center;padding:1px 3px}'
+    + 'table.ctrl tr:last-child td{border-bottom:0}'
+    + 'table.ctrl .cl{border-right:1px solid #000;width:44%}'
+    + 'table.ctrl .cv{font-weight:600}'
+    + '.mes{font-size:15pt;font-weight:700;letter-spacing:.5px}'
+    + '.anio{font-size:14pt;font-weight:700}'
+    + '.th{font-size:5.5pt;font-weight:700}'
+    + '.diah{font-size:9pt;font-weight:700;padding:3px 2px !important}'
+    + '.tn{font-size:6.5pt;font-weight:700;color:#7030A0}'
+    + '.num{font-size:9pt;font-weight:700}'
+    + '.maq{font-size:6.5pt;height:14pt}'
+    + '.sep td{border-top:1.6pt solid #000}'
+    + 'table.firmas{width:100%;table-layout:fixed;margin-top:12mm;border-collapse:collapse}'
+    + 'table.firmas td{text-align:center;padding:0 8mm;vertical-align:bottom}'
+    + '.fl{border-top:1px solid #000;padding-top:2mm;font-size:7pt}';
+
+  var win = window.open('', '_blank');
+  if(!win){
+    alert('El navegador bloque\u00f3 la ventana de impresi\u00f3n.\n\nPermite las ventanas emergentes para este sitio y vuelve a intentarlo.');
+    return;
+  }
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">'
+    + '<title>Preventivo_'+MESES_PV[pv.mes]+'_'+pv.anio+'</title>'
+    + '<style>'+css+'</style></head><body>'+h+'</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); }, 350);
 }
 
 function renderAlertas(){

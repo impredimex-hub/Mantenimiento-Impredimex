@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.8
-**Fecha:** 4 de agosto de 2026
+**Versión:** 1.9
+**Fecha:** 5 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -658,9 +658,21 @@ Las columnas de los siete días tienen **el mismo ancho** entre sí, fijado con 
 | Número de día | Calculado automáticamente; no editable |
 | Código, Creado, Actualizado | Fijos del formato; no editables |
 
+### Exportación a PDF
+El botón **Exportar a PDF** abre una ventana de impresión con el documento ya formateado y sin controles de captura: las listas desplegables se sustituyen por el **nombre de la máquina en texto**.
+
+La hoja se configura con `@page{size: letter landscape}`, es decir **carta horizontal**, con márgenes de 8 mm. El usuario elige *Guardar como PDF* en el diálogo del navegador.
+
+Si el navegador bloquea la ventana emergente, se avisa al usuario para que la permita.
+
+### Presentación en pantalla
+- El calendario y los botones comparten un contenedor del **80 % del ancho**, centrado, de modo que ambos quedan alineados
+- La tabla usa anchos en **porcentaje** (3.22 % la columna de turno y el número de día, 10.606 % la de máquina), por lo que se expande al contenedor conservando columnas idénticas
+- Se conserva un ancho mínimo de 900 px con desplazamiento horizontal en pantallas chicas
+
 ### Postcondiciones
 - El programa se guarda en `DB.preventivos` y se sincroniza a Firebase
-- Puede consultarse, editarse, exportarse a Excel o eliminarse
+- Puede consultarse, editarse, exportarse a PDF o eliminarse
 
 ### Reglas de negocio
 - Las asignaciones se guardan por **fecha ISO y turno**, de modo que cambiar de mes o año no arrastra datos de otro periodo
@@ -745,5 +757,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 4 de agosto de 2026 — versión 1.8 (ajusta formato de SPEC-017).*
+*Documento actualizado el 5 de agosto de 2026 — versión 1.9 (exportación PDF en SPEC-017).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
