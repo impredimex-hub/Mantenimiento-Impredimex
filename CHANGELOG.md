@@ -6,6 +6,29 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.8.0] — 2026-08-07
+
+### Eliminado
+- **Módulo de Alertas** del perfil de supervisor. No aportaba información distinta a la que ya muestran las tarjetas de estado y el listado de OT.
+- **Módulo de Panel** como pestaña independiente. Sus cuatro tarjetas se integraron al encabezado del módulo de OT.
+- Sección **"OT activas por persona"** del módulo de Técnicos.
+
+### Agregado
+- **Ranking de técnicos** en el módulo de Técnicos: compara OT tomadas, OT cerradas, tiempo promedio de respuesta y tiempo promedio de intervención. El criterio de ordenamiento es seleccionable y los tres primeros llevan medalla.
+- **Filtro por mes** y **filtro por técnico** en el listado de OT del supervisor.
+- Botones **Aplicar filtros** y **Limpiar**.
+
+### Cambiado
+- El listado de OT del supervisor **no muestra ninguna orden hasta aplicar los filtros**. Con los filtros vacíos, el botón muestra todas las órdenes.
+- El módulo de OT es ahora la pantalla inicial del supervisor; la barra queda con cinco pestañas: OT, Técnicos, Turnos, Preventivo y Perfil.
+- El histórico de **roles de turnos se limita al último mes**: los roles terminados hace más de 30 días se eliminan al abrir el módulo.
+- El filtro por técnico considera a **todos los que participaron** en la OT, no solo al primero.
+
+### Corregido
+- `diffSecs2()` estaba definida dentro de `exportarExcelOTs()` y no era accesible fuera de ella. Se elevó a ámbito global, ya que el ranking la necesita para calcular tiempos.
+
+---
+
 ## [1.7.0] — 2026-08-06
 
 ### Cambiado
@@ -396,4 +419,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 6 de agosto de 2026*
+*Última actualización: 7 de agosto de 2026*

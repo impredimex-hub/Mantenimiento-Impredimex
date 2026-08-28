@@ -404,6 +404,16 @@ input[type=range].green{accent-color:var(--green)}
 .pv-firmas{width:100%;min-width:900px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:26px 0 6px}
 .pv-firma{text-align:center;padding:0 14px}
 .pv-firma-l{border-top:1px solid #000;padding-top:4px;font-size:10px;color:#000}
+.rank-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 12px}
+.rank-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:520px}
+.rank-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:var(--text3);font-weight:700;text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rank-tbl th:nth-child(1),.rank-tbl th:nth-child(2){text-align:left}
+.rank-tbl td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.rank-tbl tr:last-child td{border-bottom:none}
+.rk-pos{width:34px;font-size:14px;font-weight:700;color:var(--text2)}
+.rk-nom{font-weight:600;color:var(--blue-dark);line-height:1.3}
+.rk-puesto{display:block;font-weight:400;font-size:10px;color:var(--text3);margin-top:1px}
+.rk-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .adm-tabbar::-webkit-scrollbar{display:none}
 .adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
@@ -875,57 +885,8 @@ input[type=range].green{accent-color:var(--green)}
 
 <!-- ==================== APP SUPERVISOR ==================== -->
 <div id="page-supervisor" class="page">
-  <!-- SCREEN: Dashboard -->
-  <div id="sup-dashboard" class="screen active">
-    <div class="topbar topbar-purple">
-      <div style="flex:1">
-        <div style="font-size:11px;opacity:.75" id="sup-greeting"></div>
-        <div class="topbar-title">Panel de control</div>
-      </div>
-      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showNotifs('supervisor')" aria-label="Alertas">
-        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
-        <span class="notif-dot" id="sup-notif-dot" style="border-color:var(--purple)"></span>
-      </button>
-    </div>
-    <div class="scroll-content">
-      <div class="kpi-grid" id="sup-kpis"></div>
-
-      <div class="spacer"></div>
-    </div>
-    <nav class="tabbar">
-      <button class="tabbar-item active purple" onclick="showScreen('sup-dashboard')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
-        Panel
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
-        OT
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-        Técnicos
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-        Turnos
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
-        Preventivo
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Alertas
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
-        Perfil
-      </button>
-    </nav>
-  </div>
-
   <!-- SCREEN: Todas las OT -->
-  <div id="sup-ots" class="screen">
+  <div id="sup-ots" class="screen active">
     <div class="topbar topbar-purple">
       <div class="topbar-title">Todas las OT</div>
       <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15);width:auto;padding:0 10px;border-radius:8px;font-size:12px;font-weight:500;gap:5px;display:flex;align-items:center" onclick="exportarExcelOTs()" title="Exportar a Excel">
@@ -936,24 +897,24 @@ input[type=range].green{accent-color:var(--green)}
     <div class="search-filters">
       <div class="sf-search-row">
         <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="sf-input" type="search" id="sup-f-folio" placeholder="Buscar por # de orden..." oninput="renderSupOTs()">
+        <input class="sf-input" type="search" id="sup-f-folio" placeholder="Buscar por # de orden...">
       </div>
       <div class="sf-grid">
         <div class="sf-cell"><span class="sf-label">Fecha</span>
-          <input class="sf-input" type="date" id="sup-f-fecha" onchange="renderSupOTs()"></div>
+          <input class="sf-input" type="date" id="sup-f-fecha"></div>
         <div class="sf-cell"><span class="sf-label">Prioridad</span>
-          <select class="sf-select" id="sup-f-prioridad" onchange="renderSupOTs()">
+          <select class="sf-select" id="sup-f-prioridad">
             <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
           </select></div>
         <div class="sf-cell"><span class="sf-label">Tipo de servicio</span>
-          <select class="sf-select" id="sup-f-tipo" onchange="renderSupOTs()">
+          <select class="sf-select" id="sup-f-tipo">
             <option value="">Todos</option>
             <option value="MTTO-MAQ-PROD">Maquinaria</option>
             <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
             <option value="MTTO-SEGURIDAD">Seguridad</option>
           </select></div>
         <div class="sf-cell"><span class="sf-label">Estado</span>
-          <select class="sf-select" id="sup-f-estado" onchange="renderSupOTs()">
+          <select class="sf-select" id="sup-f-estado">
             <option value="">Todos</option>
             <option value="abierto">Abierta</option>
             <option value="proceso">En proceso</option>
@@ -961,18 +922,23 @@ input[type=range].green{accent-color:var(--green)}
             <option value="validar">Pendiente validación</option>
             <option value="cerrado">Cerrada</option>
           </select></div>
+        <div class="sf-cell"><span class="sf-label">Mes</span>
+          <select class="sf-select" id="sup-f-mes"><option value="">Todos</option></select></div>
+        <div class="sf-cell"><span class="sf-label">Técnico</span>
+          <select class="sf-select" id="sup-f-tecnico"><option value="">Todos</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;padding:8px 12px 0">
+        <button class="btn btn-green" style="flex:1;padding:9px" onclick="aplicarFiltrosSup()">Aplicar filtros</button>
+        <button class="btn btn-outline" style="flex:0 0 auto;padding:9px 14px" onclick="limpiarFiltrosSup()">Limpiar</button>
       </div>
       <div class="filter-chips-row"><button class="badge" style="background:var(--purple-light);color:var(--purple-dark);cursor:pointer;flex-shrink:0" onclick="setStatusFilter('todas','supervisor')">Todas</button><button class="badge badge-abierto" onclick="setStatusFilter('abierto','supervisor')" style="cursor:pointer;flex-shrink:0">Nuevas</button><button class="badge badge-proceso" onclick="setStatusFilter('proceso','supervisor')" style="cursor:pointer;flex-shrink:0">Proceso</button><button class="badge badge-espera" onclick="setStatusFilter('espera','supervisor')" style="cursor:pointer;flex-shrink:0">Espera</button><button class="badge badge-validar" onclick="setStatusFilter('validar','supervisor')" style="cursor:pointer;flex-shrink:0">Validar</button></div>
     </div>
     <div class="scroll-content">
+      <div class="kpi-grid" id="sup-kpis"></div>
       <div class="list-pad" id="sup-ot-list"></div>
       <div class="spacer"></div>
     </div>
     <nav class="tabbar">
-      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
-        Panel
-      </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-ots');renderSupOTs()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
@@ -989,10 +955,6 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
         Preventivo
       </button>
-      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Alertas
-      </button>
 
       <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
@@ -1006,10 +968,6 @@ input[type=range].green{accent-color:var(--green)}
     <div class="topbar topbar-purple"><div class="topbar-title">Técnicos</div></div>
     <div class="scroll-content" id="sup-tecnicos-content"></div>
     <nav class="tabbar">
-      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
-        Panel
-      </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
@@ -1026,47 +984,6 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
         Preventivo
       </button>
-      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Alertas
-      </button>
-
-      <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
-        Perfil
-      </button>
-    </nav>
-  </div>
-
-  <!-- SCREEN: Alertas -->
-  <div id="sup-alertas" class="screen">
-    <div class="topbar topbar-purple"><div class="topbar-title">Alertas</div></div>
-    <div class="scroll-content" id="sup-alertas-content"></div>
-    <nav class="tabbar">
-      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
-        Panel
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
-        OT
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-        Técnicos
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-        Turnos
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
-        Preventivo
-      </button>
-      <button class="tabbar-item active purple" onclick="showScreen('sup-alertas');renderAlertas()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Alertas
-      </button>
 
       <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
@@ -1080,10 +997,6 @@ input[type=range].green{accent-color:var(--green)}
     <div class="topbar topbar-purple"><div class="topbar-title">Turnos</div></div>
     <div class="scroll-content" id="sup-turnos-content"></div>
     <nav class="tabbar">
-      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
-        Panel
-      </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
@@ -1099,10 +1012,6 @@ input[type=range].green{accent-color:var(--green)}
       <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
         Preventivo
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Alertas
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
@@ -1127,10 +1036,6 @@ input[type=range].green{accent-color:var(--green)}
     <div class="topbar topbar-purple"><div class="topbar-title">Preventivo</div></div>
     <div class="scroll-content" id="sup-preventivo-content"></div>
     <nav class="tabbar">
-      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
-        Panel
-      </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         OT
@@ -1146,10 +1051,6 @@ input[type=range].green{accent-color:var(--green)}
       <button class="tabbar-item active purple" onclick="showScreen('sup-preventivo');renderPreventivos()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
         Preventivo
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Alertas
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
@@ -1188,9 +1089,6 @@ input[type=range].green{accent-color:var(--green)}
     <div class="topbar topbar-purple"><div class="topbar-title">Mi perfil</div></div>
     <div class="scroll-content" id="sup-perfil-content"></div>
     <nav class="tabbar">
-      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>Panel
-      </button>
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>OT
       </button>
@@ -1204,9 +1102,6 @@ input[type=range].green{accent-color:var(--green)}
       <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
         Preventivo
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>Alertas
       </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-perfil');renderSupPerfil()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>Perfil
@@ -1835,7 +1730,7 @@ function setStatusFilter(f, role){
   currentFilter = f;
   if(role==='solicitante')  renderSolOTs();
   else if(role==='tecnico') renderTecOTs();
-  else if(role==='supervisor') renderSupOTs();
+  else if(role==='supervisor'){ supFiltrosAplicados = true; renderSupOTs(); }
 }
 
 // Apply search panel filters to an OT array
@@ -2378,7 +2273,8 @@ function renderPerfilSol(){
 function showNotifs(role){
   if(role==='solicitante'){showScreen('sol-notifs');renderNotifsSol();}
   else if(role==='tecnico'){showScreen('tec-historial');renderNotifsTec();}
-  else {showScreen('sup-alertas');renderAlertas();}
+  // SPEC-019: el módulo de Alertas se retiró; el supervisor ve el estado en las tarjetas de OT
+  else {showScreen('sup-ots');renderSupOTs();}
 }
 
 // ==================== TÉCNICO ====================
@@ -3113,13 +3009,13 @@ function renderTecPerfil(){
 
 // ==================== SUPERVISOR ====================
 function initSupervisor(){
-  document.getElementById('sup-greeting').textContent = currentUser.nombre;
-  updateNotifDot('sup-notif-dot','supervisor');
-  renderDashboard();
   renderSupOTs('todas');
 }
 
+// SPEC-019: las tarjetas de estado viven ahora en el encabezado del módulo de OT
 function renderDashboard(){
+  var cont = document.getElementById('sup-kpis');
+  if(!cont) return;
   reloadDB();
   const ots=DB.ots;
   const abiertas=ots.filter(o=>o.status==='abierto').length;
@@ -3130,7 +3026,7 @@ function renderDashboard(){
   const total=ots.length;
 
   var kpiCls = function(v,h,m){ return v>h?'bad':v>m?'warn':'good'; };
-  document.getElementById('sup-kpis').innerHTML =
+  cont.innerHTML =
     '<div class="kpi"><div class="kpi-label">Abiertas / nuevas</div><div class="kpi-val '+kpiCls(abiertas,5,2)+'">'+abiertas+'</div><div class="kpi-sub">Sin técnico asignado</div></div>'
     +'<div class="kpi"><div class="kpi-label">En proceso</div><div class="kpi-val">'+proceso+'</div><div class="kpi-sub">Técnico trabajando</div></div>'
     +'<div class="kpi"><div class="kpi-label">En espera</div><div class="kpi-val '+kpiCls(espera,2,0)+'">'+espera+'</div><div class="kpi-sub">Bloqueadas</div></div>'
@@ -3164,15 +3060,18 @@ function diffSecs(isoA, isoB){
   return diff >= 0 ? diff : null;
 }
 
+// SPEC-019: helpers de tiempo a nivel global — los usan el reporte de Excel
+// y el ranking de técnicos.
+function diffSecs2(isoA, isoB){
+  return Math.max(0, Math.floor((new Date(isoB)-new Date(isoA))/1000));
+}
+
 function exportarExcelOTs(){
   reloadDB();
   var ots = DB.ots || [];
   if(!ots.length){ alert('No hay OT para exportar.'); return; }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
-  function diffSecs2(isoA, isoB){
-    return Math.max(0, Math.floor((new Date(isoB)-new Date(isoA))/1000));
-  }
   function toHHMMSS(secs){
     if(isNaN(secs)||secs<0) return '--:--:--';
     var h=Math.floor(secs/3600);
@@ -3552,15 +3451,89 @@ function exportarExcelOTs(){
   XLSX.writeFile(wb, 'OT_Mantenimiento_IMPREDIMEX_'+stamp+'.xlsx', {bookType:'xlsx', type:'binary', cellStyles:true});
 }
 
+// SPEC-019: el listado del supervisor no muestra nada hasta que se aplican
+// los filtros. Con los filtros vacíos, el botón muestra todas las órdenes.
+var supFiltrosAplicados = false;
+
+function poblarFiltrosSup(){
+  // Meses con órdenes registradas
+  var selM = document.getElementById('sup-f-mes');
+  if(selM){
+    var prev = selM.value, meses = {};
+    (DB.ots||[]).forEach(function(o){
+      if(o && o.fechaAlta) meses[String(o.fechaAlta).slice(0,7)] = true;
+    });
+    var nom = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    var lista = Object.keys(meses).sort().reverse();
+    selM.innerHTML = '<option value="">Todos</option>' + lista.map(function(k){
+      var p = k.split('-');
+      var etq = nom[parseInt(p[1],10)-1] + ' ' + p[0];
+      return '<option value="'+k+'">'+etq.charAt(0).toUpperCase()+etq.slice(1)+'</option>';
+    }).join('');
+    if(prev) selM.value = prev;
+  }
+  // Técnicos del departamento
+  var selT = document.getElementById('sup-f-tecnico');
+  if(selT){
+    var prevT = selT.value;
+    var tecs = (typeof getTecnicos==='function' ? getTecnicos() : []).slice()
+      .sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
+    selT.innerHTML = '<option value="">Todos</option>' + tecs.map(function(t){
+      return '<option value="'+t.nombre.replace(/"/g,'&quot;')+'">'+t.nombre+'</option>';
+    }).join('');
+    if(prevT) selT.value = prevT;
+  }
+}
+
+function aplicarFiltrosSup(){
+  supFiltrosAplicados = true;
+  renderSupOTs();
+}
+
+function limpiarFiltrosSup(){
+  ['sup-f-folio','sup-f-fecha','sup-f-prioridad','sup-f-tipo','sup-f-estado','sup-f-mes','sup-f-tecnico']
+    .forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  currentFilter = 'todas';
+  supFiltrosAplicados = false;
+  renderSupOTs();
+}
+
 function renderSupOTs(filter){
   reloadDB();
-  if(filter) currentFilter=filter;
+  renderDashboard();
+  poblarFiltrosSup();
+  if(filter){ currentFilter=filter; supFiltrosAplicados = true; }
+
+  const el=document.getElementById('sup-ot-list');
+  if(!el) return;
+
+  if(!supFiltrosAplicados){
+    el.innerHTML = '<div class="empty-state">'
+      +'<div class="empty-icon">🔎</div>'
+      +'<div class="empty-title">Selecciona tus filtros</div>'
+      +'<div class="empty-sub">Elige mes, técnico o los demás criterios y pulsa <b>Aplicar filtros</b>.<br>'
+      +'Si no eliges ninguno, se mostrarán todas las órdenes.</div>'
+      +'</div>';
+    return;
+  }
+
   var statusF3 = currentFilter||'todas';
   let ots=[...DB.ots];
   if(statusF3!=='todas') ots=ots.filter(function(o){ return o.status===statusF3; });
   ots = applySearchFilters(ots, 'sup');
-  const el=document.getElementById('sup-ot-list');
-  if(!ots.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sin órdenes</div></div>';return;}
+
+  // Filtro por mes (YYYY-MM sobre la fecha de alta)
+  var mes = (document.getElementById('sup-f-mes')||{}).value||'';
+  if(mes) ots = ots.filter(function(o){ return o.fechaAlta && String(o.fechaAlta).slice(0,7)===mes; });
+
+  // Filtro por técnico: cuenta si participó en la OT, no solo si es el primero
+  var tec = (document.getElementById('sup-f-tecnico')||{}).value||'';
+  if(tec) ots = ots.filter(function(o){ return tecnicoEnOT(o, tec); });
+
+  if(!ots.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">Ninguna orden coincide con los filtros aplicados.</div></div>';
+    return;
+  }
   el.innerHTML=ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSup(ot)).join('');
 }
 
@@ -3879,17 +3852,6 @@ function renderTecnicos(){
       +'</div>';
   }).join('');
 
-  var actBar = tecs.filter(t=>t.activas>0).length===0
-    ? '<div style="padding:10px 16px;font-size:13px;color:var(--text3)">Ningún técnico tiene OT activas en este momento.</div>'
-    : tecs.filter(t=>t.activas>0).map(function(t){
-        var primer = t.nombre.split(' ')[0]+' '+t.nombre.split(' ')[1];
-        return '<div class="bar-row">'
-          +'<span class="bar-label" style="font-size:11px;width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+primer+'</span>'
-          +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(100,t.activas*25)+'%;background:var(--amber)"></div></div>'
-          +'<span class="bar-count">'+t.activas+'</span>'
-          +'</div>';
-      }).join('');
-
   var cBar = tecs.map(function(t){
     var primer = t.nombre.split(' ')[0]+' '+t.nombre.split(' ')[1];
     return '<div class="bar-row">'
@@ -3903,10 +3865,98 @@ function renderTecnicos(){
     '<div style="padding:8px 12px 4px;font-size:11px;color:var(--text2)">'+personal.length+' personas activas en el depto. de Mantenimiento</div>'
     +'<div class="section-head">Carga de trabajo actual</div>'
     +rows
-    +'<div class="section-head" style="margin-top:8px">OT activas por persona</div>'
-    +'<div style="padding:6px 0 4px">'+actBar+'</div>'
-
+    +'<div class="section-head" style="margin-top:8px">Ranking de técnicos</div>'
+    +rankingTecnicosHTML()
     +'<div class="spacer"></div>';
+}
+
+// SPEC-019: Ranking comparativo de técnicos por órdenes tomadas y tiempos.
+var rankCriterio = 'cerradas';
+
+function setRankCriterio(c){ rankCriterio = c; renderTecnicos(); }
+
+function _fmtSecs(sec){
+  if(sec===null || sec===undefined || isNaN(sec)) return '—';
+  var h=Math.floor(sec/3600), m=Math.round((sec%3600)/60);
+  return h>0 ? h+'h '+m+'m' : m+'m';
+}
+
+// Métricas por técnico: tomadas, cerradas y promedios de respuesta e intervención
+function metricasTecnicos(){
+  var tecs = (typeof getTecnicos==='function' ? getTecnicos() : []);
+  return tecs.map(function(p){
+    var nom = p.nombre, tomadas=0, cerradas=0, resp=[], interv=[];
+    (DB.ots||[]).forEach(function(ot){
+      if(!ot || !Array.isArray(ot.tecnicos)) return;
+      var idx = ot.tecnicos.findIndex(function(t){ return t && t.nombre===nom; });
+      if(idx < 0) return;
+      tomadas++;
+      if(ot.status==='cerrado') cerradas++;
+      var tec = ot.tecnicos[idx];
+      // Respuesta: solo aplica al primero (creación -> toma)
+      if(idx===0 && ot.fechaAlta && tec.fecha){
+        var r = diffSecs2(ot.fechaAlta, tec.fecha);
+        if(r>=0) resp.push(r);
+      }
+      // Intervención neta, misma regla que el reporte (SPEC-012/013/014)
+      if(tec.fecha){
+        var esUlt = idx === ot.tecnicos.length-1;
+        var fin = tec.fechaSalida ? tec.fechaSalida
+          : (esUlt ? (ot.fechaCierreMantenimiento || ot.fechaCierre || null)
+                   : (ot.tecnicos[idx+1] ? ot.tecnicos[idx+1].fecha : null));
+        if(fin){
+          var neto = diffSecs2(tec.fecha, fin) - segsEsperaEnRango(ot, tec.fecha, fin);
+          if(neto>=0) interv.push(neto);
+        }
+      }
+    });
+    var prom = function(a){ return a.length ? a.reduce(function(x,y){return x+y;},0)/a.length : null; };
+    return {nombre:nom, puesto:p.puesto||'', tomadas:tomadas, cerradas:cerradas,
+            resp:prom(resp), interv:prom(interv)};
+  });
+}
+
+function rankingTecnicosHTML(){
+  var m = metricasTecnicos().filter(function(t){ return t.tomadas>0; });
+  if(!m.length){
+    return '<div style="padding:14px 16px;font-size:13px;color:var(--text3)">'
+      +'Aún no hay órdenes tomadas para comparar.</div>';
+  }
+  // Menor tiempo es mejor; mayor cantidad es mejor
+  m.sort(function(a,b){
+    if(rankCriterio==='tomadas')  return b.tomadas - a.tomadas;
+    if(rankCriterio==='resp')     return (a.resp===null?Infinity:a.resp) - (b.resp===null?Infinity:b.resp);
+    if(rankCriterio==='interv')   return (a.interv===null?Infinity:a.interv) - (b.interv===null?Infinity:b.interv);
+    return b.cerradas - a.cerradas;
+  });
+
+  var opt = function(v,l){ return '<option value="'+v+'"'+(rankCriterio===v?' selected':'')+'>'+l+'</option>'; };
+  var h = '<div style="padding:8px 16px 4px;display:flex;align-items:center;gap:8px">'
+    + '<span style="font-size:11px;color:var(--text3);white-space:nowrap">Ordenar por</span>'
+    + '<select class="sf-select" style="flex:1" onchange="setRankCriterio(this.value)">'
+      + opt('cerradas','OT cerradas') + opt('tomadas','OT tomadas')
+      + opt('resp','Tiempo de respuesta') + opt('interv','Tiempo de intervención')
+    + '</select></div>';
+
+  h += '<div class="rank-wrap"><table class="rank-tbl">'
+     + '<thead><tr><th>#</th><th>Técnico</th><th>Tomadas</th><th>Cerradas</th>'
+     + '<th>T. respuesta</th><th>T. intervención</th></tr></thead><tbody>';
+  m.forEach(function(t,i){
+    var medalla = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    h += '<tr>'
+      + '<td class="rk-pos">'+medalla+'</td>'
+      + '<td class="rk-nom">'+t.nombre+'<span class="rk-puesto">'+t.puesto+'</span></td>'
+      + '<td class="rk-num">'+t.tomadas+'</td>'
+      + '<td class="rk-num">'+t.cerradas+'</td>'
+      + '<td class="rk-num">'+_fmtSecs(t.resp)+'</td>'
+      + '<td class="rk-num">'+_fmtSecs(t.interv)+'</td>'
+      + '</tr>';
+  });
+  h += '</tbody></table></div>'
+    + '<div style="padding:6px 16px 10px;font-size:10px;color:var(--text3);line-height:1.5">'
+    + 'Respuesta: desde que se crea la OT hasta que el técnico la toma (solo cuando es el primero). '
+    + 'Intervención: tiempo neto trabajado, descontando esperas.</div>';
+  return h;
 }
 
 function cerrarTablaOTs(){
@@ -4099,7 +4149,7 @@ function switchAdmModule(mod){
   } else if(mod === 'supervisor'){
     showPage('page-supervisor');
     initSupervisor();
-    injectAdmBackBar('page-supervisor', 'sup-dashboard');
+    injectAdmBackBar('page-supervisor', 'sup-ots');
   }
   currentUser = saved;  // keep admin identity
 }
@@ -4188,7 +4238,26 @@ function periodoLabel(p){
 }
 
 // ── Pantalla 1: lista de roles de turnos ──────────────────────────
+// SPEC-019: el histórico de roles de turnos se conserva solo un mes.
+// Los roles cuyo periodo terminó hace más de 30 días se eliminan al abrir el módulo.
+function purgarTurnosAntiguos(){
+  if(!Array.isArray(DB.turnos) || !DB.turnos.length) return false;
+  var corte = new Date(); corte.setDate(corte.getDate() - 30);
+  var antes = DB.turnos.length;
+  DB.turnos = DB.turnos.filter(function(r){
+    if(!r || !r.fechaInicio) return true;
+    var dias = diasDelPeriodo(r.fechaInicio, r.periodo);
+    var finISO = dias.length ? dias[dias.length-1].iso : r.fechaInicio;
+    var p = finISO.split('-');
+    var fin = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]));
+    return fin >= corte;
+  });
+  if(DB.turnos.length !== antes){ saveDB(); return true; }
+  return false;
+}
+
 function renderTurnos(){
+  purgarTurnosAntiguos();
   var cont = document.getElementById('sup-turnos-content');
   if(!cont) return;
   var roles = (DB.turnos||[]).slice().sort(function(a,b){
@@ -4198,6 +4267,9 @@ function renderTurnos(){
   var html = '<div class="section-head">Roles de turnos</div>'
     + '<div style="padding:12px 12px 8px">'
     + '<button class="btn btn-green btn-block" onclick="nuevoRolTurnos()">+ Nuevo rol de turnos</button>'
+    + '</div>'
+    + '<div style="padding:0 16px 8px;font-size:10px;color:var(--text3);line-height:1.5">'
+    + 'Se conserva el histórico del último mes. Los roles terminados hace más de 30 días se eliminan automáticamente.'
     + '</div>';
 
   if(!roles.length){
@@ -4814,40 +4886,6 @@ function exportarPreventivoPDF(){
   setTimeout(function(){ win.print(); }, 350);
 }
 
-function renderAlertas(){
-  reloadDB();
-  const ots=DB.ots;
-  const sinAsignar=ots.filter(o=>!o.tecnico&&o.status==='abierto');
-  const esperaSinFecha=ots.filter(o=>o.status==='espera'&&(!o.espera?.fechaEst));
-  const notifs=DB.notifs.filter(n=>n.para==='supervisor');
-  let html='';
-  if(sinAsignar.length){
-    html+='<div class="section-head">Sin técnico asignado</div>';
-    html+=sinAsignar.map(function(ot){return '<div class="alert alert-red">'
-      +'<div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
-      +'<div><strong>'+ot.folio+'</strong> — '+ot.desc.substring(0,60)+'<br><span style="font-size:11px">'+ot.equipo+' · '+fmt(ot.fechaAlta)+'</span></div>'
-      +'</div>';}).join('');
-  }
-  if(esperaSinFecha.length){
-    html+='<div class="section-head">En espera sin fecha estimada</div>';
-    html+=esperaSinFecha.map(function(ot){return '<div class="alert alert-warn">'
-      +'<div class="alert-icon">⏸</div>'
-      +'<div><strong>'+ot.folio+'</strong> — '+ot.desc.substring(0,50)+'<br><span style="font-size:11px">Sin fecha de reanudación registrada</span></div>'
-      +'</div>';}).join('');
-  }
-  html+='<div class="section-head">Notificaciones recientes</div>';
-  if(!notifs.length){html+='<div style="padding:14px 16px;font-size:13px;color:var(--text3)">Sin notificaciones nuevas</div>';}
-  else{html+=notifs.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);}).map(function(n){
-    return '<div class="notif-item" style="'+(n.leida?'':'background:var(--purple-light)')+'">'
-      +'<div class="notif-dot2" style="background:'+(n.leida?'var(--border)':'var(--purple)')+'"></div>'
-      +'<div><div class="notif-text">'+n.texto+'</div><div class="notif-time">'+fmt(n.fecha)+'</div></div>'
-      +'</div>';}).join('');}
-  html+='<div class="spacer"></div>';
-  document.getElementById('sup-alertas-content').innerHTML=html;
-  DB.notifs.filter(n=>n.para==='supervisor').forEach(n=>n.leida=true);
-  saveDB();
-  updateNotifDot('sup-notif-dot','supervisor');
-}
 
 
 

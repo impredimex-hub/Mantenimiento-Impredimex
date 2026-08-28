@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.0
-**Fecha:** 6 de agosto de 2026
+**Versión:** 2.1
+**Fecha:** 7 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -732,6 +732,52 @@ Proyección con 15 OT diarias y 15 usuarios: de **126 GB al mes a 1.4 GB**, y co
 
 ---
 
+# SPEC-019 — Reorganización del perfil de supervisor
+
+### Actor
+Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
+
+### Módulos retirados
+- **Alertas:** eliminado por no aportar información distinta a la que ya muestran las tarjetas de estado y el propio listado de OT
+- **Panel:** eliminado como pestaña independiente; sus cuatro tarjetas se integraron al encabezado del módulo de OT
+
+La barra inferior queda con cinco pestañas: **OT · Técnicos · Turnos · Preventivo · Perfil**. El módulo de OT es ahora la pantalla inicial del supervisor.
+
+### Tarjetas de estado
+Las cuatro tarjetas (Abiertas, En proceso, En espera, Por validar) se muestran arriba del listado de OT y se recalculan en cada render del módulo.
+
+### Filtros del listado de OT
+Se agregaron dos filtros y un botón de aplicación:
+
+| Filtro | Comportamiento |
+|---|---|
+| **Mes** | Se arma con los meses que tienen órdenes registradas, del más reciente al más antiguo |
+| **Técnico** | Lista el personal activo de Mantenimiento; coincide si el técnico **participó** en la OT, no solo si fue el primero |
+
+**Regla de visualización:** el listado **no muestra ninguna orden** hasta que se pulsa *Aplicar filtros*. Si no se seleccionó ningún criterio, el botón muestra **todas** las órdenes.
+
+El botón *Limpiar* vacía los filtros y devuelve la pantalla al estado inicial. Los chips de estado (Todas, Nuevas, Proceso…) cuentan como aplicación explícita.
+
+### Ranking de técnicos
+En el módulo de Técnicos se retiró la gráfica *OT activas por persona* y se sustituyó por un **ranking comparativo**:
+
+| Columna | Definición |
+|---|---|
+| Tomadas | OT en las que el técnico participó |
+| Cerradas | De las anteriores, las que llegaron a estado cerrado |
+| T. respuesta | Promedio desde la creación de la OT hasta que la tomó (solo cuando fue el primero) |
+| T. intervención | Promedio del tiempo neto trabajado, descontando esperas (SPEC-012, SPEC-013, SPEC-014) |
+
+El criterio de ordenamiento es seleccionable. En cantidades, más es mejor; en tiempos, menos es mejor. Los tres primeros se marcan con medalla.
+
+### Histórico de roles de turnos
+`DB.turnos` conserva **solo el último mes**. Al abrir el módulo de Turnos se eliminan los roles cuyo periodo terminó hace más de 30 días. Esto acota el crecimiento de la colección y es coherente con SPEC-018.
+
+### Nota técnica
+`diffSecs2()` estaba definida dentro de `exportarExcelOTs()` y se elevó a **ámbito global**, ya que el ranking la necesita para calcular los tiempos.
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -806,5 +852,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 6 de agosto de 2026 — versión 2.0 (agrega SPEC-018).*
+*Documento actualizado el 7 de agosto de 2026 — versión 2.1 (agrega SPEC-019).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
