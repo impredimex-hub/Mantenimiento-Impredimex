@@ -368,6 +368,14 @@ input[type=range].green{accent-color:var(--green)}
 .turno-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:20px;background:var(--blue-light);color:var(--blue-dark);margin-top:6px}
 .turno-leyenda{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 12px}
 .turno-leyenda span{font-size:10px;background:#F3F6FA;border:1px solid var(--border);border-radius:20px;padding:3px 9px;color:var(--text2)}
+.turno-clip{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--blue-light);border:1px solid var(--blue);border-radius:10px;padding:9px 12px;margin:0 12px 10px;font-size:12px;color:var(--blue-dark)}
+.turno-clip b{font-weight:700}
+.turno-clip .tc-x{margin-left:auto;border:1px solid var(--blue);background:var(--surface);color:var(--blue-dark);border-radius:6px;font-size:11px;padding:3px 9px;cursor:pointer;font-family:inherit}
+.tcell-acts{display:flex;gap:3px;margin-top:3px;justify-content:center}
+.tcell-btn{border:1px solid var(--border);background:var(--surface);border-radius:4px;font-size:10px;line-height:1;padding:3px 6px;cursor:pointer;color:var(--text2);font-family:inherit}
+.tcell-btn:active{transform:scale(.9)}
+.tcell-btn.paste{border-color:var(--blue);color:var(--blue-dark);background:var(--blue-light);font-weight:700}
+.tg-rowbtn{margin-top:5px;border:1px solid var(--blue);background:var(--blue-light);color:var(--blue-dark);border-radius:6px;font-size:10px;padding:3px 7px;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .adm-tabbar::-webkit-scrollbar{display:none}
 .adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
@@ -4069,8 +4077,17 @@ function renderTurnoEditor(){
     return;
   }
 
-  html += '<div class="section-head">Asignación de turnos</div>'
-    + '<div class="turno-leyenda">';
+  html += '<div class="section-head">Asignación de turnos</div>';
+
+  if(turnoClip){
+    html += '<div class="turno-clip">'
+      + '<span>Copiado: <b>'+asignLabel(turnoClip)+'</b></span>'
+      + '<span style="font-size:11px;opacity:.85">Usa <b>Pegar</b> en una celda o <b>Pegar fila</b> para todo el periodo.</span>'
+      + '<button class="tc-x" onclick="limpiarTurnoClip()">Cancelar</button>'
+      + '</div>';
+  }
+
+  html += '<div class="turno-leyenda">';
   CAT_TURNOS.forEach(function(c){ html += '<span>'+c.label+'</span>'; });
   html += '<span>Vacío = descanso</span></div>';
 
@@ -4082,7 +4099,12 @@ function renderTurnoEditor(){
   html += '</tr></thead><tbody>';
 
   gente.forEach(function(p){
-    html += '<tr><td class="tg-per">'+p.nombre+'<span class="tg-nom">Nóm. '+p.nomina+' · '+(p.puesto||'')+'</span></td>';
+    html += '<tr><td class="tg-per">'+p.nombre+'<span class="tg-nom">Nóm. '+p.nomina+' · '+(p.puesto||'')+'</span>';
+    if(turnoClip){
+      html += '<button class="tg-rowbtn" onclick="pegarEnFila(\''+p.nomina+'\')">Pegar fila</button>';
+    }
+    html += '<button class="tg-rowbtn" style="border-color:var(--border);background:var(--surface);color:var(--text3);font-weight:400" onclick="limpiarFila(\''+p.nomina+'\')">Limpiar fila</button>';
+    html += '</td>';
     dias.forEach(function(d){
       var a = (rol.asignaciones[p.nomina]||{})[d.iso] || null;
       var val = a && a.t ? a.t : '';
@@ -4093,6 +4115,10 @@ function renderTurnoEditor(){
       });
       html += '</select>';
       if(a && a.t==='LIB') html += '<span class="turno-libre">'+(a.ini||'--')+'–'+(a.fin||'--')+'</span>';
+      html += '<div class="tcell-acts">';
+      if(val) html += '<button class="tcell-btn" title="Copiar este turno" onclick="copiarTurno(\''+p.nomina+'\',\''+d.iso+'\')">Copiar</button>';
+      if(turnoClip) html += '<button class="tcell-btn paste" title="Pegar aquí" onclick="pegarTurno(\''+p.nomina+'\',\''+d.iso+'\')">Pegar</button>';
+      html += '</div>';
       html += '</td>';
     });
     html += '</tr>';
@@ -4142,6 +4168,54 @@ function setAsignacion(nomina, fechaISO, valor){
   } else {
     rol.asignaciones[nomina][fechaISO] = {t:valor};
   }
+  renderTurnoEditor();
+}
+
+// SPEC-016: Portapapeles de turnos — copiar una asignación y pegarla en otra
+// celda o en toda la fila de la persona.
+var turnoClip = null;
+
+function copiarTurno(nomina, fechaISO){
+  var rol = getRolActual();
+  if(!rol) return;
+  var a = (rol.asignaciones[nomina]||{})[fechaISO];
+  if(!a || !a.t){ alert('Esta celda no tiene turno asignado.'); return; }
+  turnoClip = JSON.parse(JSON.stringify(a));
+  renderTurnoEditor();
+}
+
+function pegarTurno(nomina, fechaISO){
+  var rol = getRolActual();
+  if(!rol || !turnoClip) return;
+  if(!rol.asignaciones[nomina]) rol.asignaciones[nomina] = {};
+  rol.asignaciones[nomina][fechaISO] = JSON.parse(JSON.stringify(turnoClip));
+  renderTurnoEditor();
+}
+
+// Pega el turno copiado en TODOS los días del periodo para esa persona
+function pegarEnFila(nomina){
+  var rol = getRolActual();
+  if(!rol || !turnoClip) return;
+  var dias = diasDelPeriodo(rol.fechaInicio, rol.periodo);
+  if(!confirm('¿Aplicar '+asignLabel(turnoClip)+' a los '+dias.length+' días del periodo para esta persona?')) return;
+  if(!rol.asignaciones[nomina]) rol.asignaciones[nomina] = {};
+  dias.forEach(function(d){
+    rol.asignaciones[nomina][d.iso] = JSON.parse(JSON.stringify(turnoClip));
+  });
+  renderTurnoEditor();
+}
+
+function limpiarTurnoClip(){
+  turnoClip = null;
+  renderTurnoEditor();
+}
+
+// Borra todos los turnos de una persona en el periodo
+function limpiarFila(nomina){
+  var rol = getRolActual();
+  if(!rol) return;
+  if(!confirm('¿Borrar todos los turnos de esta persona en el periodo?')) return;
+  delete rol.asignaciones[nomina];
   renderTurnoEditor();
 }
 

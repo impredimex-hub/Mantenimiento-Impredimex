@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.5
-**Fecha:** 1 de agosto de 2026
+**Versión:** 1.6
+**Fecha:** 2 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -588,8 +588,23 @@ Los días se generan a partir de la fecha de inicio y pueden cruzar de mes.
 - El rol se guarda en `DB.turnos` y se sincroniza a Firebase
 - El rol puede consultarse, editarse, exportarse a Excel o eliminarse
 
+### Copiar y pegar turnos
+Para agilizar la captura cuando una persona repite el mismo horario:
+
+1. En una celda con turno asignado, pulsar **Copiar**
+2. Aparece una barra indicando qué turno está copiado
+3. El turno puede pegarse:
+   - En una celda concreta, con **Pegar**
+   - En **todos los días del periodo** de esa persona, con **Pegar fila** (pide confirmación)
+4. **Cancelar** vacía el portapapeles
+
+Cada fila tiene además **Limpiar fila**, que borra todos los turnos de esa persona en el periodo.
+
+El portapapeles guarda una **copia independiente** de la asignación, incluidas las horas del turno libre, de modo que modificar la celda origen no afecta a las pegadas.
+
 ### Reglas de negocio
 - Se listan **todas las personas activas** del depto MANTENIMIENTO, sin importar su rol en la app
+- El portapapeles vive solo durante la sesión de edición; no se guarda en la base de datos
 - El nombre del rol y la fecha de inicio son **obligatorios** al guardar
 - Al elegir `LIB` se piden las horas de entrada y salida, validadas en formato **HH:MM** (24 h)
 - Cambiar el periodo o la fecha de inicio **regenera la cuadrícula** conservando las asignaciones de las fechas que sigan dentro del rango
@@ -676,5 +691,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 1 de agosto de 2026 — versión 1.5 (agrega SPEC-016).*
+*Documento actualizado el 2 de agosto de 2026 — versión 1.6 (amplía SPEC-016 con copiar/pegar).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

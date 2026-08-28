@@ -6,6 +6,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.5.1] — 2026-08-02
+
+### Agregado
+- **SPEC-016:** Copiar y pegar turnos en el rol de turnos, para agilizar la captura cuando una persona repite el mismo horario.
+  - Botón **Copiar** en cada celda con turno asignado.
+  - Botón **Pegar** en cualquier celda mientras haya algo copiado.
+  - Botón **Pegar fila**, que aplica el turno copiado a **todos los días del periodo** de esa persona (con confirmación).
+  - Botón **Limpiar fila**, que borra los turnos de esa persona en el periodo.
+  - Barra indicadora que muestra el turno copiado, con opción de cancelar.
+
+### Notas
+- El portapapeles copia también las horas del **turno libre**.
+- Se guarda una copia independiente, así que editar la celda origen no altera las celdas pegadas.
+- El portapapeles no se persiste: vive solo durante la edición.
+
+---
+
 ## [1.5.0] — 2026-08-01
 
 ### Agregado
@@ -304,4 +321,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 1 de agosto de 2026*
+*Última actualización: 2 de agosto de 2026*
