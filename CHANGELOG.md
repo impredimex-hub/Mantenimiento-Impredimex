@@ -6,6 +6,25 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.6.0] — 2026-08-03
+
+### Agregado
+- **SPEC-017: Módulo Preventivo.** Nueva pestaña **"Preventivo"** en la barra del supervisor, entre Turnos y Alertas.
+  - Reproduce el formato controlado **F20-PR-MA-01 Rev. C**, "Programa mensual de mantenimiento preventivo".
+  - **Lista desplegable de mes** y **lista desplegable de año** en el encabezado.
+  - Cuadrícula de siete días (lunes a domingo) con tres turnos por semana y una **lista desplegable de máquinas** por cada día y turno.
+  - **Numeración automática de los días** según el mes y año seleccionados; las semanas arrancan en lunes y el número de semanas se ajusta al mes (4, 5 o 6).
+  - Pie con las cuatro firmas del formato: Planeación, Jefe de producción, Gerente de operaciones y Jefe de Mantenimiento.
+  - Exportación a Excel, edición y eliminación del programa.
+- Nueva colección `DB.preventivos` en el modelo de datos, sincronizada con Firebase.
+
+### Notas
+- Las asignaciones se guardan por fecha y turno, así que cambiar de mes o año no arrastra datos de otro periodo.
+- Solo se ofrecen máquinas activas del catálogo.
+- El campo *Actualizado* del encabezado muestra la fecha del último guardado; código, revisión y fecha de creación son fijos.
+
+---
+
 ## [1.5.1] — 2026-08-02
 
 ### Agregado
@@ -321,4 +340,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 2 de agosto de 2026*
+*Última actualización: 3 de agosto de 2026*

@@ -376,6 +376,29 @@ input[type=range].green{accent-color:var(--green)}
 .tcell-btn:active{transform:scale(.9)}
 .tcell-btn.paste{border-color:var(--blue);color:var(--blue-dark);background:var(--blue-light);font-weight:700}
 .tg-rowbtn{margin-top:5px;border:1px solid var(--blue);background:var(--blue-light);color:var(--blue-dark);border-radius:6px;font-size:10px;padding:3px 7px;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap}
+/* ── SPEC-017: Programa mensual de mantenimiento preventivo ──── */
+.pv-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 12px 12px}
+.pv-doc{border-collapse:collapse;background:#fff;min-width:900px;font-size:11px}
+.pv-doc td,.pv-doc th{border:1px solid #000;padding:3px 5px;text-align:center;vertical-align:middle}
+.pv-titulo{font-size:17px;font-weight:600;padding:5px 10px !important;text-align:center}
+.pv-ctrl{font-size:9px;padding:2px 6px !important;white-space:nowrap}
+.pv-ctrl-v{font-size:9px;color:#C00000;font-weight:600;white-space:nowrap}
+.pv-mes-cell{background:#E2EFDA;padding:4px !important}
+.pv-anio-cell{background:#FFFF00;padding:4px !important;width:110px}
+.pv-sel-mes{font-size:22px;font-weight:700;text-align:center;border:none;background:transparent;font-family:inherit;color:#000;width:100%;cursor:pointer;text-transform:uppercase}
+.pv-sel-anio{font-size:20px;font-weight:700;text-align:center;border:none;background:transparent;font-family:inherit;color:#000;width:100%;cursor:pointer}
+.pv-dia-head{font-size:15px;font-weight:700;padding:5px !important}
+.pv-turno-head{font-size:9px;font-weight:700;width:34px}
+.pv-turno-n{font-size:10px;font-weight:700;color:#7030A0;width:34px}
+.pv-num{font-size:14px;font-weight:700;width:38px;color:#000;background:#FBE5D6}
+.pv-num.vacio{background:#F2F2F2}
+.pv-maq{padding:1px !important;min-width:104px}
+.pv-sel-maq{width:100%;border:none;background:transparent;font-size:10px;font-family:inherit;color:#000;padding:2px;cursor:pointer}
+.pv-sel-maq.has-val{background:#DDEBF7;font-weight:600}
+.pv-sem-sep td{border-top:2px solid #000}
+.pv-firmas{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-around;padding:22px 16px 8px}
+.pv-firma{text-align:center;min-width:150px}
+.pv-firma-l{border-top:1px solid #000;padding-top:4px;font-size:10px;color:#333}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .adm-tabbar::-webkit-scrollbar{display:none}
 .adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
@@ -881,6 +904,10 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         Turnos
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        Preventivo
+      </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
@@ -953,6 +980,10 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         Turnos
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        Preventivo
+      </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
@@ -985,6 +1016,10 @@ input[type=range].green{accent-color:var(--green)}
       <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         Turnos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        Preventivo
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
@@ -1019,6 +1054,10 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         Turnos
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        Preventivo
+      </button>
       <button class="tabbar-item active purple" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
@@ -1052,6 +1091,10 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         Turnos
       </button>
+      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        Preventivo
+      </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Alertas
@@ -1072,6 +1115,53 @@ input[type=range].green{accent-color:var(--green)}
       <div class="topbar-title">Rol de turnos</div>
     </div>
     <div class="scroll-content" id="sup-turno-edit-content"></div>
+  </div>
+
+  <!-- SCREEN: Preventivo (lista de programas) -->
+  <div id="sup-preventivo" class="screen">
+    <div class="topbar topbar-purple"><div class="topbar-title">Preventivo</div></div>
+    <div class="scroll-content" id="sup-preventivo-content"></div>
+    <nav class="tabbar">
+      <button class="tabbar-item" onclick="showScreen('sup-dashboard')">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+        Panel
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+        OT
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-tecnicos');renderTecnicos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+        Técnicos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        Turnos
+      </button>
+      <button class="tabbar-item active purple" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        Preventivo
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+        Alertas
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-perfil');renderSupPerfil()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
+        Perfil
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Editor del programa preventivo -->
+  <div id="sup-preventivo-edit" class="screen">
+    <div class="topbar topbar-purple">
+      <button class="topbar-back" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Programa preventivo</div>
+    </div>
+    <div class="scroll-content" id="sup-preventivo-edit-content"></div>
   </div>
 
   <!-- SCREEN: Detalle OT supervisor -->
@@ -1105,6 +1195,10 @@ input[type=range].green{accent-color:var(--green)}
       <button class="tabbar-item" onclick="showScreen('sup-turnos');renderTurnos()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         Turnos
+      </button>
+      <button class="tabbar-item" onclick="showScreen('sup-preventivo');renderPreventivos()">
+        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        Preventivo
       </button>
       <button class="tabbar-item" onclick="showScreen('sup-alertas');renderAlertas()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>Alertas
@@ -1220,7 +1314,8 @@ let DB = {
   naves: [],
   maquinas: [],
   infraestructura: [],
-  turnos: []          // SPEC-016: roles de turnos del personal
+  turnos: [],         // SPEC-016: roles de turnos del personal
+  preventivos: []     // SPEC-017: programas mensuales de mantenimiento preventivo
 };
 
 // ── saveDB: guarda en Firebase (con debounce 300ms) + localStorage cache ──
@@ -1345,7 +1440,7 @@ function initFirebase(){
     // Fallback a localStorage
     var stored = localStorage.getItem('mantoDB');
     if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
-    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[],turnos:[]}; }
+    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[],turnos:[],preventivos:[]}; }
     initPersonal(); initCatalogos();
   }
 }
@@ -4272,6 +4367,292 @@ function exportarRolTurnos(){
   XLSX.utils.book_append_sheet(wb, ws, 'Rol de turnos');
   var nom = (rol.nombre||'rol-turnos').replace(/[^\w\sáéíóúñÁÉÍÓÚÑ-]/g,'').trim().replace(/\s+/g,'_');
   XLSX.writeFile(wb, 'Turnos_'+nom+'.xlsx');
+}
+
+/* ═════════════ SPEC-017: PROGRAMA MENSUAL DE PREVENTIVO ═════════════ */
+
+var MESES_PV = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
+                'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+var DIAS_PV  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+var PV_CODIGO = 'F20-PR-MA-01';
+var PV_REV    = 'Rev. C';
+var PV_CREADO = '02/12/2016';
+var currentPvId = null;
+
+function pvPad(n){ return String(n).padStart(2,'0'); }
+
+// Distribuye los días del mes en semanas que arrancan en lunes.
+// Devuelve un arreglo de semanas; cada semana son 7 posiciones (null = fuera del mes).
+function semanasDelMes(anio, mes){
+  var primero = new Date(anio, mes, 1);
+  var nDias   = new Date(anio, mes+1, 0).getDate();
+  var offset  = (primero.getDay()+6)%7;            // lunes = 0
+  var nSem    = Math.ceil((offset+nDias)/7);
+  var out = [], dia = 1;
+  for(var w=0; w<nSem; w++){
+    var fila = [];
+    for(var d=0; d<7; d++){
+      var idx = w*7+d;
+      if(idx < offset || dia > nDias) fila.push(null);
+      else { fila.push({num:dia, iso:anio+'-'+pvPad(mes+1)+'-'+pvPad(dia)}); dia++; }
+    }
+    out.push(fila);
+  }
+  return out;
+}
+
+function maquinasActivas(){
+  return (DB.maquinas||DEFAULT_MAQUINAS).filter(function(m){ return m.activo; });
+}
+function maquinaNombre(id){
+  var m = (DB.maquinas||DEFAULT_MAQUINAS).find(function(x){ return x.id===id; });
+  return m ? m.nombre : '';
+}
+function fechaCorta(iso){
+  if(!iso) return '';
+  var d = new Date(iso);
+  return pvPad(d.getDate())+'/'+pvPad(d.getMonth()+1)+'/'+d.getFullYear();
+}
+
+// ── Pantalla 1: lista de programas ───────────────────────────────
+function renderPreventivos(){
+  var cont = document.getElementById('sup-preventivo-content');
+  if(!cont) return;
+  var progs = (DB.preventivos||[]).slice().sort(function(a,b){
+    return (b.anio-a.anio) || (b.mes-a.mes);
+  });
+
+  var html = '<div class="section-head">Programas de mantenimiento preventivo</div>'
+    + '<div style="padding:12px 12px 8px">'
+    + '<button class="btn btn-green btn-block" onclick="nuevoPreventivo()">+ Nuevo programa mensual</button>'
+    + '</div>';
+
+  if(!progs.length){
+    html += '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:13px">'
+      + 'Aún no hay programas capturados.<br>Crea el primero con el botón de arriba.</div>';
+    cont.innerHTML = html;
+    return;
+  }
+
+  html += '<div style="padding-top:4px">';
+  progs.forEach(function(pv){
+    var n = 0;
+    Object.keys(pv.asignaciones||{}).forEach(function(f){
+      Object.keys(pv.asignaciones[f]).forEach(function(t){ if(pv.asignaciones[f][t]) n++; });
+    });
+    html += '<div class="turno-card" onclick="abrirPreventivo(\'' + pv.id + '\')">'
+      + '<div class="turno-card-t">'+MESES_PV[pv.mes]+' '+pv.anio+'</div>'
+      + '<div class="turno-card-s">'+n+' asignación'+(n===1?'':'es')+' de máquina</div>'
+      + '<div class="turno-card-s">Actualizado: '+(pv.fechaMod?fechaCorta(pv.fechaMod):'sin guardar')+'</div>'
+      + '<span class="turno-badge">'+PV_CODIGO+' '+PV_REV+'</span>'
+      + '</div>';
+  });
+  html += '</div>';
+  cont.innerHTML = html;
+}
+
+function nuevoPreventivo(){
+  var hoy = new Date();
+  var pv = {
+    id:'pv'+Date.now(),
+    mes: hoy.getMonth(),
+    anio: hoy.getFullYear(),
+    asignaciones:{},
+    creadoPor: currentUser ? currentUser.nombre : '',
+    fechaCreacion: new Date().toISOString()
+  };
+  if(!Array.isArray(DB.preventivos)) DB.preventivos = [];
+  DB.preventivos.push(pv);
+  currentPvId = pv.id;
+  showScreen('sup-preventivo-edit');
+  renderPreventivoEditor();
+}
+
+function abrirPreventivo(id){
+  currentPvId = id;
+  showScreen('sup-preventivo-edit');
+  renderPreventivoEditor();
+}
+
+function getPvActual(){
+  return (DB.preventivos||[]).find(function(p){ return p.id===currentPvId; });
+}
+
+// ── Pantalla 2: la plantilla ─────────────────────────────────────
+function renderPreventivoEditor(){
+  var cont = document.getElementById('sup-preventivo-edit-content');
+  if(!cont) return;
+  var pv = getPvActual();
+  if(!pv){ cont.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Programa no encontrado.</div>'; return; }
+
+  var semanas = semanasDelMes(pv.anio, pv.mes);
+  var maqs    = maquinasActivas();
+  var actual  = new Date().getFullYear();
+
+  var html = '<div class="pv-wrap"><table class="pv-doc">';
+
+  // Encabezado del documento
+  html += '<tr>'
+    + '<td class="pv-titulo" colspan="12">Programa mensual de mantenimiento preventivo</td>'
+    + '<td class="pv-ctrl">Código</td>'
+    + '<td class="pv-ctrl pv-ctrl-v" colspan="2">'+PV_CODIGO+'<br>'+PV_REV+'</td>'
+    + '</tr>';
+
+  html += '<tr>'
+    + '<td class="pv-mes-cell" colspan="10" rowspan="2">'
+      + '<select class="pv-sel-mes" onchange="setPvCampo(\'mes\',parseInt(this.value))">';
+  MESES_PV.forEach(function(m,i){
+    html += '<option value="'+i+'"'+(pv.mes===i?' selected':'')+'>'+m+'</option>';
+  });
+  html += '</select></td>'
+    + '<td class="pv-anio-cell" colspan="2" rowspan="2">'
+      + '<select class="pv-sel-anio" onchange="setPvCampo(\'anio\',parseInt(this.value))">';
+  for(var y=actual-3; y<=actual+3; y++){
+    html += '<option value="'+y+'"'+(pv.anio===y?' selected':'')+'>'+y+'</option>';
+  }
+  html += '</select></td>'
+    + '<td class="pv-ctrl">Creado</td>'
+    + '<td class="pv-ctrl pv-ctrl-v" colspan="2">'+PV_CREADO+'</td>'
+    + '</tr>';
+
+  html += '<tr>'
+    + '<td class="pv-ctrl">Actualizado</td>'
+    + '<td class="pv-ctrl pv-ctrl-v" colspan="2">'+(pv.fechaMod?fechaCorta(pv.fechaMod):'—')+'</td>'
+    + '</tr>';
+
+  // Encabezado de días
+  html += '<tr><td class="pv-turno-head">TURNO</td>';
+  DIAS_PV.forEach(function(d){ html += '<td class="pv-dia-head" colspan="2">'+d+'</td>'; });
+  html += '</tr>';
+
+  // Semanas: 3 turnos por semana
+  semanas.forEach(function(sem, si){
+    for(var t=1; t<=3; t++){
+      html += '<tr'+(t===1 && si>0 ? ' class="pv-sem-sep"' : '')+'>';
+      html += '<td class="pv-turno-n">'+t+'</td>';
+      sem.forEach(function(dia){
+        var val = dia ? ((pv.asignaciones[dia.iso]||{})[t] || '') : '';
+        html += '<td class="pv-maq">';
+        if(dia){
+          html += '<select class="pv-sel-maq'+(val?' has-val':'')+'" onchange="setPvMaquina(\''+dia.iso+'\','+t+',this.value)">'
+            + '<option value="">—</option>';
+          maqs.forEach(function(m){
+            html += '<option value="'+m.id+'"'+(val===m.id?' selected':'')+'>'+m.nombre+'</option>';
+          });
+          html += '</select>';
+        }
+        html += '</td>';
+        if(t===1){
+          html += '<td class="pv-num'+(dia?'':' vacio')+'" rowspan="3">'+(dia?dia.num:'')+'</td>';
+        }
+      });
+      html += '</tr>';
+    }
+  });
+
+  html += '</table></div>';
+
+  // Firmas
+  html += '<div class="pv-firmas">'
+    + '<div class="pv-firma"><div class="pv-firma-l">Planeación</div></div>'
+    + '<div class="pv-firma"><div class="pv-firma-l">Jefe de producción</div></div>'
+    + '<div class="pv-firma"><div class="pv-firma-l">Gerente de operaciones</div></div>'
+    + '<div class="pv-firma"><div class="pv-firma-l">Jefe de Mantenimiento</div></div>'
+    + '</div>';
+
+  html += '<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'
+    + '<button class="btn btn-green btn-block" onclick="guardarPreventivo()">Guardar programa</button>'
+    + '<button class="btn btn-outline btn-block" onclick="exportarPreventivo()">Exportar a Excel</button>'
+    + '<button class="btn btn-outline btn-block" style="color:var(--red);border-color:var(--red)" onclick="eliminarPreventivo()">Eliminar programa</button>'
+    + '</div>';
+
+  cont.innerHTML = html;
+}
+
+function setPvCampo(campo, valor){
+  var pv = getPvActual();
+  if(!pv) return;
+  pv[campo] = valor;
+  renderPreventivoEditor();
+}
+
+function setPvMaquina(fechaISO, turno, maqId){
+  var pv = getPvActual();
+  if(!pv) return;
+  if(!pv.asignaciones[fechaISO]) pv.asignaciones[fechaISO] = {};
+  if(!maqId){
+    delete pv.asignaciones[fechaISO][turno];
+    if(!Object.keys(pv.asignaciones[fechaISO]).length) delete pv.asignaciones[fechaISO];
+  } else {
+    pv.asignaciones[fechaISO][turno] = maqId;
+  }
+  renderPreventivoEditor();
+}
+
+function guardarPreventivo(){
+  var pv = getPvActual();
+  if(!pv) return;
+  var dup = (DB.preventivos||[]).find(function(x){
+    return x.id!==pv.id && x.mes===pv.mes && x.anio===pv.anio;
+  });
+  if(dup && !confirm('Ya existe un programa de '+MESES_PV[pv.mes]+' '+pv.anio+'.\n\n¿Guardar de todos modos?')) return;
+  pv.fechaMod = new Date().toISOString();
+  pv.modificadoPor = currentUser ? currentUser.nombre : '';
+  saveDB();
+  alert('✓ Programa preventivo guardado.');
+  showScreen('sup-preventivo');
+  renderPreventivos();
+}
+
+function eliminarPreventivo(){
+  var pv = getPvActual();
+  if(!pv) return;
+  if(!confirm('¿Eliminar el programa de '+MESES_PV[pv.mes]+' '+pv.anio+'?\n\nEsta acción no se puede deshacer.')) return;
+  DB.preventivos = (DB.preventivos||[]).filter(function(x){ return x.id!==pv.id; });
+  currentPvId = null;
+  saveDB();
+  showScreen('sup-preventivo');
+  renderPreventivos();
+}
+
+function exportarPreventivo(){
+  var pv = getPvActual();
+  if(!pv) return;
+  if(typeof XLSX==='undefined'){ alert('La librería de Excel no está disponible.'); return; }
+  var semanas = semanasDelMes(pv.anio, pv.mes);
+
+  var data = [];
+  data.push(['Programa mensual de mantenimiento preventivo','','','','','','','','','','','','Código',PV_CODIGO+' '+PV_REV]);
+  data.push([MESES_PV[pv.mes],'','','','','','','','','',pv.anio,'','Creado',PV_CREADO]);
+  data.push(['','','','','','','','','','','','','Actualizado', pv.fechaMod?fechaCorta(pv.fechaMod):'—']);
+  data.push([]);
+
+  var head = ['TURNO'];
+  DIAS_PV.forEach(function(d){ head.push(d); head.push('Día'); });
+  data.push(head);
+
+  semanas.forEach(function(sem){
+    for(var t=1; t<=3; t++){
+      var fila = [t];
+      sem.forEach(function(dia){
+        fila.push(dia ? maquinaNombre((pv.asignaciones[dia.iso]||{})[t] || '') : '');
+        fila.push(t===1 && dia ? dia.num : '');
+      });
+      data.push(fila);
+    }
+    data.push([]);
+  });
+
+  data.push([]);
+  data.push(['Planeación','','','Jefe de producción','','','Gerente de operaciones','','','Jefe de Mantenimiento']);
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(data);
+  var cols = [{wch:7}];
+  DIAS_PV.forEach(function(){ cols.push({wch:16}); cols.push({wch:5}); });
+  ws['!cols'] = cols;
+  XLSX.utils.book_append_sheet(wb, ws, 'Preventivo');
+  XLSX.writeFile(wb, 'Preventivo_'+MESES_PV[pv.mes]+'_'+pv.anio+'.xlsx');
 }
 
 function renderAlertas(){

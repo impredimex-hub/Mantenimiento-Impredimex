@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 1.6
-**Fecha:** 2 de agosto de 2026
+**Versión:** 1.7
+**Fecha:** 3 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -617,6 +617,55 @@ El portapapeles guarda una **copia independiente** de la asignación, incluidas 
 
 ---
 
+# SPEC-017 — Módulo Preventivo (programa mensual de mantenimiento)
+
+### Actor
+Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
+
+### Ubicación
+Pestaña **"Preventivo"** en la barra inferior del supervisor, entre **Turnos** y **Alertas**.
+
+### Documento que reproduce
+Formato controlado **F20-PR-MA-01, Rev. C** — "Programa mensual de mantenimiento preventivo".
+Creado: 02/12/2016. El campo *Actualizado* se llena con la fecha del último guardado.
+
+### Flujo principal
+1. El supervisor entra a **Preventivo** y ve la lista de programas capturados
+2. Pulsa **"+ Nuevo programa mensual"**
+3. Selecciona **mes** y **año** en las listas desplegables del encabezado
+4. El sistema construye la cuadrícula del mes y **numera los días automáticamente**
+5. Asigna una máquina por cada día y turno desde las listas desplegables
+6. Guarda el programa
+
+### Estructura de la cuadrícula
+- Columnas: **TURNO** + los siete días (Lunes a Domingo), cada uno con dos subcolumnas: **máquina** y **número de día**
+- Cada semana ocupa **tres filas**, una por turno (1, 2 y 3)
+- El número de día se calcula del mes y año seleccionados, y ocupa las tres filas de turno de ese día
+- Las semanas arrancan en **lunes**; las posiciones fuera del mes quedan vacías
+- El número de semanas se ajusta al mes: **4, 5 o 6** según corresponda
+
+### Celdas y su contenido
+
+| Celda | Contenido |
+|---|---|
+| Mes | Lista desplegable con los doce meses |
+| Año | Lista desplegable, del año actual −3 al +3 |
+| Máquina | Lista desplegable con las máquinas **activas** del catálogo |
+| Número de día | Calculado automáticamente; no editable |
+
+### Postcondiciones
+- El programa se guarda en `DB.preventivos` y se sincroniza a Firebase
+- Puede consultarse, editarse, exportarse a Excel o eliminarse
+
+### Reglas de negocio
+- Las asignaciones se guardan por **fecha ISO y turno**, de modo que cambiar de mes o año no arrastra datos de otro periodo
+- Solo se listan máquinas con `activo: true`
+- Al guardar, si ya existe un programa del mismo mes y año, se pide confirmación
+- El pie del documento reproduce las cuatro firmas del formato: Planeación, Jefe de producción, Gerente de operaciones y Jefe de Mantenimiento
+- Código, revisión y fecha de creación son **fijos**; no se editan desde la app
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -691,5 +740,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 2 de agosto de 2026 — versión 1.6 (amplía SPEC-016 con copiar/pegar).*
+*Documento actualizado el 3 de agosto de 2026 — versión 1.7 (agrega SPEC-017).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
