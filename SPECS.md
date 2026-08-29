@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.6
-**Fecha:** 12 de agosto de 2026
+**Versión:** 2.7
+**Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -847,7 +847,7 @@ Por urgencia o prioridad, un técnico a veces debe dejar la orden que atiende e 
 **La pausa solo es posible tomando otra orden.** No se puede pausar sin más: el sistema exige elegir la orden que se va a atender, de modo que siempre quede claro a dónde fue el técnico.
 
 ### Acceso
-Un **botón flotante** con el signo `=`, del mismo estilo que el de crear orden pero en color ámbar, aparece en la lista del técnico **desde que toma una orden** y desaparece cuando ya no tiene ninguna en curso.
+Un **botón flotante** con el signo `=`, del mismo estilo y color que el de crear orden, aparece en la lista del técnico **desde que toma una orden** y desaparece cuando ya no tiene ninguna en curso.
 
 ### Flujo principal
 1. El técnico pulsa el botón flotante
@@ -873,6 +873,38 @@ Un **botón flotante** con el signo `=`, del mismo estilo que el de crear orden 
 - Si no hay órdenes disponibles, no se puede pausar y así se indica
 - La orden pausada **conserva su técnico** en el historial y puede reanudarse registrando una actividad (SPEC-008)
 - Un técnico puede encadenar pausas: cada una queda registrada por separado
+
+---
+
+# SPEC-022 — La orden pausada no se abandona
+
+### Motivación
+Pausar una orden no debe convertirse en abandonarla. Estas reglas garantizan que alguien la retome.
+
+### Restricción al técnico que pausó
+Mientras exista una orden que él pausó y que **nadie esté atendiendo**, el técnico **no puede tomar órdenes nuevas**. Solo puede:
+
+- **Retomar la pausada**, o
+- Esperar a que **otro técnico la tome**, lo que lo libera automáticamente
+
+Al intentar tomar otra orden se le indica cuál tiene pendiente. En su listado aparece además un recordatorio permanente con el folio.
+
+La toma que acompaña a la pausa sí está permitida: es el destino que justificó dejar la anterior.
+
+### Reingreso a la propia orden
+Cuando el técnico vuelve a la orden que dejó, se registra una **nueva entrada** en `ot.tecnicos` con la hora de reingreso, en lugar de reabrir la anterior, de modo que el historial refleja los dos tramos. Al retomarla se **cierra el periodo de espera**, y el tiempo de la pausa queda descontado.
+
+La validación que impide registrarse dos veces en el mismo turno **no aplica al reingreso**, ya que se trata de una vuelta legítima.
+
+### Prioridad para los demás técnicos
+Las órdenes pausadas que quedaron sin atención se muestran a **cualquier otro técnico** en una sección propia, **antes** de las disponibles, encabezada como *Prioridad — órdenes pausadas sin atender*, con la explicación de que un compañero las dejó por una urgencia.
+
+Al técnico que la pausó no se le ofrece en esa sección, porque para él aparece como orden propia.
+
+### Reglas de negocio
+- Una orden se considera **sin atender** cuando está en `espera`, tiene registro de pausa y ningún técnico activo (todos con salida registrada)
+- En cuanto alguien la toma deja de ser prioritaria y libera al técnico original
+- La restricción se evalúa por la **última pausa** registrada en la orden
 
 ---
 
@@ -950,5 +982,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 12 de agosto de 2026 — versión 2.6 (agrega SPEC-021).*
+*Documento actualizado el 13 de agosto de 2026 — versión 2.7 (agrega SPEC-022).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

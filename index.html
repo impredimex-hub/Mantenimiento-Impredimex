@@ -742,7 +742,7 @@ input[type=range].green{accent-color:var(--green)}
       <div class="list-pad" id="tec-ot-list"></div>
       <div class="spacer"></div>
     </div>
-    <button class="fab fab-orange" id="tec-fab-pausar" style="display:none" onclick="abrirPausarOT()" aria-label="Pausar orden y tomar otra">
+    <button class="fab" id="tec-fab-pausar" style="display:none" onclick="abrirPausarOT()" aria-label="Pausar orden y tomar otra">
       <svg viewBox="0 0 24 24"><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/></svg>
     </button>
     <nav class="tabbar">
@@ -2344,6 +2344,11 @@ function renderTecOTs(filter){
       && !tecnicoEnTurnoActual(o, currentUser.nombre)
       && o.status!=='validar' && o.status!=='cerrado';
   });
+  // SPEC-022: las órdenes pausadas sin atender se ofrecen a los DEMÁS técnicos
+  // con prioridad, para que no queden olvidadas.
+  var pausadas = otsPausadasHuerfanas().filter(function(o){
+    return !tecnicoEnOT(o, currentUser.nombre);
+  });
   var propias=DB.ots.filter(function(o){
     return tecnicoEnOT(o, currentUser.nombre) && o.status!=='cerrado';
   });
@@ -2351,6 +2356,15 @@ function renderTecOTs(filter){
   propias     = applySearchFilters(propias,     'tec');
   const el=document.getElementById('tec-ot-list');
   var html='';
+  // SPEC-022: recordatorio si dejó una orden pausada sin atender
+  var _pend = otPausadaPendiente(currentUser.nombre);
+  if(_pend){
+    html += '<div style="margin:10px 16px;padding:11px 13px;border:1px solid var(--red);'
+      + 'background:#FDF0F0;border-radius:10px;font-size:12px;line-height:1.5;color:var(--text)">'
+      + '<b>Tienes pausada la OT '+_pend.folio+'.</b><br>'
+      + 'Retómala para poder tomar otras órdenes, o espera a que otro técnico la atienda.'
+      + '</div>';
+  }
   // ── Primero: Mis órdenes activas ────────────────────────────────────────
   var misFilt=propias;
   if(statusF2!=='todas') misFilt=propias.filter(function(o){ return o.status===statusF2; });
@@ -2363,6 +2377,13 @@ function renderTecOTs(filter){
   }
   // ── Después: Disponibles para tomar ─────────────────────────────────────
   if(statusF2==='todas'||statusF2==='abierto'){
+    // SPEC-022: primero las pausadas, con aviso de prioridad
+    if(pausadas.length){
+      html+='<div class="section-head" style="color:var(--red)">Prioridad — órdenes pausadas sin atender</div>';
+      html+='<div style="padding:0 16px 8px;font-size:11px;color:var(--text3);line-height:1.5">'
+        +'Un técnico dejó estas órdenes para atender otra urgencia. Tómalas para que no queden pendientes.</div>';
+      html+=pausadas.map(function(ot){ return otCardTec(ot,true); }).join('');
+    }
     if(disponibles.length){
       html+='<div class="section-head">⚡ Disponibles — toca para tomar</div>';
       html+=disponibles.map(function(ot){ return otCardTec(ot,true); }).join('');
@@ -2605,6 +2626,32 @@ function tecnicosUnicos(ot){
 /* ═══════ SPEC-021: PAUSAR ORDEN EN CURSO Y TOMAR OTRA ═══════ */
 
 // OT que el técnico tiene abierta (tomada y sin registrar salida).
+// SPEC-022: OT que este técnico pausó y que sigue sin que nadie la atienda.
+// Mientras exista, no puede tomar órdenes nuevas: debe retomarla, salvo que
+// otro técnico la tome antes.
+function otPausadaPendiente(nombre){
+  if(!nombre) return null;
+  return (DB.ots||[]).find(function(ot){
+    if(!ot || ot.status!=='espera') return false;
+    if(!Array.isArray(ot.pausas) || !ot.pausas.length) return false;
+    var ult = ot.pausas[ot.pausas.length-1];
+    if(!_mismoNombre(ult.tecnico, nombre)) return false;
+    // Si alguien la está atendiendo (sin salida registrada), ya no es pendiente
+    var hayActivo = (ot.tecnicos||[]).some(function(t){ return t && !t.fechaSalida; });
+    return !hayActivo;
+  }) || null;
+}
+
+// SPEC-022: OT pausadas que quedaron sin atención, para ofrecerlas con prioridad
+// a cualquier otro técnico y que no se olviden.
+function otsPausadasHuerfanas(){
+  return (DB.ots||[]).filter(function(ot){
+    if(!ot || ot.status!=='espera') return false;
+    if(!Array.isArray(ot.pausas) || !ot.pausas.length) return false;
+    return !(ot.tecnicos||[]).some(function(t){ return t && !t.fechaSalida; });
+  });
+}
+
 function otEnCursoDelTecnico(){
   if(!currentUser) return null;
   var lista = (DB.ots||[]).filter(function(ot){
@@ -2716,21 +2763,39 @@ function confirmarPausarYTomar(idDestino){
 
   saveDB();
   closeModal('modal-pausar');
-  tomarOT(idDestino);   // continúa con el flujo normal de toma
+  tomarOT(idDestino, true);   // permitida: es la toma que acompaña a la pausa
 }
 
-function tomarOT(id){
+function tomarOT(id, desdePausa){
   var ot = DB.ots.find(function(o){ return o.id===id; });
   if(!ot){ alert('OT no encontrada'); return; }
+
+  // SPEC-022: no puede tomar otra orden mientras tenga una pausada sin atender
+  if(!desdePausa){
+    var pend = otPausadaPendiente(currentUser.nombre);
+    if(pend && pend.id !== id){
+      alert('Tienes pausada la OT ' + pend.folio + '.\n\n'
+        + 'Debes retomarla antes de tomar otra orden, o esperar a que otro técnico la atienda.');
+      return;
+    }
+  }
 
   // Inicializar array de técnicos si no existe
   if(!ot.tecnicos) ot.tecnicos = [];
 
+  // SPEC-022: si vuelve a una orden que él mismo dejó, es un reingreso permitido
+  var esReingreso = (ot.tecnicos||[]).some(function(t){
+    return t && _mismoNombre(t.nombre, currentUser.nombre) && t.fechaSalida;
+  });
+
   // Bloquear solo si ya se registró HOY en el turno actual
-  if(tecnicoEnTurnoActual(ot, currentUser.nombre)){
+  if(!esReingreso && tecnicoEnTurnoActual(ot, currentUser.nombre)){
     alert('Ya estás registrado en este turno para esta OT. Puedes registrar actividades.');
     verOTTec(id); return;
   }
+
+  // Al retomar una orden en espera, cerrar el periodo de pausa
+  if(ot.status==='espera') cerrarEsperaAbierta(ot);
 
   // Agregar al array de técnicos
   ot.tecnicos.push({

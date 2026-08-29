@@ -6,6 +6,21 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.11.0] — 2026-08-13
+
+### Agregado
+- **SPEC-022: la orden pausada no se abandona.**
+  - El técnico que pausó una orden **no puede tomar otras** mientras nadie la atienda. Debe retomarla, o esperar a que otro técnico la tome, lo que lo libera automáticamente.
+  - En su listado aparece un **recordatorio** con el folio de la orden pausada.
+  - Las órdenes pausadas sin atender se muestran a **los demás técnicos** en una sección de **prioridad**, antes de las disponibles, para que no queden olvidadas.
+  - Al retomar su propia orden se registra una **nueva entrada** con la hora de reingreso y se cierra el periodo de espera, de modo que el historial conserva los dos tramos.
+
+### Cambiado
+- El botón flotante de pausar pasa de ámbar a **azul**, igual que el de crear orden.
+- La validación que impide registrarse dos veces en el mismo turno ya **no aplica al reingreso** a una orden que el propio técnico había dejado.
+
+---
+
 ## [1.10.0] — 2026-08-12
 
 ### Agregado
@@ -488,4 +503,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 12 de agosto de 2026*
+*Última actualización: 13 de agosto de 2026*
