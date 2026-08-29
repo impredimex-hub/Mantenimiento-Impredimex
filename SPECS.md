@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.5
-**Fecha:** 11 de agosto de 2026
+**Versión:** 2.6
+**Fecha:** 12 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -835,6 +835,47 @@ El catálogo de personal guarda los nombres en **mayúsculas**, pero al iniciar 
 
 ---
 
+# SPEC-021 — Pausar una orden para atender otra
+
+### Actor
+Técnico de mantenimiento.
+
+### Motivación
+Por urgencia o prioridad, un técnico a veces debe dejar la orden que atiende e ir a otra máquina. Antes no había forma de registrarlo, así que se perdía la trazabilidad y su tiempo seguía corriendo en la orden abandonada.
+
+### Regla principal
+**La pausa solo es posible tomando otra orden.** No se puede pausar sin más: el sistema exige elegir la orden que se va a atender, de modo que siempre quede claro a dónde fue el técnico.
+
+### Acceso
+Un **botón flotante** con el signo `=`, del mismo estilo que el de crear orden pero en color ámbar, aparece en la lista del técnico **desde que toma una orden** y desaparece cuando ya no tiene ninguna en curso.
+
+### Flujo principal
+1. El técnico pulsa el botón flotante
+2. Se abre una ventana que indica qué orden va a pausar y lista las **órdenes disponibles**, con las urgentes primero
+3. El técnico elige una y confirma
+4. El sistema pausa la actual y toma la nueva en una sola operación
+
+### Qué se registra al pausar
+
+| Dato | Efecto |
+|---|---|
+| `fechaSalida` del técnico | Su tiempo en esa orden **deja de contar** (SPEC-012) |
+| Estado `espera` + motivo | La orden queda en espera indicando a qué OT se fue el técnico |
+| Registro en `esperas` | El tiempo de pausa se **descuenta** del tiempo de intervención (SPEC-013) |
+| Registro en `pausas` | Trazabilidad: quién pausó, cuándo y hacia qué orden |
+| Comentario en la OT | Queda visible en el historial de la orden |
+| Notificación al supervisor | Aviso interno de la pausa |
+| Push al solicitante | Se le informa que su orden quedó en espera |
+
+### Reglas de negocio
+- Solo se ofrecen órdenes en estado `abierto`; las urgentes y de máquina parada aparecen primero
+- Si otro técnico toma la orden destino entre la apertura de la ventana y la confirmación, se avisa y se vuelve a mostrar la lista actualizada
+- Si no hay órdenes disponibles, no se puede pausar y así se indica
+- La orden pausada **conserva su técnico** en el historial y puede reanudarse registrando una actividad (SPEC-008)
+- Un técnico puede encadenar pausas: cada una queda registrada por separado
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -909,5 +950,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 11 de agosto de 2026 — versión 2.5 (corrige SPEC-020).*
+*Documento actualizado el 12 de agosto de 2026 — versión 2.6 (agrega SPEC-021).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

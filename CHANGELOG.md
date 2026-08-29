@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.10.0] — 2026-08-12
+
+### Agregado
+- **SPEC-021: pausar una orden para atender otra.** Cuando por urgencia el técnico debe dejar la orden en curso, ahora puede hacerlo sin perder la trazabilidad.
+  - **Botón flotante** con el signo `=` en la lista del técnico, visible desde que toma una orden y oculto cuando no tiene ninguna en curso.
+  - Al pulsarlo se pide confirmar la pausa y se listan las **órdenes disponibles**, con las urgentes y de máquina parada primero.
+  - **La pausa exige tomar otra orden**: no se puede pausar sin destino.
+  - Al pausar se registra la salida del técnico (su tiempo deja de contar), la orden pasa a espera con el motivo, se abre un periodo de espera para descontar ese tiempo, y se guarda el registro de la pausa con destino, autor y fecha.
+  - Se agrega comentario en la orden, aviso interno al supervisor y notificación push al solicitante.
+- Nuevo arreglo `ot.pausas` en el modelo de datos.
+
+### Notas
+- Si otro técnico toma la orden destino mientras la ventana está abierta, se avisa y se actualiza la lista.
+- Si no hay órdenes disponibles no se permite pausar, y así se indica.
+- La orden pausada conserva a su técnico y puede reanudarse registrando una actividad.
+
+---
+
 ## [1.9.2] — 2026-08-11
 
 ### Corregido
@@ -470,4 +488,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 11 de agosto de 2026*
+*Última actualización: 12 de agosto de 2026*

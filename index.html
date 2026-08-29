@@ -420,6 +420,15 @@ input[type=range].green{accent-color:var(--green)}
 .dispo-fila{display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:12px}
 .dispo-fila span{color:var(--text3);width:78px;flex-shrink:0}
 .dispo-fila b{color:var(--text);font-weight:600;flex:1;line-height:1.35}
+.pausa-aviso{background:var(--amber-light);border:1px solid var(--amber);border-radius:10px;padding:11px 13px;font-size:12px;color:var(--text);line-height:1.5}
+.pausa-aviso b{color:var(--blue-dark)}
+.pausa-sec{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);font-weight:700;margin:14px 0 8px}
+.pausa-card{width:100%;text-align:left;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:9px;background:var(--surface);cursor:pointer;font-family:inherit;display:block}
+.pausa-card:active{transform:scale(.99)}
+.pausa-folio{font-weight:700;font-size:13px;color:var(--blue-dark)}
+.pausa-desc{font-size:12px;color:var(--text);margin-top:3px;line-height:1.4}
+.pausa-meta{font-size:11px;color:var(--text3);margin-top:4px}
+.pausa-urg{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:20px;background:var(--red);color:#fff;margin-left:6px}
 .adm-tabbar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .adm-tabbar::-webkit-scrollbar{display:none}
 .adm-tab{flex:1;min-width:58px;padding:7px 2px 9px;text-align:center;font-size:9px;color:var(--text3);background:none;border:none;border-top:2px solid transparent;cursor:pointer;white-space:nowrap}
@@ -733,6 +742,9 @@ input[type=range].green{accent-color:var(--green)}
       <div class="list-pad" id="tec-ot-list"></div>
       <div class="spacer"></div>
     </div>
+    <button class="fab fab-orange" id="tec-fab-pausar" style="display:none" onclick="abrirPausarOT()" aria-label="Pausar orden y tomar otra">
+      <svg viewBox="0 0 24 24"><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/></svg>
+    </button>
     <nav class="tabbar">
       <button class="tabbar-item active green" onclick="showScreen('tec-lista')">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
@@ -1118,6 +1130,19 @@ input[type=range].green{accent-color:var(--green)}
 
 <!-- ==================== MODAL REFACCIONES ==================== -->
 <!-- SPEC-020: aviso de técnicos ocupados al crear una OT -->
+<!-- SPEC-021: pausar la orden en curso y tomar otra -->
+<div class="modal-overlay" id="modal-pausar">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Pausar orden y tomar otra</div>
+    <div id="pausar-actual" style="padding:0 16px 10px"></div>
+    <div id="pausar-lista" style="padding:0 16px;max-height:44vh;overflow-y:auto"></div>
+    <div style="padding:14px 16px 18px">
+      <button class="btn btn-outline btn-block" onclick="closeModal('modal-pausar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-dispo">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -2310,6 +2335,7 @@ function initTecnico(){
 
 function renderTecOTs(filter){
   reloadDB();
+  actualizarFabPausar();   // SPEC-021
   if(filter) currentFilter=filter;
   var statusF2 = currentFilter||'todas';
   var cnNorm=currentUser.nombre.toLowerCase();
@@ -2574,6 +2600,123 @@ function tecnicosUnicos(ot){
     vistos[t.nombre.toLowerCase()] = true;
     return true;
   });
+}
+
+/* ═══════ SPEC-021: PAUSAR ORDEN EN CURSO Y TOMAR OTRA ═══════ */
+
+// OT que el técnico tiene abierta (tomada y sin registrar salida).
+function otEnCursoDelTecnico(){
+  if(!currentUser) return null;
+  var lista = (DB.ots||[]).filter(function(ot){
+    if(!ot || (ot.status!=='proceso' && ot.status!=='espera')) return false;
+    return (ot.tecnicos||[]).some(function(t){
+      return t && _mismoNombre(t.nombre, currentUser.nombre) && !t.fechaSalida;
+    });
+  });
+  lista.sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
+  return lista[0] || null;
+}
+
+// Muestra u oculta el botón flotante según si hay una orden en curso.
+function actualizarFabPausar(){
+  var fab = document.getElementById('tec-fab-pausar');
+  if(!fab) return;
+  fab.style.display = otEnCursoDelTecnico() ? 'flex' : 'none';
+}
+
+function abrirPausarOT(){
+  var actual = otEnCursoDelTecnico();
+  if(!actual){ alert('No tienes ninguna orden en curso para pausar.'); return; }
+
+  var eq = [actual.nave ? 'Nave '+actual.nave : '', actual.equipo].filter(Boolean).join(' · ');
+  document.getElementById('pausar-actual').innerHTML =
+      '<div class="pausa-aviso">Vas a pausar la orden <b>'+actual.folio+'</b>'
+    + (eq ? ' ('+eq+')' : '') + '.<br>'
+    + 'Tu tiempo en ella deja de contar y la orden queda registrada en espera. '
+    + 'Para pausarla debes <b>tomar otra orden</b> de la lista.</div>';
+
+  // Órdenes disponibles (sin técnico asignado), urgentes primero
+  var disp = (DB.ots||[]).filter(function(o){
+    return o && o.status==='abierto' && o.id!==actual.id;
+  }).sort(function(a,b){
+    var ua = /urgente|parada/i.test(a.prioridad||'') ? 1 : 0;
+    var ub = /urgente|parada/i.test(b.prioridad||'') ? 1 : 0;
+    if(ua!==ub) return ub-ua;
+    return new Date(a.fechaAlta)-new Date(b.fechaAlta);
+  });
+
+  var html = '<div class="pausa-sec">Selecciona la orden que vas a atender</div>';
+  if(!disp.length){
+    html += '<div style="padding:10px 0 4px;font-size:12px;color:var(--text3);line-height:1.5">'
+      + 'No hay órdenes disponibles en este momento, así que no es posible pausar la actual.</div>';
+  } else {
+    disp.forEach(function(o){
+      var urg = /urgente|parada/i.test(o.prioridad||'')
+        ? '<span class="pausa-urg">'+o.prioridad+'</span>' : '';
+      var ubi = [o.nave ? 'Nave '+o.nave : '', o.equipo].filter(Boolean).join(' · ');
+      html += '<button class="pausa-card" onclick="confirmarPausarYTomar(\''+o.id+'\')">'
+        + '<div class="pausa-folio">'+o.folio+urg+'</div>'
+        + '<div class="pausa-desc">'+(o.desc||'').substring(0,90)+'</div>'
+        + '<div class="pausa-meta">'+(ubi||'Sin ubicación')+' · '+(o.tipo||'')+'</div>'
+        + '</button>';
+    });
+  }
+  document.getElementById('pausar-lista').innerHTML = html;
+  openModal('modal-pausar');
+}
+
+function confirmarPausarYTomar(idDestino){
+  var actual  = otEnCursoDelTecnico();
+  var destino = (DB.ots||[]).find(function(o){ return o.id===idDestino; });
+  if(!actual || !destino){ alert('No fue posible completar la operación.'); return; }
+  if(destino.status!=='abierto'){
+    alert('Esa orden ya fue tomada por otro técnico. Elige otra.');
+    abrirPausarOT();
+    return;
+  }
+  if(!confirm('¿Pausar la OT '+actual.folio+' y tomar la '+destino.folio+'?\n\n'
+    + 'La orden pausada queda en espera con el registro de por qué la dejaste.')) return;
+
+  var ahora = new Date().toISOString();
+
+  // 1) SPEC-012: registrar salida para que deje de contarle el tiempo
+  var mias = (actual.tecnicos||[]).filter(function(t){
+    return t && _mismoNombre(t.nombre, currentUser.nombre) && !t.fechaSalida;
+  });
+  if(mias.length) mias[mias.length-1].fechaSalida = ahora;
+
+  // 2) Estado en espera, con el motivo de la pausa
+  var motivo = 'Técnico reasignado a la OT '+destino.folio;
+  actual.status = 'espera';
+  actual.espera = {motivo:motivo, comentario:'Pausa por atención de otra orden.', fechaEst:''};
+
+  // 3) SPEC-013: periodo de espera para descontarlo del tiempo
+  if(!Array.isArray(actual.esperas)) actual.esperas = [];
+  actual.esperas.push({inicio:ahora, fin:null, motivo:motivo,
+    tecnico:currentUser.nombre, nomina:currentUser.nomina});
+
+  // 4) Trazabilidad de la pausa
+  if(!Array.isArray(actual.pausas)) actual.pausas = [];
+  actual.pausas.push({tecnico:currentUser.nombre, nomina:currentUser.nomina,
+    fecha:ahora, otDestino:destino.id, folioDestino:destino.folio});
+
+  // 5) Comentario y avisos
+  if(!Array.isArray(actual.comentarios)) actual.comentarios = [];
+  actual.comentarios.push({autor:currentUser.nombre, fecha:ahora,
+    texto:'Orden pausada — el técnico pasó a atender la OT '+destino.folio+'.'});
+  if(!Array.isArray(DB.notifs)) DB.notifs = [];
+  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
+    texto:'OT '+actual.folio+' pausada por '+currentUser.nombre+' para atender la OT '+destino.folio+'.',
+    fecha:ahora, leida:false});
+  if(actual.nomina){
+    notifyPush([actual.nomina], 'OT en pausa',
+      'Tu OT '+actual.folio+' quedó en espera: el técnico fue a atender otra orden.',
+      'pausa-'+actual.folio);
+  }
+
+  saveDB();
+  closeModal('modal-pausar');
+  tomarOT(idDestino);   // continúa con el flujo normal de toma
 }
 
 function tomarOT(id){
