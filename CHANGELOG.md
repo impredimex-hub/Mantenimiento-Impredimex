@@ -6,6 +6,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.9.1] — 2026-08-10
+
+### Corregido
+- **SPEC-020:** Cuando existían varios roles de turnos cubriendo las mismas fechas, el sistema tomaba el **primero de la lista** en lugar del más reciente, por lo que identificaba mal a los técnicos en turno. Detectado en pruebas: con cinco roles guardados, a las 19:22 devolvía a un técnico del turno 06–14 y omitía a uno del turno 14–21:30.
+- Ahora, ante roles traslapados, gana el **guardado más recientemente** (por fecha de modificación y, en empate, por fecha de inicio).
+
+### Agregado
+- Aviso en la pantalla de Turnos cuando hay **roles que cubren las mismas fechas**, indicando cuántos son y que el sistema usa el más reciente.
+
+---
+
 ## [1.9.0] — 2026-08-09
 
 ### Agregado
@@ -447,4 +458,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 9 de agosto de 2026*
+*Última actualización: 10 de agosto de 2026*

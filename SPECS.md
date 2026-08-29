@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.3
-**Fecha:** 9 de agosto de 2026
+**Versión:** 2.4
+**Fecha:** 10 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -815,7 +815,9 @@ Por cada técnico ocupado:
 | Con tipo de problema | *Trabajando — <tipo> (avance N%)* |
 
 ### Cómo se determina quién está en turno
-Se consulta el rol de turnos vigente (`DB.turnos`) buscando la asignación de cada persona para la fecha actual, y se compara la hora del sistema con el rango del turno asignado.
+Se consulta el rol de turnos (`DB.turnos`) buscando la asignación de cada persona para la fecha actual, y se compara la hora del sistema con el rango del turno asignado.
+
+**Roles traslapados:** cuando varios roles cubren la misma fecha, gana el **más reciente**, determinado por su fecha de última modificación y, en empate, por su fecha de inicio. La pantalla de Turnos avisa cuando detecta roles traslapados, para que el supervisor elimine los que ya no use.
 
 El catálogo de turnos incluye `ini` y `fin` en minutos desde medianoche. Cuando `fin <= ini`, el turno **cruza la medianoche** (T3 y N12); en ese caso también se revisa la asignación del **día anterior**, de modo que a las 02:00 se reconoce al técnico que entró a las 21:30 del día previo.
 
@@ -904,5 +906,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 9 de agosto de 2026 — versión 2.3 (agrega SPEC-020).*
+*Documento actualizado el 10 de agosto de 2026 — versión 2.4 (corrige SPEC-020).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

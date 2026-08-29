@@ -4312,14 +4312,43 @@ function minutoEnRango(min, r){
   return min >= r.ini || min < r.fin;                     // cruza medianoche
 }
 
-// Asignación de una persona en una fecha concreta, buscando en todos los roles.
+// Asignación de una persona en una fecha concreta.
+// SPEC-020: si varios roles cubren la misma fecha, gana el MÁS RECIENTE,
+// determinado por su última modificación y, en empate, por su fecha de inicio.
 function asignacionDe(nomina, fechaISO){
-  var roles = DB.turnos || [];
-  for(var i=0;i<roles.length;i++){
-    var a = (roles[i].asignaciones||{})[nomina];
-    if(a && a[fechaISO]) return a[fechaISO];
+  var roles = (DB.turnos || []).filter(function(r){
+    return r && (r.asignaciones||{})[nomina] && r.asignaciones[nomina][fechaISO];
+  });
+  if(!roles.length) return null;
+  if(roles.length > 1){
+    roles.sort(function(a,b){
+      var ta = new Date(a.fechaMod || a.fechaCreacion || 0).getTime();
+      var tb = new Date(b.fechaMod || b.fechaCreacion || 0).getTime();
+      if(tb !== ta) return tb - ta;
+      return String(b.fechaInicio||'').localeCompare(String(a.fechaInicio||''));
+    });
   }
-  return null;
+  return roles[0].asignaciones[nomina][fechaISO];
+}
+
+// SPEC-020: roles cuyo periodo se traslapa con otro. Se avisa en pantalla
+// porque un traslape hace ambiguo qué turno rige cada día.
+function rolesTraslapados(){
+  var roles = (DB.turnos||[]).filter(function(r){ return r && r.fechaInicio; });
+  var rangos = roles.map(function(r){
+    var d = diasDelPeriodo(r.fechaInicio, r.periodo);
+    return {rol:r, ini:r.fechaInicio, fin: d.length ? d[d.length-1].iso : r.fechaInicio};
+  });
+  var conflicto = [];
+  for(var i=0;i<rangos.length;i++){
+    for(var j=i+1;j<rangos.length;j++){
+      if(rangos[i].ini <= rangos[j].fin && rangos[j].ini <= rangos[i].fin){
+        if(conflicto.indexOf(rangos[i].rol)<0) conflicto.push(rangos[i].rol);
+        if(conflicto.indexOf(rangos[j].rol)<0) conflicto.push(rangos[j].rol);
+      }
+    }
+  }
+  return conflicto;
 }
 
 function _isoDe(d){
@@ -4430,6 +4459,17 @@ function renderTurnos(){
     + '<div style="padding:0 16px 8px;font-size:10px;color:var(--text3);line-height:1.5">'
     + 'Se conserva el histórico del último mes. Los roles terminados hace más de 30 días se eliminan automáticamente.'
     + '</div>';
+
+  // SPEC-020: avisar si hay roles que cubren las mismas fechas
+  var traslape = rolesTraslapados();
+  if(traslape.length){
+    html += '<div style="margin:0 12px 10px;padding:10px 12px;border:1px solid var(--amber);'
+      + 'background:var(--amber-light);border-radius:10px;font-size:11px;color:var(--text);line-height:1.5">'
+      + '<b>Hay '+traslape.length+' roles que cubren las mismas fechas.</b><br>'
+      + 'Cuando esto ocurre, el sistema toma el turno del rol guardado más recientemente. '
+      + 'Conviene eliminar los que ya no uses para evitar confusiones.'
+      + '</div>';
+  }
 
   if(!roles.length){
     html += '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:13px">'
