@@ -3913,7 +3913,7 @@ function metricasTecnicos(){
     var nom = p.nombre, tomadas=0, cerradas=0, resp=[], interv=[];
     (DB.ots||[]).forEach(function(ot){
       if(!ot || !Array.isArray(ot.tecnicos)) return;
-      var idx = ot.tecnicos.findIndex(function(t){ return t && t.nombre===nom; });
+      var idx = ot.tecnicos.findIndex(function(t){ return t && _mismoNombre(t.nombre, nom); });
       if(idx < 0) return;
       tomadas++;
       if(ot.status==='cerrado') cerradas++;
@@ -4285,6 +4285,17 @@ function purgarTurnosAntiguos(){
 
 /* ═══════ SPEC-020: DISPONIBILIDAD DE TÉCNICOS AL LEVANTAR UNA OT ═══════ */
 
+// SPEC-020: compara nombres de forma robusta. El catálogo guarda MAYÚSCULAS,
+// pero al iniciar sesión el nombre se convierte a formato título, así que una
+// comparación exacta nunca coincide. Se normaliza mayúsculas, acentos y espacios.
+function _normNombre(x){
+  return String(x||'')
+    .toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ').trim();
+}
+function _mismoNombre(a,b){ return _normNombre(a) === _normNombre(b); }
+
 function _hhmmAMin(t){
   if(!t) return null;
   var p = String(t).split(':');
@@ -4385,7 +4396,7 @@ function otActivaDeTecnico(nombre){
   var lista = (DB.ots||[]).filter(function(ot){
     if(!ot || (ot.status!=='proceso' && ot.status!=='espera')) return false;
     return (ot.tecnicos||[]).some(function(t){
-      return t && t.nombre===nombre && !t.fechaSalida;
+      return t && _mismoNombre(t.nombre, nombre) && !t.fechaSalida;
     });
   });
   // La más reciente por fecha de alta
@@ -4408,8 +4419,10 @@ function etapaDeOT(ot, nomina){
 }
 
 // Se llama al crear una OT. Devuelve true si mostró el aviso.
-function avisarSiNoHayTecnicoLibre(nuevaOT){
-  var enTurno = tecnicosEnTurno(new Date());
+// El parámetro fecha existe para poder verificar el comportamiento a una hora
+// concreta; en uso normal se omite y toma la hora del sistema.
+function avisarSiNoHayTecnicoLibre(nuevaOT, fecha){
+  var enTurno = tecnicosEnTurno(fecha || new Date());
 
   // Sin rol de turnos cargado para hoy no hay forma de saberlo: no se avisa.
   if(!enTurno.length) return false;

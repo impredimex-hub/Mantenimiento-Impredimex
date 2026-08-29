@@ -4,8 +4,8 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.4
-**Fecha:** 10 de agosto de 2026
+**Versión:** 2.5
+**Fecha:** 11 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
 ---
@@ -823,6 +823,9 @@ El catálogo de turnos incluye `ini` y `fin` en minutos desde medianoche. Cuando
 
 Para el turno libre (`LIB`) se usan las horas capturadas manualmente.
 
+### Comparación de nombres
+El catálogo de personal guarda los nombres en **mayúsculas**, pero al iniciar sesión la app los convierte a **formato título** (`toTitleCase`), y ese es el valor que queda registrado en `ot.tecnicos`. Por eso toda comparación de nombres se hace con `_mismoNombre()`, que normaliza mayúsculas, acentos y espacios. Una comparación exacta nunca coincidiría.
+
 ### Reglas de negocio
 - Solo se considera personal **activo** del departamento MANTENIMIENTO
 - Un técnico cuenta como **ocupado** si tiene una OT en estado `proceso` o `espera` en la que participa y de la que no ha registrado salida (SPEC-012)
@@ -906,5 +909,5 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 10 de agosto de 2026 — versión 2.4 (corrige SPEC-020).*
+*Documento actualizado el 11 de agosto de 2026 — versión 2.5 (corrige SPEC-020).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*

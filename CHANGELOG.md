@@ -6,6 +6,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.9.2] — 2026-08-11
+
+### Corregido
+- **SPEC-020:** La ventana de técnicos ocupados nunca aparecía. Causa: el catálogo guarda los nombres en **mayúsculas**, pero al iniciar sesión la app los convierte a **formato título**, y así quedan registrados en la orden. La comparación era exacta (`===`), por lo que jamás coincidía y ningún técnico se detectaba como ocupado.
+- **SPEC-019:** El mismo error afectaba al **ranking de técnicos**, que habría mostrado cero órdenes para todos.
+- Se agregó `_mismoNombre()`, que normaliza mayúsculas, acentos y espacios, y se aplicó en ambos lugares.
+
+### Cambiado
+- `avisarSiNoHayTecnicoLibre()` acepta una fecha opcional, para poder verificar el comportamiento a una hora concreta. En uso normal se omite y toma la hora del sistema.
+
+---
+
 ## [1.9.1] — 2026-08-10
 
 ### Corregido
@@ -458,4 +470,4 @@ A partir de la versión 1.0.0, este proyecto sigue **metodología SDD (Spec-Driv
 
 ---
 
-*Última actualización: 10 de agosto de 2026*
+*Última actualización: 11 de agosto de 2026*
