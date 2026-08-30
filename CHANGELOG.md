@@ -6,6 +6,20 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.12.0] — 2026-08-15
+
+### Agregado
+- **SPEC-024: la sesión sobrevive a F5 / recargar la página.** Antes, `currentUser` solo vivía en memoria y cualquier recarga regresaba a la pantalla de login. Ahora la sesión se guarda en `localStorage` al iniciar sesión y se restaura automáticamente al cargar la app, con el cache local de la base para renderizar de inmediato mientras Firebase reconecta.
+- Botón circular pequeño y discreto (ícono de apagar) a la izquierda del indicador de conexión, visible solo con sesión activa, para cerrar sesión manualmente ahora que la recarga ya no lo hace por accidente.
+
+### Cambiado
+- Se retiró el ícono de campana del encabezado de **solicitante** y **técnico**. El acceso a notificaciones sigue disponible desde las pestañas **Avisos** / **Historial**.
+
+### Corregido
+- Las pestañas **Avisos** e **Historial** cambiaban de pantalla pero nunca llamaban a la función que llena la lista; ese renderizado dependía de pasar antes por la campana (ahora eliminada). Se corrigió para que las pestañas rendericen la lista directamente al pulsarse.
+
+---
+
 ## [1.11.1] — 2026-08-14
 
 ### Corregido

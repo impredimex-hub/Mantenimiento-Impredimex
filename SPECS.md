@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.8
+**Versión:** 2.9
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -934,6 +934,31 @@ Se compara el turno guardado en la última entrada de `ot.tecnicos` contra `turn
 ### Reglas de negocio
 - La comparación de turno usa el texto guardado al tomar la orden (`turno: turnoActual()`), no una nueva consulta al rol de turnos
 - Estos cambios son de presentación: no alteran el flujo de toma, unión ni los tiempos de intervención
+
+---
+
+# SPEC-024 — Persistencia de sesión y encabezado simplificado
+
+### Actor
+Todos los roles (solicitante, técnico, supervisor, admin).
+
+### Motivación
+`currentUser` vivía solo en memoria. Al presionar F5 o recargar la página, la variable volvía a `null` y la app regresaba a la pantalla de login, obligando a capturar nómina y contraseña de nuevo.
+
+### Persistencia de sesión
+- Al iniciar sesión (`doLogin()`), `currentUser` se guarda también en `localStorage` bajo la clave `mantoSession`
+- Al cargar la página, `restoreSession()` se ejecuta antes de `initFirebase()`: si hay una sesión guardada, restaura `currentUser`, carga el cache local de la base (`mantoDB`) para tener datos con qué renderizar de inmediato, y navega directo a la pantalla del rol correspondiente — sin pasar por login
+- Los listeners de Firebase actualizan la información en cuanto conectan, igual que en cualquier sesión iniciada de cero
+- Al cerrar sesión (`logout()`), se borra la clave `mantoSession` de `localStorage`
+
+### Encabezado
+- Se retiró el ícono de campana del encabezado de **solicitante** y **técnico**. El acceso a notificaciones se mantiene igual desde las pestañas inferiores **Avisos** / **Historial**, que ahora llaman directamente a `renderNotifsSol()` / `renderNotifsTec()` al pulsarse (antes ese renderizado dependía de pasar por la campana, que era el único punto que lo invocaba)
+- Se agregó un botón circular pequeño y discreto con ícono de apagar, a la izquierda del indicador de conexión (**En línea / Conectando…**). Solo es visible mientras hay una sesión activa; cierra sesión al pulsarlo
+
+### Reglas de negocio
+- El botón de apagar es el mismo para los cuatro roles, porque el indicador de conexión es un elemento global fijo en pantalla, no parte del encabezado de cada rol
+- La restauración de sesión **no vuelve a validar** el estatus del trabajador contra el catálogo (por ejemplo, si fue dado de baja después de haber iniciado sesión). Esa validación solo ocurre en `doLogin()`
+- Si `localStorage` no está disponible o el contenido guardado es inválido, `restoreSession()` no falla: simplemente no restaura nada y la app muestra el login normalmente
 
 ---
 

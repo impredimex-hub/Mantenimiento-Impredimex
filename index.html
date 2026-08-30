@@ -491,7 +491,12 @@ input[type=range].green{accent-color:var(--green)}
     }, 1500);
   });
 </script>
-<div class="fb-sync" style="position:fixed;top:10px;right:12px;z-index:9999;display:flex;align-items:center;gap:5px"><span class="fb-dot fb-dot-syncing" id="fb-sync-dot"></span><span id="fb-sync-label" style="font-size:10px;color:var(--text3)">Conectando…</span></div>
+<div class="fb-sync" style="position:fixed;top:10px;right:12px;z-index:9999;display:flex;align-items:center;gap:6px">
+  <button id="fb-logout-btn" onclick="logout()" title="Cerrar sesión" aria-label="Cerrar sesión" style="display:none;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:var(--surface);padding:0;cursor:pointer">
+    <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:var(--text3);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="M12 2v6"/><path d="M18.36 6.64a9 9 0 11-12.73 0"/></svg>
+  </button>
+  <span class="fb-dot fb-dot-syncing" id="fb-sync-dot"></span><span id="fb-sync-label" style="font-size:10px;color:var(--text3)">Conectando…</span>
+</div>
 
 <!-- ==================== LOGIN ==================== -->
 <div id="page-login" class="page active">
@@ -528,10 +533,7 @@ input[type=range].green{accent-color:var(--green)}
         <div style="font-size:11px;opacity:.75" id="sol-greeting">Hola</div>
         <div class="topbar-title">Mis solicitudes</div>
       </div>
-      <button class="topbar-icon-btn" onclick="showNotifs('solicitante')" aria-label="Notificaciones">
-        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
-        <span class="notif-dot" id="sol-notif-dot"></span>
-      </button>
+
     </div>
     <div class="search-filters" id="sol-search-filters">
       <div class="sf-search-row">
@@ -567,7 +569,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item" onclick="showScreen('sol-notifs')">
+      <button class="tabbar-item" onclick="showScreen('sol-notifs');renderNotifsSol()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Avisos
       </button>
@@ -670,7 +672,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item active" onclick="showScreen('sol-notifs')">
+      <button class="tabbar-item active" onclick="showScreen('sol-notifs');renderNotifsSol()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Avisos
       </button>
@@ -690,7 +692,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item" onclick="showScreen('sol-notifs')">
+      <button class="tabbar-item" onclick="showScreen('sol-notifs');renderNotifsSol()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
         Avisos
       </button>
@@ -711,10 +713,7 @@ input[type=range].green{accent-color:var(--green)}
         <div style="font-size:11px;opacity:.75" id="tec-greeting">Técnico</div>
         <div class="topbar-title">Mis órdenes</div>
       </div>
-      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showNotifs('tecnico')" aria-label="Notificaciones">
-        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
-        <span class="notif-dot" id="tec-notif-dot" style="border-color:var(--green)"></span>
-      </button>
+
     </div>
     <div class="search-filters">
       <div class="sf-search-row">
@@ -750,7 +749,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item" onclick="showScreen('tec-historial')">
+      <button class="tabbar-item" onclick="showScreen('tec-historial');renderNotifsTec()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
@@ -869,7 +868,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item active green" onclick="showScreen('tec-historial')">
+      <button class="tabbar-item active green" onclick="showScreen('tec-historial');renderNotifsTec()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
@@ -889,7 +888,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item" onclick="showScreen('tec-historial')">
+      <button class="tabbar-item" onclick="showScreen('tec-historial');renderNotifsTec()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
@@ -1589,6 +1588,35 @@ function reRenderCurrentScreen(){
 
 
 let currentUser = null;
+
+// SPEC-024: la sesión se guarda en localStorage para que sobreviva a F5 /
+// recargar la página. Sin esto, currentUser vive solo en memoria y se pierde
+// en cada recarga, obligando a iniciar sesión de nuevo.
+const SESSION_KEY = 'mantoSession';
+
+function restoreSession(){
+  try {
+    var raw = localStorage.getItem(SESSION_KEY);
+    if(!raw) return false;
+    var saved = JSON.parse(raw);
+    if(!saved || !saved.nomina || !saved.role) return false;
+
+    // Cargar el cache local de la BD para tener con qué renderizar de inmediato;
+    // los listeners de Firebase actualizan todo en cuanto conectan.
+    var stored = localStorage.getItem('mantoDB');
+    if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
+
+    currentUser = saved;
+    var lb = document.getElementById('fb-logout-btn');
+    if(lb) lb.style.display = 'flex';
+
+    if(saved.role==='admin'){ showPage('page-admin'); initAdmin(); }
+    else if(saved.role==='solicitante'){ showPage('page-solicitante'); initSolicitante(); }
+    else if(saved.role==='tecnico'){ showPage('page-tecnico'); initTecnico(); }
+    else { showPage('page-supervisor'); initSupervisor(); }
+    return true;
+  } catch(e){ return false; }
+}
 let currentOTId = null;
 let currentFilter = 'todas';
 
@@ -1669,6 +1697,11 @@ function doLogin(){
 
   currentUser = {nomina:nomina, nombre:nombreReal, puesto:puestoReal, depto:deptoReal, role:role, turno:turnoReal};
 
+  // SPEC-024: persistir la sesión para que sobreviva a F5 / recargar la página
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); } catch(e){}
+  var lb = document.getElementById('fb-logout-btn');
+  if(lb) lb.style.display = 'flex';
+
   // Inicializar OneSignal con el usuario ya autenticado
   saveFCMToken();
 
@@ -1699,6 +1732,10 @@ function logout(){
       });
     }
   } catch(e){}
+  // SPEC-024: borrar la sesión persistida y ocultar el botón de apagar
+  try { localStorage.removeItem(SESSION_KEY); } catch(e){}
+  var lb = document.getElementById('fb-logout-btn');
+  if(lb) lb.style.display = 'none';
   currentUser=null;
   showPage('page-login');
 }
@@ -5962,6 +5999,7 @@ function initCatalogos(){
     saveDB();
   }
 }
+restoreSession(); // SPEC-024: si hay sesión guardada, entra directo sin pasar por login
 initFirebase();
     setTimeout(function(){if(typeof Notification!=='undefined'&&Notification.permission==='default'){Notification.requestPermission().then(function(p){if(p==='granted')saveFCMToken();});}else if(typeof Notification!=='undefined'&&Notification.permission==='granted'){saveFCMToken();}},2500);
 
