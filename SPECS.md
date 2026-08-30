@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.7
+**Versión:** 2.8
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -905,6 +905,35 @@ Al técnico que la pausó no se le ofrece en esa sección, porque para él apare
 - Una orden se considera **sin atender** cuando está en `espera`, tiene registro de pausa y ningún técnico activo (todos con salida registrada)
 - En cuanto alguien la toma deja de ser prioritaria y libera al técnico original
 - La restricción se evalúa por la **última pausa** registrada en la orden
+
+---
+
+# SPEC-023 — Estado real de una OT ya tomada, visible a los demás técnicos
+
+### Problema que resuelve
+En la lista de "Disponibles para tomar", toda OT en estado `abierto` o `proceso` que el técnico aún no hubiera registrado en su turno mostraba el mismo badge **"Sin tomar"**, aunque ya tuviera un técnico trabajando en ella. Un segundo técnico no podía distinguir, de un vistazo, si la orden estaba realmente libre o si solo se le invitaba a sumarse.
+
+En el detalle, el mensaje de invitación decía siempre *"relevaste al turno anterior"*, asumiendo que cualquier segundo técnico llegaba por cambio de turno. Eso es falso cuando dos técnicos comparten el mismo turno y uno se suma para ayudar al otro.
+
+### Cambios en la tarjeta de lista (`otCardTec`)
+
+| Situación | Antes | Ahora |
+|---|---|---|
+| OT en `abierto`, sin técnico | Badge "Sin tomar" | Badge "Sin tomar" (sin cambio) |
+| OT en `proceso`, con técnico | Badge "Sin tomar" | Badge **"En proceso"** (mismo estilo que en el resto de la app) + **nombre del técnico** a la izquierda del badge, en el encabezado |
+
+Además, el cuerpo de la tarjeta agrega una fila **"Técnico:"** con el nombre de quien ya la tomó, cuando aplica.
+
+### Corrección del mensaje al abrir el detalle
+Se compara el turno guardado en la última entrada de `ot.tecnicos` contra `turnoActual()`:
+
+- **Turnos distintos** → *"OT en proceso — relevo de turno"*, con el nombre del técnico anterior y su turno.
+- **Mismo turno** → *"OT en proceso — mismo turno"*, indicando que el técnico ya está atendiendo la orden en el turno actual y que el nuevo puede sumarse a ayudar.
+- **Sin técnico previo** → *"OT sin atender"*, sin cambios.
+
+### Reglas de negocio
+- La comparación de turno usa el texto guardado al tomar la orden (`turno: turnoActual()`), no una nueva consulta al rol de turnos
+- Estos cambios son de presentación: no alteran el flujo de toma, unión ni los tiempos de intervención
 
 ---
 

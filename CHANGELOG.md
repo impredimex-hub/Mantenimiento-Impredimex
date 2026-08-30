@@ -6,6 +6,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.11.1] — 2026-08-14
+
+### Corregido
+- **SPEC-023:** En el listado de "Disponibles para tomar", una OT ya tomada por otro técnico mostraba el mismo badge **"Sin tomar"** que una realmente libre. Ahora muestra **"En proceso"** con el nombre del técnico junto al badge, y una fila "Técnico:" en el cuerpo de la tarjeta.
+- El mensaje al abrir el detalle de una OT en proceso decía siempre *"relevaste al turno anterior"*, aunque el técnico que la tomó estuviera en el **mismo turno**. Ahora distingue: *"relevo de turno"* cuando el turno guardado difiere del actual, y *"mismo turno"* cuando coincide.
+
+---
+
 ## [1.11.0] — 2026-08-13
 
 ### Agregado
