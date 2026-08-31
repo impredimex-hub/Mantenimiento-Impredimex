@@ -6,6 +6,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.12.3] — 2026-08-18
+
+### Corregido
+- **SPEC-027:** Un técnico con una orden **en proceso** (sin pausar) podía tomar otra directamente desde "Disponibles", sin restricción. El candado de SPEC-022 solo cubría el caso de una orden **pausada** pendiente; el caso básico —simplemente tener una en proceso— no estaba contemplado.
+- `tomarOT()` ahora bloquea también este caso, e indica usar el botón **"="** (pausar) para cambiar de orden.
+
+### Notas
+- No afecta el reingreso a la propia orden, ni la toma que acompaña al flujo de pausar.
+- Deliberadamente no bloquea si la orden propia está en `espera` por falta de refacción u otro motivo (SPEC-008): esa suspensión es distinta a estar "en proceso" y no impide tomar otra orden mientras se resuelve.
+
+---
+
 ## [1.12.2] — 2026-08-17
 
 ### Corregido

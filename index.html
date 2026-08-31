@@ -2702,6 +2702,23 @@ function otsPausadasHuerfanas(){
   });
 }
 
+// SPEC-027: como otEnCursoDelTecnico(), pero acotada a status "proceso".
+// Se usa para el candado de "una sola orden activa a la vez" al tomar.
+// Deliberadamente NO incluye "espera": si el técnico puso su propia orden
+// en espera por falta de refacción u otro motivo (SPEC-008), no queda
+// bloqueado para tomar otra mientras tanto.
+function otEnProcesoDelTecnico(){
+  if(!currentUser) return null;
+  var lista = (DB.ots||[]).filter(function(ot){
+    if(!ot || ot.status!=='proceso') return false;
+    return (ot.tecnicos||[]).some(function(t){
+      return t && _mismoNombre(t.nombre, currentUser.nombre) && !t.fechaSalida;
+    });
+  });
+  lista.sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
+  return lista[0] || null;
+}
+
 function otEnCursoDelTecnico(){
   if(!currentUser) return null;
   var lista = (DB.ots||[]).filter(function(ot){
@@ -2826,6 +2843,20 @@ function tomarOT(id, desdePausa){
     if(pend && pend.id !== id){
       alert('Tienes pausada la OT ' + pend.folio + '.\n\n'
         + 'Debes retomarla antes de tomar otra orden, o esperar a que otro técnico la atienda.');
+      return;
+    }
+  }
+
+  // SPEC-027: solo puede tener UNA orden "en proceso" a la vez. Antes este
+  // candado solo cubría el caso de una orden ya pausada (SPEC-022); faltaba
+  // el caso básico de tomar una segunda orden sin haber pausado la primera.
+  // Para cambiar de orden debe usar el botón "=" (pausar), que sí lo permite
+  // porque pausa formalmente la anterior antes de tomar la nueva.
+  if(!desdePausa){
+    var enProceso = otEnProcesoDelTecnico();
+    if(enProceso && enProceso.id !== id){
+      alert('Ya tienes la OT ' + enProceso.folio + ' en proceso.\n\n'
+        + 'Para atender otra, usa el botón "=" y pausa la actual antes de tomar una nueva.');
       return;
     }
   }

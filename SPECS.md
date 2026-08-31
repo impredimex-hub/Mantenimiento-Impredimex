@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.1
+**Versión:** 3.2
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -990,6 +990,25 @@ Se agregó el helper `esPrioridadUrgente(ot)`, que devuelve verdadero para `prio
 - El texto mostrado es **"Urgente"** para ambas prioridades, igual que antes para `urgente` — no se introduce un texto distinto para "Máquina parada"
 - El reporte de Excel (`prioLabel`) sí distingue internamente el texto exportado: `urgente` → "Urgente", `maquina-parada` → "Urgente — Máquina parada", para no perder la información exacta en el histórico exportable
 - Un único punto de cambio (`esPrioridadUrgente`) evita que futuras prioridades "altas" se olviden de marcarse en alguna de las pantallas
+
+---
+
+# SPEC-027 — Un técnico, una orden en proceso a la vez
+
+### Problema que resuelve
+SPEC-022 bloqueaba tomar una orden nueva solo cuando el técnico tenía una **pausada** pendiente (es decir, después de haber usado el botón "="). Pero el caso más básico quedaba sin cubrir: un técnico con una orden **en proceso normal** —sin haberla pausado nunca— podía entrar a "Disponibles" y tomar una segunda, una tercera, cualquier cantidad, sin ninguna restricción.
+
+### Corrección
+`tomarOT()` ahora también valida, mediante `otEnProcesoDelTecnico()`, si el técnico ya tiene otra orden en estado `proceso` en la que participa sin haber registrado salida. Si la hay, se bloquea la toma y se le indica que use el botón **"="** para pausar la actual antes de tomar una nueva.
+
+### Qué NO bloquea, a propósito
+- **Reingresar a su propia orden** (mismo `id`): sigue permitido; ni siquiera entra a esta validación
+- **Tomar una orden mientras la propia está en `espera` por falta de refacción u otro motivo** (SPEC-008, sin pasar por el botón de pausar): esta validación se acotó deliberadamente a `status==='proceso'`, sin incluir `espera`, para no bloquear al técnico mientras espera un insumo por un motivo distinto a haber pausado
+- **La toma que acompaña al flujo de pausar** (`desdePausa=true`, SPEC-021): se omite esta validación porque esa toma es precisamente la forma correcta de cambiar de orden
+
+### Reglas de negocio
+- El mensaje de bloqueo indica el folio de la orden en proceso y remite al botón de pausar
+- Esta validación corre **después** de la de SPEC-022 (orden pausada pendiente); si ambas aplicaran, se muestra primero la de la pausada, por ser más específica
 
 ---
 
