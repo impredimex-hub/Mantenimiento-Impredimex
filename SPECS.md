@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.0
+**Versión:** 3.1
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -946,10 +946,17 @@ Todos los roles (solicitante, técnico, supervisor, admin).
 `currentUser` vivía solo en memoria. Al presionar F5 o recargar la página, la variable volvía a `null` y la app regresaba a la pantalla de login, obligando a capturar nómina y contraseña de nuevo.
 
 ### Persistencia de sesión
-- Al iniciar sesión (`doLogin()`), `currentUser` se guarda también en `localStorage` bajo la clave `mantoSession`
-- Al cargar la página, `restoreSession()` se ejecuta antes de `initFirebase()`: si hay una sesión guardada, restaura `currentUser`, carga el cache local de la base (`mantoDB`) para tener datos con qué renderizar de inmediato, y navega directo a la pantalla del rol correspondiente — sin pasar por login
+- Al iniciar sesión (`doLogin()`), `currentUser` se guarda también en **`sessionStorage`** bajo la clave `mantoSession`
+- Al cargar la página, `restoreSession()` se ejecuta antes de `initFirebase()`: si hay una sesión guardada, restaura `currentUser`, carga el cache local de la base (`mantoDB`, en `localStorage`) para tener datos con qué renderizar de inmediato, y navega directo a la pantalla del rol correspondiente — sin pasar por login
 - Los listeners de Firebase actualizan la información en cuanto conectan, igual que en cualquier sesión iniciada de cero
-- Al cerrar sesión (`logout()`), se borra la clave `mantoSession` de `localStorage`
+- Al cerrar sesión (`logout()`), se borra la clave `mantoSession` de `sessionStorage`
+
+### Por qué sessionStorage y no localStorage (SPEC-026)
+La sesión usa deliberadamente `sessionStorage`, exclusivo de **cada pestaña o ventana**, y no `localStorage`, que se comparte entre **todas** las ventanas del mismo navegador.
+
+En pruebas con dos personas usando dos ventanas del mismo Chrome (una como solicitante, otra como técnico), guardar la sesión en `localStorage` provocaba que la sesión de quien iniciaba sesión después sobrescribiera la del otro: al refrescar la primera ventana, aparecía el usuario equivocado.
+
+El cache de datos (`mantoDB`) sí sigue en `localStorage` a propósito, porque no es específico de un usuario — es una copia de la información compartida de Firebase, útil de compartir entre ventanas para renderizar más rápido.
 
 ### Encabezado
 - Se retiró el ícono de campana del encabezado de **solicitante** y **técnico**. El acceso a notificaciones se mantiene igual desde las pestañas inferiores **Avisos** / **Historial**, que ahora llaman directamente a `renderNotifsSol()` / `renderNotifsTec()` al pulsarse (antes ese renderizado dependía de pasar por la campana, que era el único punto que lo invocaba)

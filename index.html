@@ -1589,14 +1589,17 @@ function reRenderCurrentScreen(){
 
 let currentUser = null;
 
-// SPEC-024: la sesión se guarda en localStorage para que sobreviva a F5 /
-// recargar la página. Sin esto, currentUser vive solo en memoria y se pierde
-// en cada recarga, obligando a iniciar sesión de nuevo.
+// SPEC-024/026: la sesión se guarda en sessionStorage (no localStorage) para
+// que sobreviva a F5 / recargar la página. Se usa sessionStorage, exclusivo de
+// CADA pestaña o ventana, a propósito: localStorage se comparte entre todas
+// las ventanas del mismo navegador, así que si dos personas usan dos ventanas
+// del mismo Chrome (común al probar la app), la sesión de una sobrescribía la
+// de la otra y un F5 mostraba al usuario equivocado.
 const SESSION_KEY = 'mantoSession';
 
 function restoreSession(){
   try {
-    var raw = localStorage.getItem(SESSION_KEY);
+    var raw = sessionStorage.getItem(SESSION_KEY);
     if(!raw) return false;
     var saved = JSON.parse(raw);
     if(!saved || !saved.nomina || !saved.role) return false;
@@ -1698,7 +1701,7 @@ function doLogin(){
   currentUser = {nomina:nomina, nombre:nombreReal, puesto:puestoReal, depto:deptoReal, role:role, turno:turnoReal};
 
   // SPEC-024: persistir la sesión para que sobreviva a F5 / recargar la página
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); } catch(e){}
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); } catch(e){}
   var lb = document.getElementById('fb-logout-btn');
   if(lb) lb.style.display = 'flex';
 
@@ -1733,7 +1736,7 @@ function logout(){
     }
   } catch(e){}
   // SPEC-024: borrar la sesión persistida y ocultar el botón de apagar
-  try { localStorage.removeItem(SESSION_KEY); } catch(e){}
+  try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
   var lb = document.getElementById('fb-logout-btn');
   if(lb) lb.style.display = 'none';
   currentUser=null;

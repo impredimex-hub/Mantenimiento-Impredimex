@@ -6,6 +6,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.12.2] — 2026-08-17
+
+### Corregido
+- **SPEC-026:** La persistencia de sesión (SPEC-024) usaba `localStorage`, compartido entre **todas** las ventanas del mismo navegador. Si dos personas usaban dos ventanas del mismo Chrome (por ejemplo, un solicitante y un técnico probando desde la misma PC), la sesión de quien iniciaba sesión después sobrescribía la del otro: al refrescar, la primera ventana mostraba al usuario equivocado.
+- La sesión ahora se guarda en **`sessionStorage`**, exclusivo de cada pestaña o ventana, y sigue sobreviviendo al F5 dentro de esa misma ventana. El cache de datos (`mantoDB`) permanece en `localStorage`, ya que no es específico de un usuario.
+
+---
+
 ## [1.12.1] — 2026-08-16
 
 ### Corregido
