@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 2.9
+**Versión:** 3.0
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -959,6 +959,30 @@ Todos los roles (solicitante, técnico, supervisor, admin).
 - El botón de apagar es el mismo para los cuatro roles, porque el indicador de conexión es un elemento global fijo en pantalla, no parte del encabezado de cada rol
 - La restauración de sesión **no vuelve a validar** el estatus del trabajador contra el catálogo (por ejemplo, si fue dado de baja después de haber iniciado sesión). Esa validación solo ocurre en `doLogin()`
 - Si `localStorage` no está disponible o el contenido guardado es inválido, `restoreSession()` no falla: simplemente no restaura nada y la app muestra el login normalmente
+
+---
+
+# SPEC-025 — Máquina parada se distingue igual que Urgente
+
+### Problema que resuelve
+El formulario de nueva OT ofrece tres prioridades: Normal, Urgente y Máquina parada. Solo **Urgente** se resaltaba visualmente (línea/badge en rojo con el texto "Urgente") en las tarjetas y en el detalle. **Máquina parada** quedaba visualmente idéntica a Normal, sin ninguna marca, tanto en el listado del técnico como en el del solicitante y el del supervisor.
+
+### Cambio
+Se agregó el helper `esPrioridadUrgente(ot)`, que devuelve verdadero para `prioridad==='urgente'` **o** `prioridad==='maquina-parada'`. Todos los puntos que antes comparaban solo contra `'urgente'` ahora usan este helper:
+
+| Función | Pantalla |
+|---|---|
+| `otCardSol` | Tarjetas de OT del solicitante |
+| `otCardTec` | Tarjetas de OT del técnico (propias y disponibles) |
+| `otCardSup` | Tarjetas de OT del supervisor |
+| `buildDetalleTec` | Fila "Prioridad" en el detalle del técnico |
+| `buildDetalleSup` | Etiqueta de prioridad en la línea de tiempo del supervisor |
+| `notifyPush` (título del push) | Ya trataba ambas por igual desde SPEC-011; se unificó para usar el mismo helper |
+
+### Reglas de negocio
+- El texto mostrado es **"Urgente"** para ambas prioridades, igual que antes para `urgente` — no se introduce un texto distinto para "Máquina parada"
+- El reporte de Excel (`prioLabel`) sí distingue internamente el texto exportado: `urgente` → "Urgente", `maquina-parada` → "Urgente — Máquina parada", para no perder la información exacta en el histórico exportable
+- Un único punto de cambio (`esPrioridadUrgente`) evita que futuras prioridades "altas" se olviden de marcarse en alguna de las pantallas
 
 ---
 

@@ -1859,9 +1859,10 @@ function renderSolOTs(filter){
   el.innerHTML=ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSol(ot)).join('');
 }
 
+function esPrioridadUrgente(ot){ return ot && (ot.prioridad==='urgente' || ot.prioridad==='maquina-parada'); }
 function otCardSol(ot){
-  var urgClass    = ot.prioridad==='urgente' ? 'urgente-line' : '';
-  var urgBadge    = ot.prioridad==='urgente'
+  var urgClass    = esPrioridadUrgente(ot) ? 'urgente-line' : '';
+  var urgBadge    = esPrioridadUrgente(ot)
     ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>' : '';
   var tipoLabel   = ot.tipo==='MTTO-MAQ-PROD' ? 'MAQUINARIA'
     : ot.tipo==='MTTO-INFRAESTRUCTURA' ? 'INFRAESTRUCTURA'
@@ -2037,7 +2038,7 @@ function crearOT(){
   showScreen('sol-lista');
   renderSolOTs('todas');
   updateNotifDot('sup-notif-dot','supervisor');
-  var _esUrg=ot.prioridad==='urgente'||ot.prioridad==='maquina-parada';
+  var _esUrg=esPrioridadUrgente(ot);
   notifyPush(getNominasByTipoServicio(ot.tipo),(_esUrg?'URGENTE':'Nueva OT')+' #'+ot.folio,ot.desc.substring(0,60)+' - '+(ot.equipo||'')+' NAVE '+ot.nave,'nueva-'+ot.folio); // SPEC-011
   // SPEC-020: si todos los técnicos en turno están ocupados, avisar al solicitante
   if(!avisarSiNoHayTecnicoLibre(ot)){
@@ -2434,7 +2435,7 @@ function renderTecOTs(filter){
 }
 
 function otCardTec(ot, disponible){
-  var urgClass    = ot.prioridad==='urgente' ? 'urgente-line' : '';
+  var urgClass    = esPrioridadUrgente(ot) ? 'urgente-line' : '';
   // SPEC-023: una OT en "disponibles" puede estar realmente sin tomar (abierta)
   // o ya tomada por otro técnico y disponible solo para UNIRSE. Antes ambas
   // decían "Sin tomar", lo cual era engañoso.
@@ -2447,7 +2448,7 @@ function otCardTec(ot, disponible){
   var topBadge    = disponible
     ? (yaTomada ? statusBadge('proceso') : '<span class="badge" style="background:var(--amber-light);color:var(--amber-dark)">Sin tomar</span>')
     : statusBadge(ot.status);
-  var urgBadge    = ot.prioridad==='urgente'
+  var urgBadge    = esPrioridadUrgente(ot)
     ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>'
     : '';
   var prog = ot.avance>0
@@ -3041,7 +3042,7 @@ function buildDetalleTec(ot){
     +'<div class="field-row"><div class="field-lbl">Tipo de servicio</div><div class="field-val">'+ot.tipo+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+(ot.nave?' — '+ot.nave:'')+(ot.area?' · '+ot.area:'')+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
-    +'<div class="field-row"><div class="field-lbl">Prioridad</div><div class="field-val">'+(ot.prioridad==='urgente'?'<span class="badge badge-urgente">Urgente</span>':'Normal')+'</div></div>'
+    +'<div class="field-row"><div class="field-lbl">Prioridad</div><div class="field-val">'+(esPrioridadUrgente(ot)?'<span class="badge badge-urgente">Urgente</span>':'Normal')+'</div></div>'
     // Fila de técnicos que han intervenido
   +(function(){
     var tecs = listaTecnicos(ot);
@@ -3381,7 +3382,7 @@ function exportarExcelOTs(){
     if(!iso) return '';
     return new Date(iso).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
   }
-  var prioLabel = function(p){ return p==='urgente'?'Urgente — Máquina parada':'Normal'; };
+  var prioLabel = function(p){ return (p==='urgente'||p==='maquina-parada') ? (p==='maquina-parada'?'Urgente — Máquina parada':'Urgente') : 'Normal'; };
   var stLabel   = {abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Pendiente validación',cerrado:'Cerrada'};
 
   // ── Columnas ──────────────────────────────────────────────────────────────
@@ -3832,8 +3833,8 @@ function renderSupOTs(filter){
 }
 
 function otCardSup(ot){
-  var urgClass   = ot.prioridad==='urgente' ? 'urgente-line' : '';
-  var urgBadge   = ot.prioridad==='urgente'
+  var urgClass   = esPrioridadUrgente(ot) ? 'urgente-line' : '';
+  var urgBadge   = esPrioridadUrgente(ot)
     ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>' : '';
   var tipoLabel  = ot.tipo==='MTTO-MAQ-PROD' ? 'MAQUINARIA'
     : ot.tipo==='MTTO-INFRAESTRUCTURA' ? 'INFRAESTRUCTURA'
@@ -3896,7 +3897,7 @@ function buildDetalleSup(ot){
     titulo:'OT creada'+(ot.tipoProblema?' — Tipo: '+ot.tipoProblema:''),
     sub:'Solicitante: '+ot.solicitante+' (Nóm. '+ot.nomina+')<br>'
        +'Equipo: '+ot.equipo+(ot.nave?' — '+ot.nave:'')+(ot.area?' · '+ot.area:'')+'<br>'
-       +'Tipo: '+ot.tipo+' · Prioridad: '+(ot.prioridad==='urgente'?'<span class="tl-tag tl-tag-red">Urgente</span>':'Normal'),
+       +'Tipo: '+ot.tipo+' · Prioridad: '+(esPrioridadUrgente(ot)?'<span class="tl-tag tl-tag-red">Urgente</span>':'Normal'),
     tags:[]
   });
 

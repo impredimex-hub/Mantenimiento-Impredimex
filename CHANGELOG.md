@@ -6,6 +6,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.12.1] — 2026-08-16
+
+### Corregido
+- **SPEC-025:** La prioridad **"Máquina parada"** no se distinguía visualmente en ninguna pantalla; solo "Urgente" mostraba la línea y el badge en rojo. Ahora ambas se marcan igual (texto "Urgente", fondo rojo), en las tarjetas de OT del solicitante, técnico y supervisor, y en el detalle del técnico y del supervisor.
+- Se centralizó la comparación en un único helper (`esPrioridadUrgente`), para no volver a olvidar marcar alguna prioridad "alta" en una de las pantallas.
+- El reporte de Excel sigue distinguiendo el texto exacto exportado ("Urgente" vs. "Urgente — Máquina parada").
+
+---
+
 ## [1.12.0] — 2026-08-15
 
 ### Agregado
