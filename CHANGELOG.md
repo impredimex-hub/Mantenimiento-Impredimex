@@ -6,6 +6,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.14.0] — 2026-08-20
+
+### Corregido
+- **SPEC-029:** Al pausar una orden con el botón "=", la orden completa pasaba a estado "En espera" aunque **otro técnico siguiera trabajando activamente en ella**. Ahora solo pasa a espera si, tras la salida, no queda nadie más activo; si alguien continúa, la orden permanece en su estado actual y se notifica con un mensaje distinto ("se retiró para atender otra orden — otro técnico continúa").
+
+### Agregado
+- **SPEC-030:** Reglas de elegibilidad por puesto para el aviso de "técnicos ocupados" (SPEC-020):
+  - **Jefe de Mantenimiento** y **Analista de Mantenimiento** nunca cuentan como disponibles para tomar OT, aunque aparezcan en el rol de turnos.
+  - **Auxiliar de Mantenimiento** solo cuenta para OT de **Infraestructura** y **Seguridad**; para Maquinaria/Producción no se considera.
+
+---
+
 ## [1.13.0] — 2026-08-19
 
 ### Agregado

@@ -2871,17 +2871,27 @@ async function confirmarPausarYTomar(idDestino){
   });
   if(mias.length) mias[mias.length-1].fechaSalida = ahora;
 
-  // 2) Estado en espera, con el motivo de la pausa
-  var motivo = 'Técnico reasignado a la OT '+destino.folio;
-  actual.status = 'espera';
-  actual.espera = {motivo:motivo, comentario:'Pausa por atención de otra orden.', fechaEst:''};
+  // SPEC-029: la orden completa solo pasa a "en espera" si, tras esta salida,
+  // NADIE más sigue activo en ella. Si otro técnico (por ejemplo el que la
+  // tomó primero) sigue trabajando, la orden debe seguir en proceso: antes
+  // se marcaba "en espera" siempre, aunque el otro técnico pudiera seguir
+  // trabajando hasta cerrarla con normalidad — el estatus mostrado no
+  // reflejaba la realidad.
+  var quedanActivos = (actual.tecnicos||[]).some(function(t){ return t && !t.fechaSalida; });
 
-  // 3) SPEC-013: periodo de espera para descontarlo del tiempo
-  if(!Array.isArray(actual.esperas)) actual.esperas = [];
-  actual.esperas.push({inicio:ahora, fin:null, motivo:motivo,
-    tecnico:currentUser.nombre, nomina:currentUser.nomina});
+  if(!quedanActivos){
+    // 2) Estado en espera, con el motivo de la pausa — solo si nadie sigue
+    var motivo = 'Técnico reasignado a la OT '+destino.folio;
+    actual.status = 'espera';
+    actual.espera = {motivo:motivo, comentario:'Pausa por atención de otra orden.', fechaEst:''};
 
-  // 4) Trazabilidad de la pausa
+    // 3) SPEC-013: periodo de espera para descontarlo del tiempo
+    if(!Array.isArray(actual.esperas)) actual.esperas = [];
+    actual.esperas.push({inicio:ahora, fin:null, motivo:motivo,
+      tecnico:currentUser.nombre, nomina:currentUser.nomina});
+  }
+
+  // 4) Trazabilidad de la pausa — siempre, sin importar si alguien más sigue
   if(!Array.isArray(actual.pausas)) actual.pausas = [];
   actual.pausas.push({tecnico:currentUser.nombre, nomina:currentUser.nomina,
     fecha:ahora, otDestino:destino.id, folioDestino:destino.folio});
@@ -2889,12 +2899,17 @@ async function confirmarPausarYTomar(idDestino){
   // 5) Comentario y avisos
   if(!Array.isArray(actual.comentarios)) actual.comentarios = [];
   actual.comentarios.push({autor:currentUser.nombre, fecha:ahora,
-    texto:'Orden pausada — el técnico pasó a atender la OT '+destino.folio+'.'});
+    texto: quedanActivos
+      ? currentUser.nombre+' se retiró de la OT para atender la '+destino.folio+'. Otro técnico continúa.'
+      : 'Orden pausada — el técnico pasó a atender la OT '+destino.folio+'.'});
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+actual.folio+' pausada por '+currentUser.nombre+' para atender la OT '+destino.folio+'.',
+    texto: quedanActivos
+      ? 'OT '+actual.folio+': '+currentUser.nombre+' se retiró para atender la OT '+destino.folio+'. Otro técnico continúa la orden.'
+      : 'OT '+actual.folio+' pausada por '+currentUser.nombre+' para atender la OT '+destino.folio+'.',
     fecha:ahora, leida:false});
-  if(actual.nomina){
+  // Al solicitante solo se le avisa si la orden realmente quedó sin atender
+  if(!quedanActivos && actual.nomina){
     notifyPush([actual.nomina], 'OT en pausa',
       'Tu OT '+actual.folio+' quedó en espera: el técnico fue a atender otra orden.',
       'pausa-'+actual.folio);
@@ -4801,6 +4816,22 @@ function avisarSiNoHayTecnicoLibre(nuevaOT, fecha){
   var enTurno = tecnicosEnTurno(fecha || new Date());
 
   // Sin rol de turnos cargado para hoy no hay forma de saberlo: no se avisa.
+  if(!enTurno.length) return false;
+
+  // SPEC-030: el Jefe y el Analista de Mantenimiento no cuentan como
+  // "disponibles para tomar OT" en esta regla, aunque aparezcan en el rol de
+  // turnos (su presencia ahí es informativa, no significa que tomen órdenes).
+  // El Auxiliar de Mantenimiento solo cuenta para OT de Infraestructura y
+  // Seguridad; para MTTO-MAQ-PROD no se considera disponible.
+  enTurno = enTurno.filter(function(p){
+    var puesto = _normNombre(p.puesto);
+    if(puesto === _normNombre('JEFE DE MANTENIMIENTO')) return false;
+    if(puesto === _normNombre('ANALISTA DE MANTENIMIENTO')) return false;
+    if(puesto === _normNombre('AUXILIAR DE MANTENIMIENTO')){
+      return nuevaOT.tipo === 'MTTO-INFRAESTRUCTURA' || nuevaOT.tipo === 'MTTO-SEGURIDAD';
+    }
+    return true;
+  });
   if(!enTurno.length) return false;
 
   var ocupados = [], hayLibre = false;

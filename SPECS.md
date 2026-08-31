@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.3
+**Versión:** 3.4
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1043,6 +1043,48 @@ Se verificó que las 14 funciones afectadas se invocan **exclusivamente** desde 
 ### Reglas de negocio
 - No quedó ninguna llamada nativa a `alert()`, `confirm()` ni `prompt()` en el código
 - El texto y el orden de los mensajes no cambiaron; solo el mecanismo de presentación
+
+---
+
+# SPEC-029 — La pausa solo afecta a quien se retira, no a toda la orden
+
+### Problema que resuelve
+En `confirmarPausarYTomar()` (SPEC-021), la orden pausada pasaba a estado `espera` **sin importar si otro técnico seguía activo en ella**. En una orden con dos técnicos del mismo turno, si el segundo se retiraba con el botón "=", la orden completa se marcaba "En espera" aunque el primero siguiera trabajando con total normalidad — y de hecho podía concluirla sin problema. El estatus mostrado no reflejaba la realidad.
+
+### Corrección
+Tras registrar la salida del técnico que se retira, se evalúa si **queda alguien más activo** en `ot.tecnicos` (sin `fechaSalida`):
+
+- **Si nadie más sigue activo:** comportamiento igual que antes — la orden pasa a `espera`, se registra el motivo, se abre un periodo en `esperas[]` y se notifica al solicitante que su orden quedó sin atender.
+- **Si alguien más sigue activo:** la orden **permanece en su estado actual** (normalmente `proceso`). No se abre periodo de espera. Se registra igualmente la trazabilidad de la pausa (`ot.pausas`) y un comentario distinto, más preciso: *"[Técnico] se retiró de la OT para atender la [folio]. Otro técnico continúa."* El supervisor recibe una notificación informativa; al solicitante no se le avisa que su orden quedó en espera, porque no es cierto.
+
+### Reglas de negocio
+- El único criterio es si queda algún técnico sin `fechaSalida` tras la salida del que pausa
+- El registro de `pausas[]` (SPEC-021) ocurre siempre, independientemente del resultado
+
+---
+
+# SPEC-030 — Elegibilidad por puesto en el aviso de técnicos ocupados
+
+### Problema que resuelve
+`avisarSiNoHayTecnicoLibre()` (SPEC-020) consideraba "en turno" a cualquier persona con asignación en el rol de turnos, incluyendo puestos que en la práctica no toman órdenes de trabajo. Esto podía dar lugar a evaluaciones incorrectas: por ejemplo, si el Jefe de Mantenimiento aparecía en el rol y estaba libre, el sistema asumía que había alguien disponible aunque él no fuera quien realmente atendería la orden.
+
+### Reglas de elegibilidad aplicadas
+Antes de evaluar quién está libre u ocupado, se filtra la lista de personas en turno:
+
+| Puesto | Regla |
+|---|---|
+| Jefe de Mantenimiento | **Nunca** cuenta como disponible para tomar OT, aunque aparezca en el rol de turnos |
+| Analista de Mantenimiento | **Nunca** cuenta como disponible para tomar OT, aunque aparezca en el rol de turnos |
+| Auxiliar de Mantenimiento | Solo cuenta para OT de **MTTO-INFRAESTRUCTURA** y **MTTO-SEGURIDAD**. Para MTTO-MAQ-PROD no se considera, esté libre u ocupado |
+| Cualquier otro puesto | Sin cambios, se evalúa con normalidad |
+
+### Efecto práctico
+- Si tras filtrar no queda **nadie elegible** en turno, no se muestra el aviso (no hay con quién comparar)
+- Si el Auxiliar está libre pero la orden es de MAQ-PROD, su disponibilidad **no cuenta** para decidir si hay alguien libre: el aviso se basa únicamente en el resto del personal elegible
+- La comparación de puesto usa `_normNombre()`, tolerante a mayúsculas y acentos
+
+### Alcance
+Este filtro aplica únicamente a `avisarSiNoHayTecnicoLibre()`. No afecta la capacidad real de estas personas de tomar órdenes desde su propio panel, ni el módulo de Turnos, ni el ranking de técnicos.
 
 ---
 
