@@ -1154,6 +1154,19 @@ input[type=range].green{accent-color:var(--green)}
   </div>
 </div>
 
+<!-- SPEC-028: ventana propia para alert/confirm/prompt, sin el prefijo del navegador -->
+<div class="modal-overlay" id="modal-app-dialog">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="app-dialog-title">Aviso</div>
+    <div id="app-dialog-msg" style="padding:0 16px 4px;font-size:13px;color:var(--text2);line-height:1.55;white-space:pre-line"></div>
+    <div id="app-dialog-input-wrap" style="padding:8px 16px 4px;display:none">
+      <input class="field-input" id="app-dialog-input" type="text">
+    </div>
+    <div style="padding:16px;display:flex;gap:8px" id="app-dialog-btns"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-refaccion">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -1669,8 +1682,8 @@ const PASSWORDS = { /* Retiradas del historial */ };
 function doLogin(){
   const nomina = document.getElementById('login-nomina').value.trim();
   const pass   = document.getElementById('login-pass').value;
-  if(!nomina){ alert('Ingresa tu número de nómina'); return; }
-  if(!pass)  { alert('Ingresa tu contraseña'); return; }
+  if(!nomina){ appAlert('Ingresa tu número de nómina'); return; }
+  if(!pass)  { appAlert('Ingresa tu contraseña'); return; }
 
   // Determinar rol por contraseña
   const role = PASSWORDS[pass];
@@ -1680,7 +1693,7 @@ function doLogin(){
     pf.style.borderColor='var(--red)';
     pf.style.animation='shake .35s ease';
     setTimeout(function(){ pf.style.animation=''; pf.style.borderColor=''; }, 400);
-    alert('Contraseña incorrecta');
+    appAlert('Contraseña incorrecta');
     return;
   }
 
@@ -1689,7 +1702,7 @@ function doLogin(){
   const persona = cat.find(function(p){ return p.nomina.toString()===nomina; });
 
   if(persona && persona.estatus==='baja'){
-    alert('Esta nómina está registrada como baja. Contacta a Recursos Humanos.');
+    appAlert('Esta nómina está registrada como baja. Contacta a Recursos Humanos.');
     return;
   }
 
@@ -1757,6 +1770,65 @@ function showScreen(id){
 
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ── SPEC-028: reemplazo de los diálogos nativos (alert/confirm/prompt) ────
+// Los diálogos nativos del navegador muestran un prefijo con el dominio del
+// sitio ("victormorenogarcia05-ux.github.io dice"), que el navegador agrega
+// por seguridad y que ninguna app puede quitar. La única forma de eliminarlo
+// es dejar de usar esas funciones y mostrar ventanas propias en su lugar.
+function _appDialogShow(opts){
+  return new Promise(function(resolve){
+    document.getElementById('app-dialog-title').textContent = opts.title || 'Aviso';
+    document.getElementById('app-dialog-msg').textContent = opts.msg || '';
+    var inputWrap = document.getElementById('app-dialog-input-wrap');
+    var input = document.getElementById('app-dialog-input');
+    if(opts.input){
+      inputWrap.style.display = 'block';
+      input.value = opts.defaultValue || '';
+    } else {
+      inputWrap.style.display = 'none';
+    }
+
+    var btns = document.getElementById('app-dialog-btns');
+    btns.innerHTML = '';
+
+    function finish(val){ closeModal('modal-app-dialog'); resolve(val); }
+
+    if(opts.kind === 'confirm'){
+      var bCancel = document.createElement('button');
+      bCancel.className = 'btn btn-outline btn-block';
+      bCancel.textContent = opts.cancelText || 'Cancelar';
+      bCancel.onclick = function(){ finish(false); };
+      var bOk = document.createElement('button');
+      bOk.className = 'btn btn-green btn-block';
+      bOk.textContent = opts.okText || 'Confirmar';
+      bOk.onclick = function(){ finish(true); };
+      btns.appendChild(bCancel); btns.appendChild(bOk);
+    } else if(opts.kind === 'prompt'){
+      var bCancel2 = document.createElement('button');
+      bCancel2.className = 'btn btn-outline btn-block';
+      bCancel2.textContent = 'Cancelar';
+      bCancel2.onclick = function(){ finish(null); };
+      var bOk2 = document.createElement('button');
+      bOk2.className = 'btn btn-green btn-block';
+      bOk2.textContent = 'Aceptar';
+      bOk2.onclick = function(){ finish(input.value); };
+      btns.appendChild(bCancel2); btns.appendChild(bOk2);
+    } else {
+      var bOk3 = document.createElement('button');
+      bOk3.className = 'btn btn-green btn-block';
+      bOk3.textContent = 'Aceptar';
+      bOk3.onclick = function(){ finish(true); };
+      btns.appendChild(bOk3);
+    }
+
+    openModal('modal-app-dialog');
+    if(opts.input) setTimeout(function(){ input.focus(); }, 50);
+  });
+}
+function appAlert(msg, title){ return _appDialogShow({kind:'alert', msg:msg, title:title}); }
+function appConfirm(msg, title){ return _appDialogShow({kind:'confirm', msg:msg, title:title}); }
+function appPrompt(msg, defaultValue){ return _appDialogShow({kind:'prompt', msg:msg, defaultValue:defaultValue, input:true}); }
 
 document.querySelectorAll('.modal-overlay').forEach(m=>{
   m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
@@ -1985,12 +2057,12 @@ function filtrarEquiposPorNave(){
 
 function crearOT(){
   var desc = document.getElementById('nueva-desc').value.trim();
-  if(!desc){ alert('Describe el problema antes de enviar'); return; }
+  if(!desc){ appAlert('Describe el problema antes de enviar'); return; }
   // Validar que al menos una casilla de riesgo esté marcada para MTTO-SEGURIDAD
   if(document.getElementById('nueva-tipo').value==='MTTO-SEGURIDAD'){
     var alguno = ['riesgo-maquinaria','riesgo-infraestructura','riesgo-personal','riesgo-robo']
       .some(function(id){ var el=document.getElementById(id); return el&&el.checked; });
-    if(!alguno){ alert('Selecciona al menos un tipo de riesgo'); return; }
+    if(!alguno){ appAlert('Selecciona al menos un tipo de riesgo'); return; }
   }
   // SPEC-002: Si todas las OTs fueron eliminadas, reiniciar el contador de folio a 1
   if(!DB.ots || DB.ots.length === 0){
@@ -2045,7 +2117,7 @@ function crearOT(){
   notifyPush(getNominasByTipoServicio(ot.tipo),(_esUrg?'URGENTE':'Nueva OT')+' #'+ot.folio,ot.desc.substring(0,60)+' - '+(ot.equipo||'')+' NAVE '+ot.nave,'nueva-'+ot.folio); // SPEC-011
   // SPEC-020: si todos los técnicos en turno están ocupados, avisar al solicitante
   if(!avisarSiNoHayTecnicoLibre(ot)){
-    alert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
+    appAlert('✓ OT '+ot.folio+' creada. El equipo de mantenimiento la verá disponible.');
   }
 }
 
@@ -2055,7 +2127,7 @@ var otParaRechazar = null;
 function confirmarPrimerContacto(id){
   reloadDB();
   var ot = DB.ots.find(function(o){ return o.id===id; });
-  if(!ot){ alert('OT no encontrada'); return; }
+  if(!ot){ appAlert('OT no encontrada'); return; }
   if(!ot.contactosPorTecnico) ot.contactosPorTecnico = {};
   var tecnicos = ot.tecnicos||[];
 
@@ -2069,7 +2141,7 @@ function confirmarPrimerContacto(id){
   }
 
   if(!tecPendiente){
-    alert('Todos los técnicos ya fueron confirmados en máquina.');
+    appAlert('Todos los técnicos ya fueron confirmados en máquina.');
     return;
   }
 
@@ -2088,7 +2160,7 @@ function confirmarPrimerContacto(id){
   saveDB();
   verOTSol(id);
   renderSolOTs('todas');
-  alert('✓ '+tecPendiente.nombre+' confirmado en máquina.');
+  appAlert('✓ '+tecPendiente.nombre+' confirmado en máquina.');
 }
 
 
@@ -2096,7 +2168,7 @@ function cerrarOT(id){
   // id puede venir de data-id del botón
   var oid = id || currentOTId;
   var ot = DB.ots.find(function(o){ return o.id===oid; });
-  if(!ot){ alert('OT no encontrada'); return; }
+  if(!ot){ appAlert('OT no encontrada'); return; }
   ot.status = 'cerrado';
   ot.fechaCierre = new Date().toISOString();
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
@@ -2112,14 +2184,14 @@ function cerrarOT(id){
     fecha:new Date().toISOString(), leida:false
   });
   saveDB();
-  alert('✓ OT cerrada correctamente. Gracias por validar.');
+  appAlert('✓ OT cerrada correctamente. Gracias por validar.');
   showScreen('sol-lista');
   renderSolOTs('todas');
 }
 
 function confirmarRechazo(){
   var motivo = document.getElementById('rechazar-motivo').value.trim();
-  if(!motivo){ alert('Escribe el motivo del rechazo'); return; }
+  if(!motivo){ appAlert('Escribe el motivo del rechazo'); return; }
   var oid = otParaRechazar || currentOTId;
   var ot = DB.ots.find(function(o){ return o.id===oid; });
   if(!ot){ closeModal('modal-rechazar'); return; }
@@ -2148,7 +2220,7 @@ function confirmarRechazo(){
   closeModal('modal-rechazar');
   document.getElementById('rechazar-motivo').value = '';
   otParaRechazar = null;
-  alert('Cierre rechazado. El técnico fue notificado.');
+  appAlert('Cierre rechazado. El técnico fue notificado.');
   showScreen('sol-lista');
   renderSolOTs('todas');
 }
@@ -2296,7 +2368,7 @@ function buildDetalleSol(ot){
 
 function confirmarAsignacion(){
   var sel = document.getElementById('asignar-tecnico');
-  if(!sel || !sel.value){ alert('Selecciona un técnico'); return; }
+  if(!sel || !sel.value){ appAlert('Selecciona un técnico'); return; }
   var tecnico = toTitleCase(sel.value);
   var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
   if(!ot){ closeModal('modal-asignar'); return; }
@@ -2313,7 +2385,7 @@ function confirmarAsignacion(){
   closeModal('modal-asignar');
   renderDashboard();
   renderSupOTs(currentFilter);
-  alert('✓ OT '+ot.folio+' asignada a '+tecnico);
+  appAlert('✓ OT '+ot.folio+' asignada a '+tecnico);
 }
 
 
@@ -2513,12 +2585,12 @@ function getChipSelected(groupId){
 function tomarOTConTipo(id){
   // Validate tipo de problema is selected
   var tipo = getChipSelected('tipo-falla') || getChipSelected('tipo-falla-tomar');
-  if(!tipo){ alert('Selecciona el tipo de problema antes de tomar la orden.'); return; }
+  if(!tipo){ appAlert('Selecciona el tipo de problema antes de tomar la orden.'); return; }
 
   var ot = DB.ots.find(function(o){ return o.id===id; });
-  if(!ot){ alert('OT no encontrada'); return; }
+  if(!ot){ appAlert('OT no encontrada'); return; }
   if(ot.tecnico && tecnicoEnTurnoActual(ot, currentUser.nombre)){
-    alert('Ya estás registrado en este turno para esta OT.');
+    appAlert('Ya estás registrado en este turno para esta OT.');
     verOTTec(id); return;
   }
 
@@ -2542,19 +2614,19 @@ function tomarOTConTipo(id){
     fecha:new Date().toISOString(), leida:false});
   saveDB();
   currentOTId = id;
-  alert('✓ OT '+ot.folio+' tomada. Tipo de problema registrado: '+tipo);
+  appAlert('✓ OT '+ot.folio+' tomada. Tipo de problema registrado: '+tipo);
   verOTTec(id);
   renderTecOTs('todas');
 }
 
 function guardarTipoProblema(id){
   var tipo = getChipSelected('tipo-falla');
-  if(!tipo){ alert('Selecciona un tipo de problema.'); return; }
+  if(!tipo){ appAlert('Selecciona un tipo de problema.'); return; }
   var ot = DB.ots.find(function(o){ return o.id===id; });
   if(!ot) return;
   ot.tipoProblema = tipo;
   saveDB();
-  alert('✓ Tipo de problema guardado: '+tipo);
+  appAlert('✓ Tipo de problema guardado: '+tipo);
   verOTTec(id);
 }
 
@@ -2563,7 +2635,7 @@ function verOTTec(id){
   if(!id){ console.error('verOTTec: id vacío'); return; }
   currentOTId = id;
   var ot = DB.ots.find(function(o){ return o.id===id; });
-  if(!ot){ alert('OT no encontrada'); return; }
+  if(!ot){ appAlert('OT no encontrada'); return; }
   document.getElementById('tec-det-titulo').textContent = ot.folio;
   document.getElementById('tec-det-status').textContent = statusLabel(ot.status);
   document.getElementById('tec-detalle-content').innerHTML = buildDetalleTec(ot);
@@ -2740,7 +2812,7 @@ function actualizarFabPausar(){
 
 function abrirPausarOT(){
   var actual = otEnCursoDelTecnico();
-  if(!actual){ alert('No tienes ninguna orden en curso para pausar.'); return; }
+  if(!actual){ appAlert('No tienes ninguna orden en curso para pausar.'); return; }
 
   var eq = [actual.nave ? 'Nave '+actual.nave : '', actual.equipo].filter(Boolean).join(' · ');
   document.getElementById('pausar-actual').innerHTML =
@@ -2779,17 +2851,17 @@ function abrirPausarOT(){
   openModal('modal-pausar');
 }
 
-function confirmarPausarYTomar(idDestino){
+async function confirmarPausarYTomar(idDestino){
   var actual  = otEnCursoDelTecnico();
   var destino = (DB.ots||[]).find(function(o){ return o.id===idDestino; });
-  if(!actual || !destino){ alert('No fue posible completar la operación.'); return; }
+  if(!actual || !destino){ appAlert('No fue posible completar la operación.'); return; }
   if(destino.status!=='abierto'){
-    alert('Esa orden ya fue tomada por otro técnico. Elige otra.');
+    appAlert('Esa orden ya fue tomada por otro técnico. Elige otra.');
     abrirPausarOT();
     return;
   }
-  if(!confirm('¿Pausar la OT '+actual.folio+' y tomar la '+destino.folio+'?\n\n'
-    + 'La orden pausada queda en espera con el registro de por qué la dejaste.')) return;
+  if(!(await appConfirm('¿Pausar la OT '+actual.folio+' y tomar la '+destino.folio+'?\n\n'
+    + 'La orden pausada queda en espera con el registro de por qué la dejaste.'))) return;
 
   var ahora = new Date().toISOString();
 
@@ -2835,13 +2907,13 @@ function confirmarPausarYTomar(idDestino){
 
 function tomarOT(id, desdePausa){
   var ot = DB.ots.find(function(o){ return o.id===id; });
-  if(!ot){ alert('OT no encontrada'); return; }
+  if(!ot){ appAlert('OT no encontrada'); return; }
 
   // SPEC-022: no puede tomar otra orden mientras tenga una pausada sin atender
   if(!desdePausa){
     var pend = otPausadaPendiente(currentUser.nombre);
     if(pend && pend.id !== id){
-      alert('Tienes pausada la OT ' + pend.folio + '.\n\n'
+      appAlert('Tienes pausada la OT ' + pend.folio + '.\n\n'
         + 'Debes retomarla antes de tomar otra orden, o esperar a que otro técnico la atienda.');
       return;
     }
@@ -2855,7 +2927,7 @@ function tomarOT(id, desdePausa){
   if(!desdePausa){
     var enProceso = otEnProcesoDelTecnico();
     if(enProceso && enProceso.id !== id){
-      alert('Ya tienes la OT ' + enProceso.folio + ' en proceso.\n\n'
+      appAlert('Ya tienes la OT ' + enProceso.folio + ' en proceso.\n\n'
         + 'Para atender otra, usa el botón "=" y pausa la actual antes de tomar una nueva.');
       return;
     }
@@ -2871,7 +2943,7 @@ function tomarOT(id, desdePausa){
 
   // Bloquear solo si ya se registró HOY en el turno actual
   if(!esReingreso && tecnicoEnTurnoActual(ot, currentUser.nombre)){
-    alert('Ya estás registrado en este turno para esta OT. Puedes registrar actividades.');
+    appAlert('Ya estás registrado en este turno para esta OT. Puedes registrar actividades.');
     verOTTec(id); return;
   }
 
@@ -2899,7 +2971,7 @@ function tomarOT(id, desdePausa){
   if(_solNom) notifyPush([_solNom],'Tecnico asignado',currentUser.nombre+' tomo tu OT '+ot.folio,'tomada-'+ot.folio);
   saveDB();
   currentOTId = id;
-  alert('✓ OT '+ot.folio+' tomada. Ahora selecciona el tipo de problema para continuar.');
+  appAlert('✓ OT '+ot.folio+' tomada. Ahora selecciona el tipo de problema para continuar.');
   verOTTec(id);
   renderTecOTs('todas');
 }
@@ -3110,7 +3182,7 @@ function buildDetalleTec(ot){
 function guardarActividad(){
   const ot=DB.ots.find(o=>o.id===currentOTId);
   const accion=document.getElementById('act-accion').value.trim();
-  if(!accion){alert('Describe la acción realizada');return;}
+  if(!accion){appAlert('Describe la acción realizada');return;}
   const concluir=document.getElementById('act-concluir').checked;
 
   // Si va a concluir, preguntar por error operativo antes de guardar
@@ -3165,7 +3237,7 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
   document.getElementById('act-accion').value='';
   document.getElementById('act-obs').value='';
   document.getElementById('act-concluir').checked=false;
-  alert('✓ Actividad guardada correctamente');
+  appAlert('✓ Actividad guardada correctamente');
   verOTTec(currentOTId);
   renderTecOTs('todas');
 }
@@ -3178,7 +3250,7 @@ function confirmarErrorOperativo(esError){
   var desc = '';
   if(esError){
     desc = document.getElementById('eo-desc').value.trim();
-    if(!desc){ alert('Describe el motivo del error operativo'); return; }
+    if(!desc){ appAlert('Describe el motivo del error operativo'); return; }
   }
   closeModal('modal-error-operativo');
   document.getElementById('eo-desc').value='';
@@ -3188,21 +3260,21 @@ function confirmarErrorOperativo(esError){
 
 // SPEC-012: Registra la salida del técnico en la OT (paro de fin de semana).
 // A partir de este momento deja de correrle el tiempo de intervención.
-function finDeMiTurno(){
+async function finDeMiTurno(){
   var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
-  if(!ot){ alert('OT no encontrada'); return; }
+  if(!ot){ appAlert('OT no encontrada'); return; }
   if(!puedeFinTurno()){
-    alert('Esta opción solo está disponible del sábado 21:20 al lunes 06:00.');
+    appAlert('Esta opción solo está disponible del sábado 21:20 al lunes 06:00.');
     return;
   }
   var mias = (ot.tecnicos||[]).filter(function(t){
     return String(t.nomina)===String(currentUser.nomina) && !t.fechaSalida;
   });
   if(!mias.length){
-    alert('No tienes una participación abierta en esta OT.');
+    appAlert('No tienes una participación abierta en esta OT.');
     return;
   }
-  if(!confirm('¿Cerrar tu participación en la OT '+ot.folio+'?\n\nDejará de contarte el tiempo. La OT queda abierta para el siguiente turno.')) return;
+  if(!(await appConfirm('¿Cerrar tu participación en la OT '+ot.folio+'?\n\nDejará de contarte el tiempo. La OT queda abierta para el siguiente turno.'))) return;
 
   var ahora = new Date().toISOString();
   mias[mias.length-1].fechaSalida = ahora;
@@ -3217,7 +3289,7 @@ function finDeMiTurno(){
     fecha:ahora, leida:false});
 
   saveDB();
-  alert('✓ Turno cerrado en la OT '+ot.folio+'.');
+  appAlert('✓ Turno cerrado en la OT '+ot.folio+'.');
   showScreen('tec-lista');
   renderTecOTs('todas');
 }
@@ -3227,8 +3299,8 @@ function ponerEnEspera(){
   const motivo=chip?chip.textContent:'Sin especificar';
   const comentario=document.getElementById('espera-comentario').value.trim();
   const fechaEst=document.getElementById('espera-fecha').value;
-  if(!comentario){alert('Escribe el detalle del motivo');return;}
-  if(!fechaEst){alert('Selecciona la fecha estimada de reanudación');return;}
+  if(!comentario){appAlert('Escribe el detalle del motivo');return;}
+  if(!fechaEst){appAlert('Selecciona la fecha estimada de reanudación');return;}
   const ot=DB.ots.find(o=>o.id===currentOTId);
   ot.status='espera';
   ot.espera={motivo,comentario,fechaEst};
@@ -3253,7 +3325,7 @@ function ponerEnEspera(){
   document.getElementById('espera-comentario').value='';
   document.getElementById('espera-fecha').value='';
   document.querySelectorAll('#espera-motivo-chips .chip').forEach(c=>c.classList.remove('selected'));
-  alert('✓ OT puesta en espera. El solicitante fue notificado.');
+  appAlert('✓ OT puesta en espera. El solicitante fue notificado.');
   showScreen('tec-lista');
   renderTecOTs('todas');
 }
@@ -3261,7 +3333,7 @@ function ponerEnEspera(){
 let otRefId=null;
 function guardarRefaccion(){
   const desc=document.getElementById('ref-desc').value.trim();
-  if(!desc){alert('Describe la refacción');return;}
+  if(!desc){appAlert('Describe la refacción');return;}
   const ot=DB.ots.find(o=>o.id===currentOTId);
   if(!Array.isArray(ot.refacciones)) ot.refacciones = [];
   ot.refacciones.push({
@@ -3398,7 +3470,7 @@ function diffSecs2(isoA, isoB){
 function exportarExcelOTs(){
   reloadDB();
   var ots = DB.ots || [];
-  if(!ots.length){ alert('No hay OT para exportar.'); return; }
+  if(!ots.length){ appAlert('No hay OT para exportar.'); return; }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   function toHHMMSS(secs){
@@ -4116,7 +4188,7 @@ function buildDetalleSup(ot){
 
 function asignarOT(){
   var sel = document.getElementById('sup-asignar-sel');
-  if(!sel || !sel.value){ alert('Selecciona un técnico de la lista'); return; }
+  if(!sel || !sel.value){ appAlert('Selecciona un técnico de la lista'); return; }
   var tecnico = toTitleCase(sel.value);  // normalizar a TitleCase para coincidir con currentUser.nombre
   var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
   ot.tecnico = tecnico;
@@ -4128,7 +4200,7 @@ function asignarOT(){
   saveDB();
   renderDashboard();
   verOTSup(currentOTId);
-  alert('✓ OT asignada a '+toTitleCase(tecnico));
+  appAlert('✓ OT asignada a '+toTitleCase(tecnico));
 }
 
 function renderTecnicos(){
@@ -4933,7 +5005,7 @@ function setRolCampo(campo, valor){
   if(campo==='periodo' || campo==='fechaInicio') renderTurnoEditor();
 }
 
-function setAsignacion(nomina, fechaISO, valor){
+async function setAsignacion(nomina, fechaISO, valor){
   var rol = getRolActual();
   if(!rol) return;
   if(!rol.asignaciones[nomina]) rol.asignaciones[nomina] = {};
@@ -4946,13 +5018,13 @@ function setAsignacion(nomina, fechaISO, valor){
   }
 
   if(valor==='LIB'){
-    var ini = prompt('Hora de entrada (formato HH:MM)', '08:00');
+    var ini = await appPrompt('Hora de entrada (formato HH:MM)', '08:00');
     if(ini===null){ renderTurnoEditor(); return; }
-    var fin = prompt('Hora de salida (formato HH:MM)', '17:00');
+    var fin = await appPrompt('Hora de salida (formato HH:MM)', '17:00');
     if(fin===null){ renderTurnoEditor(); return; }
     var re = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if(!re.test(ini.trim()) || !re.test(fin.trim())){
-      alert('Formato de hora inválido. Usa HH:MM, por ejemplo 08:30.');
+      appAlert('Formato de hora inválido. Usa HH:MM, por ejemplo 08:30.');
       renderTurnoEditor();
       return;
     }
@@ -4971,7 +5043,7 @@ function copiarTurno(nomina, fechaISO){
   var rol = getRolActual();
   if(!rol) return;
   var a = (rol.asignaciones[nomina]||{})[fechaISO];
-  if(!a || !a.t){ alert('Esta celda no tiene turno asignado.'); return; }
+  if(!a || !a.t){ appAlert('Esta celda no tiene turno asignado.'); return; }
   turnoClip = JSON.parse(JSON.stringify(a));
   renderTurnoEditor();
 }
@@ -4985,11 +5057,11 @@ function pegarTurno(nomina, fechaISO){
 }
 
 // Pega el turno copiado en TODOS los días del periodo para esa persona
-function pegarEnFila(nomina){
+async function pegarEnFila(nomina){
   var rol = getRolActual();
   if(!rol || !turnoClip) return;
   var dias = diasDelPeriodo(rol.fechaInicio, rol.periodo);
-  if(!confirm('¿Aplicar '+asignLabel(turnoClip)+' a los '+dias.length+' días del periodo para esta persona?')) return;
+  if(!(await appConfirm('¿Aplicar '+asignLabel(turnoClip)+' a los '+dias.length+' días del periodo para esta persona?'))) return;
   if(!rol.asignaciones[nomina]) rol.asignaciones[nomina] = {};
   dias.forEach(function(d){
     rol.asignaciones[nomina][d.iso] = JSON.parse(JSON.stringify(turnoClip));
@@ -5003,10 +5075,10 @@ function limpiarTurnoClip(){
 }
 
 // Borra todos los turnos de una persona en el periodo
-function limpiarFila(nomina){
+async function limpiarFila(nomina){
   var rol = getRolActual();
   if(!rol) return;
-  if(!confirm('¿Borrar todos los turnos de esta persona en el periodo?')) return;
+  if(!(await appConfirm('¿Borrar todos los turnos de esta persona en el periodo?'))) return;
   delete rol.asignaciones[nomina];
   renderTurnoEditor();
 }
@@ -5014,20 +5086,20 @@ function limpiarFila(nomina){
 function guardarRolTurnos(){
   var rol = getRolActual();
   if(!rol) return;
-  if(!(rol.nombre||'').trim()){ alert('Escribe un nombre para el rol de turnos.'); return; }
-  if(!rol.fechaInicio){ alert('Selecciona la fecha de inicio.'); return; }
+  if(!(rol.nombre||'').trim()){ appAlert('Escribe un nombre para el rol de turnos.'); return; }
+  if(!rol.fechaInicio){ appAlert('Selecciona la fecha de inicio.'); return; }
   rol.fechaMod = new Date().toISOString();
   rol.modificadoPor = currentUser ? currentUser.nombre : '';
   saveDB();
-  alert('✓ Rol de turnos guardado.');
+  appAlert('✓ Rol de turnos guardado.');
   showScreen('sup-turnos');
   renderTurnos();
 }
 
-function eliminarRolTurnos(){
+async function eliminarRolTurnos(){
   var rol = getRolActual();
   if(!rol) return;
-  if(!confirm('¿Eliminar el rol "'+(rol.nombre||'sin nombre')+'"?\n\nEsta acción no se puede deshacer.')) return;
+  if(!(await appConfirm('¿Eliminar el rol "'+(rol.nombre||'sin nombre')+'"?\n\nEsta acción no se puede deshacer.'))) return;
   DB.turnos = (DB.turnos||[]).filter(function(r){ return r.id!==rol.id; });
   currentRolId = null;
   saveDB();
@@ -5038,7 +5110,7 @@ function eliminarRolTurnos(){
 function exportarRolTurnos(){
   var rol = getRolActual();
   if(!rol) return;
-  if(typeof XLSX==='undefined'){ alert('La librería de Excel no está disponible.'); return; }
+  if(typeof XLSX==='undefined'){ appAlert('La librería de Excel no está disponible.'); return; }
   var dias  = diasDelPeriodo(rol.fechaInicio, rol.periodo);
   var gente = personalManto();
 
@@ -5291,25 +5363,25 @@ function setPvMaquina(fechaISO, turno, maqId){
   renderPreventivoEditor();
 }
 
-function guardarPreventivo(){
+async function guardarPreventivo(){
   var pv = getPvActual();
   if(!pv) return;
   var dup = (DB.preventivos||[]).find(function(x){
     return x.id!==pv.id && x.mes===pv.mes && x.anio===pv.anio;
   });
-  if(dup && !confirm('Ya existe un programa de '+MESES_PV[pv.mes]+' '+pv.anio+'.\n\n¿Guardar de todos modos?')) return;
+  if(dup && !(await appConfirm('Ya existe un programa de '+MESES_PV[pv.mes]+' '+pv.anio+'.\n\n¿Guardar de todos modos?'))) return;
   pv.fechaMod = new Date().toISOString();
   pv.modificadoPor = currentUser ? currentUser.nombre : '';
   saveDB();
-  alert('✓ Programa preventivo guardado.');
+  appAlert('✓ Programa preventivo guardado.');
   showScreen('sup-preventivo');
   renderPreventivos();
 }
 
-function eliminarPreventivo(){
+async function eliminarPreventivo(){
   var pv = getPvActual();
   if(!pv) return;
-  if(!confirm('¿Eliminar el programa de '+MESES_PV[pv.mes]+' '+pv.anio+'?\n\nEsta acción no se puede deshacer.')) return;
+  if(!(await appConfirm('¿Eliminar el programa de '+MESES_PV[pv.mes]+' '+pv.anio+'?\n\nEsta acción no se puede deshacer.'))) return;
   DB.preventivos = (DB.preventivos||[]).filter(function(x){ return x.id!==pv.id; });
   currentPvId = null;
   saveDB();
@@ -5391,7 +5463,7 @@ function exportarPreventivoPDF(){
 
   var win = window.open('', '_blank');
   if(!win){
-    alert('El navegador bloque\u00f3 la ventana de impresi\u00f3n.\n\nPermite las ventanas emergentes para este sitio y vuelve a intentarlo.');
+    appAlert('El navegador bloque\u00f3 la ventana de impresi\u00f3n.\n\nPermite las ventanas emergentes para este sitio y vuelve a intentarlo.');
     return;
   }
   win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">'
@@ -5413,9 +5485,9 @@ function exportarPreventivoPDF(){
 // SPEC-018: Archiva OT cerradas antiguas en un nodo aparte para que la
 // colección viva no crezca sin límite. Las archivadas siguen en Firebase,
 // pero dejan de descargarse en cada sesión.
-function archivarOTsAntiguas(){
-  if(!(db && _fbConnected)){ alert('Necesitas conexión para archivar.'); return; }
-  var meses = parseInt(prompt('Archivar OT cerradas con más de cuántos meses de antigüedad?','3'),10);
+async function archivarOTsAntiguas(){
+  if(!(db && _fbConnected)){ appAlert('Necesitas conexión para archivar.'); return; }
+  var meses = parseInt(await appPrompt('Archivar OT cerradas con más de cuántos meses de antigüedad?','3'),10);
   if(!meses || meses < 1){ return; }
   var corte = new Date(); corte.setMonth(corte.getMonth() - meses);
   var viejas = (DB.ots||[]).filter(function(ot){
@@ -5423,10 +5495,10 @@ function archivarOTsAntiguas(){
     var f = ot.fechaCierre || ot.fechaCierreMantenimiento || ot.fechaAlta;
     return f && new Date(f) < corte;
   });
-  if(!viejas.length){ alert('No hay OT cerradas con más de ' + meses + ' meses.'); return; }
-  if(!confirm('Se archivarán ' + viejas.length + ' OT cerradas anteriores al ' +
+  if(!viejas.length){ appAlert('No hay OT cerradas con más de ' + meses + ' meses.'); return; }
+  if(!(await appConfirm('Se archivarán ' + viejas.length + ' OT cerradas anteriores al ' +
       corte.toLocaleDateString('es-MX') + '.\n\nSeguirán guardadas en el archivo histórico, ' +
-      'pero dejarán de cargarse en la app.\n\n¿Continuar?')) return;
+      'pero dejarán de cargarse en la app.\n\n¿Continuar?'))) return;
 
   var upd = {};
   viejas.forEach(function(ot){
@@ -5435,9 +5507,9 @@ function archivarOTsAntiguas(){
   });
   db.ref().update(upd).then(function(){
     viejas.forEach(function(ot){ delete _snap['ots/' + ot.id]; });
-    alert('✓ ' + viejas.length + ' OT archivadas correctamente.');
+    appAlert('✓ ' + viejas.length + ' OT archivadas correctamente.');
     renderSupPerfil();
-  }).catch(function(e){ alert('Error al archivar: ' + e.message); });
+  }).catch(function(e){ appAlert('Error al archivar: ' + e.message); });
 }
 
 function renderSupPerfil(){
@@ -5526,17 +5598,17 @@ function admGuardarEditOT(){
   saveDB();
   closeModal('modal-adm-edit-ot');
   renderAdmOTs();
-  alert('✓ OT '+ot.folio+' actualizada.');
+  appAlert('✓ OT '+ot.folio+' actualizada.');
 }
 
-function admEliminarOT(id){
+async function admEliminarOT(id){
   var ot = DB.ots.find(function(o){ return o.id===id; });
   if(!ot) return;
-  if(!confirm('¿Eliminar permanentemente la OT '+ot.folio+'? '+ot.desc+' Esta acción no se puede deshacer.')) return;
+  if(!(await appConfirm('¿Eliminar permanentemente la OT '+ot.folio+'? '+ot.desc+' Esta acción no se puede deshacer.'))) return;
   DB.ots = DB.ots.filter(function(o){ return o.id!==id; });
   saveDB();
   renderAdmOTs();
-  alert('✓ OT '+ot.folio+' eliminada.');
+  appAlert('✓ OT '+ot.folio+' eliminada.');
 }
 
 // ══════════════════════════════════════
@@ -5549,7 +5621,7 @@ function base64urlEncode(buffer){
 
 async function registrarBiometria(){
   if(!window.PublicKeyCredential){
-    alert('Tu navegador o dispositivo no soporta autenticación biométrica.');
+    appAlert('Tu navegador o dispositivo no soporta autenticación biométrica.');
     return;
   }
   try{
@@ -5569,10 +5641,10 @@ async function registrarBiometria(){
     var bioMap = JSON.parse(localStorage.getItem('mantoBio')||'{}');
     bioMap[currentUser.nomina] = credId;
     localStorage.setItem('mantoBio', JSON.stringify(bioMap));
-    alert('✓ Biometría registrada. La próxima vez podrás entrar con Face ID o huella.');
+    appAlert('✓ Biometría registrada. La próxima vez podrás entrar con Face ID o huella.');
   } catch(e){
-    if(e.name==='NotAllowedError') alert('Registro cancelado.');
-    else alert('Error al registrar biometría: '+e.message);
+    if(e.name==='NotAllowedError') appAlert('Registro cancelado.');
+    else appAlert('Error al registrar biometría: '+e.message);
   }
 }
 
@@ -5741,8 +5813,8 @@ function guardarMaquina(){
   var activo = document.getElementById('maq-form-activo').value==='1';
   var navesEl= document.getElementById('maq-form-naves').querySelectorAll('input[type=checkbox]:checked');
   var naves  = Array.from(navesEl).map(function(c){ return c.value; });
-  if(!nombre){ alert('El nombre de la máquina no puede estar vacío'); return; }
-  if(!naves.length){ alert('Selecciona al menos una nave'); return; }
+  if(!nombre){ appAlert('El nombre de la máquina no puede estar vacío'); return; }
+  if(!naves.length){ appAlert('Selecciona al menos una nave'); return; }
   if(id){
     var maq = DB.maquinas.find(function(m){ return m.id===id; });
     if(maq){ maq.nombre=nombre; maq.desc=desc; maq.naves=naves; maq.activo=activo; }
@@ -5753,16 +5825,16 @@ function guardarMaquina(){
   closeModal('modal-maquina-form');
   renderAdmCatalogos();
   poblarSelectsNueva();
-  alert('✓ Máquina guardada.');
+  appAlert('✓ Máquina guardada.');
 }
 
-function bajarMaquina(id){
+async function bajarMaquina(id){
   if(!DB.maquinas) DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
   var maq = DB.maquinas.find(function(m){ return m.id===id; });
   if(!maq) return;
-  if(!confirm('¿Dar de baja "'+maq.nombre+'"?')) return;
+  if(!(await appConfirm('¿Dar de baja "'+maq.nombre+'"?'))) return;
   maq.activo=false; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
-  alert('✓ Máquina dada de baja.');
+  appAlert('✓ Máquina dada de baja.');
 }
 
 function activarMaquina(id){
@@ -5770,7 +5842,7 @@ function activarMaquina(id){
   var maq = DB.maquinas.find(function(m){ return m.id===id; });
   if(!maq) return;
   maq.activo=true; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
-  alert('✓ Máquina activada.');
+  appAlert('✓ Máquina activada.');
 }
 
 function abrirFormInfra(id){
@@ -5801,8 +5873,8 @@ function guardarInfra(){
   var nombre = document.getElementById('infra-form-nombre').value.trim().toUpperCase();
   var nave   = document.getElementById('infra-form-nave').value;
   var activo = document.getElementById('infra-form-activo').value==='1';
-  if(!nombre){ alert('El nombre no puede estar vacío'); return; }
-  if(!nave)  { alert('Selecciona una nave'); return; }
+  if(!nombre){ appAlert('El nombre no puede estar vacío'); return; }
+  if(!nave)  { appAlert('Selecciona una nave'); return; }
   if(id){
     var item = DB.infraestructura.find(function(x){ return x.id===id; });
     if(item){ item.nombre=nombre; item.nave=nave; item.activo=activo; }
@@ -5810,16 +5882,16 @@ function guardarInfra(){
     DB.infraestructura.push({id:'in_'+Date.now(), nombre:nombre, nave:nave, activo:true});
   }
   saveDB(); closeModal('modal-infra-form'); renderAdmCatalogos(); poblarSelectsNueva();
-  alert('✓ Área guardada.');
+  appAlert('✓ Área guardada.');
 }
 
-function bajarInfra(id){
+async function bajarInfra(id){
   if(!DB.infraestructura) DB.infraestructura = JSON.parse(JSON.stringify(DEFAULT_INFRAESTRUCTURA));
   var item = DB.infraestructura.find(function(x){ return x.id===id; });
   if(!item) return;
-  if(!confirm('¿Dar de baja "'+item.nombre+'"?')) return;
+  if(!(await appConfirm('¿Dar de baja "'+item.nombre+'"?'))) return;
   item.activo=false; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
-  alert('✓ Área dada de baja.');
+  appAlert('✓ Área dada de baja.');
 }
 
 function activarInfra(id){
@@ -5827,7 +5899,7 @@ function activarInfra(id){
   var item = DB.infraestructura.find(function(x){ return x.id===id; });
   if(!item) return;
   item.activo=true; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
-  alert('✓ Área activada.');
+  appAlert('✓ Área activada.');
 }
 
 function guardarCatalogo(){
@@ -5835,7 +5907,7 @@ function guardarCatalogo(){
   var id     = document.getElementById('cat-form-id').value;
   var nombre = document.getElementById('cat-form-nombre').value.trim().toUpperCase();
   var activo = document.getElementById('cat-form-activo').value==='1';
-  if(!nombre){ alert('El nombre no puede estar vacío'); return; }
+  if(!nombre){ appAlert('El nombre no puede estar vacío'); return; }
 
   var esTipo = tipo==='tipo';
   if(!DB.tiposServicio) DB.tiposServicio = JSON.parse(JSON.stringify(DEFAULT_TIPOS));
@@ -5853,19 +5925,19 @@ function guardarCatalogo(){
   closeModal('modal-cat-form');
   renderAdmCatalogos();
   poblarSelectsNueva(); // refrescar selects en Nueva Solicitud
-  alert('✓ Guardado correctamente.');
+  appAlert('✓ Guardado correctamente.');
 }
 
-function bajarCatalogo(tipo, id){
+async function bajarCatalogo(tipo, id){
   var lista = tipo==='tipo' ? DB.tiposServicio : DB.naves;
   var item = lista.find(function(x){ return x.id===id; });
   if(!item) return;
-  if(!confirm('¿Dar de baja "'+item.nombre+'"? Ya no aparecerá en Nueva Solicitud.')) return;
+  if(!(await appConfirm('¿Dar de baja "'+item.nombre+'"? Ya no aparecerá en Nueva Solicitud.'))) return;
   item.activo = false;
   saveDB();
   renderAdmCatalogos();
   poblarSelectsNueva();
-  alert('✓ Dado de baja.');
+  appAlert('✓ Dado de baja.');
 }
 
 function activarCatalogo(tipo, id){
@@ -5876,7 +5948,7 @@ function activarCatalogo(tipo, id){
   saveDB();
   renderAdmCatalogos();
   poblarSelectsNueva();
-  alert('✓ Activado.');
+  appAlert('✓ Activado.');
 }
 
 // ==================== ADMIN ====================
@@ -6196,19 +6268,19 @@ function guardarPersona(){
   const turno  = document.getElementById('frm-turno').value;
   const estatus= document.getElementById('frm-estatus').value;
   const obs    = document.getElementById('frm-obs').value.trim();
-  if(!nomina||!nombre||!puesto||!depto){alert('Nómina, nombre, puesto y departamento son obligatorios.');return;}
+  if(!nomina||!nombre||!puesto||!depto){appAlert('Nómina, nombre, puesto y departamento son obligatorios.');return;}
   if(personalEditar){
     const idx = DB.personal.findIndex(x=>x.nomina===personalEditar);
     if(idx>=0) DB.personal[idx]={...DB.personal[idx],nombre,puesto,depto,rol,turno,estatus,obs};
     saveDB();
-    alert('✓ Datos actualizados correctamente.');
+    appAlert('✓ Datos actualizados correctamente.');
     verPersona(personalEditar);
   } else {
-    if(DB.personal.find(x=>x.nomina===nomina)){alert('Ya existe un empleado con esa nómina.');return;}
+    if(DB.personal.find(x=>x.nomina===nomina)){appAlert('Ya existe un empleado con esa nómina.');return;}
     DB.personal.push({nomina,nombre,puesto,depto,rol,turno,estatus,obs});
     saveDB();
     document.getElementById('frm-nomina').disabled = false;
-    alert('✓ Empleado dado de alta correctamente.');
+    appAlert('✓ Empleado dado de alta correctamente.');
     showScreen('adm-personal');
     renderPersonal();
   }
@@ -6232,19 +6304,19 @@ function confirmarBaja(){
   p.fechaBaja = new Date().toISOString();
   saveDB();
   closeModal('modal-baja');
-  alert('✓ Empleado dado de baja: ' + p.nombre);
+  appAlert('✓ Empleado dado de baja: ' + p.nombre);
   showScreen('adm-personal');
   renderPersonal();
 }
 
-function reactivarPersona(nomina){
+async function reactivarPersona(nomina){
   const p = DB.personal.find(x=>x.nomina===nomina);
   if(!p) return;
-  if(!confirm('¿Reactivar a ' + p.nombre + '?')) return;
+  if(!(await appConfirm('¿Reactivar a ' + p.nombre + '?'))) return;
   p.estatus = 'activo';
   p.fechaBaja = null;
   saveDB();
-  alert('✓ Empleado reactivado.');
+  appAlert('✓ Empleado reactivado.');
   verPersona(nomina);
 }
 

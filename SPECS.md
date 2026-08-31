@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.2
+**Versión:** 3.3
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1009,6 +1009,40 @@ SPEC-022 bloqueaba tomar una orden nueva solo cuando el técnico tenía una **pa
 ### Reglas de negocio
 - El mensaje de bloqueo indica el folio de la orden en proceso y remite al botón de pausar
 - Esta validación corre **después** de la de SPEC-022 (orden pausada pendiente); si ambas aplicaran, se muestra primero la de la pausada, por ser más específica
+
+---
+
+# SPEC-028 — Ventanas propias en lugar de los diálogos nativos del navegador
+
+### Problema que resuelve
+Las funciones nativas `alert()`, `confirm()` y `prompt()` del navegador muestran un prefijo con el dominio del sitio (por ejemplo, *"victormorenogarcia05-ux.github.io dice"*), que el navegador agrega como medida de seguridad para que el usuario sepa qué sitio le está hablando. **Ninguna app puede quitar ese prefijo** mientras siga usando esas funciones — no existe opción de CSS ni de JavaScript para ocultarlo. La única forma de eliminarlo es dejar de usar los diálogos nativos y mostrar ventanas propias.
+
+### Solución
+Se agregó un modal genérico y reutilizable (`#modal-app-dialog`), con el mismo estilo visual que el resto de los modales de la app, y tres funciones que lo controlan:
+
+| Función | Reemplaza a | Devuelve |
+|---|---|---|
+| `appAlert(msg, title)` | `alert()` | `Promise` (se resuelve al pulsar Aceptar) |
+| `appConfirm(msg, title)` | `confirm()` | `Promise<boolean>` |
+| `appPrompt(msg, defaultValue)` | `prompt()` | `Promise<string \| null>` |
+
+### Alcance del cambio
+- **83 llamadas a `alert()`** se renombraron mecánicamente a `appAlert()`. Es un cambio seguro porque ninguna llamada usaba el valor de retorno de `alert()` (que siempre es `undefined`).
+- **13 llamadas a `confirm()`**, todas con el patrón `if(!confirm('...')) return;`, se convirtieron a `if(!(await appConfirm('...'))) return;`. Las 13 funciones que las contienen pasaron a ser `async function`.
+- **3 llamadas a `prompt()`** (en `setAsignacion` y `archivarOTsAntiguas`) se convirtieron a `await appPrompt('...')`, con las mismas dos funciones marcadas `async`.
+
+### Por qué es seguro convertir esas funciones a `async`
+Se verificó que las 14 funciones afectadas se invocan **exclusivamente** desde atributos `onclick`/`onchange` del HTML, nunca desde otro código JavaScript que dependa de su valor de retorno de forma síncrona. Un `onclick="miFuncion()"` funciona igual de bien si `miFuncion` es `async`; el navegador no necesita esperar su resolución para nada más.
+
+### Comportamiento del modal
+- `appAlert`: un solo botón "Aceptar"
+- `appConfirm`: "Cancelar" y "Confirmar"; devuelve `false`/`true` según cuál se pulse
+- `appPrompt`: muestra un campo de texto con el valor por defecto, y los botones "Cancelar" (devuelve `null`) y "Aceptar" (devuelve el texto escrito)
+- Los flujos que antes encadenaban un `prompt()` seguido de un `confirm()` (como `archivarOTsAntiguas`) siguen funcionando igual, solo que ahora cada paso espera (`await`) a que el usuario responda la ventana antes de continuar
+
+### Reglas de negocio
+- No quedó ninguna llamada nativa a `alert()`, `confirm()` ni `prompt()` en el código
+- El texto y el orden de los mensajes no cambiaron; solo el mecanismo de presentación
 
 ---
 

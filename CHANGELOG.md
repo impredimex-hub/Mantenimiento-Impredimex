@@ -6,6 +6,21 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.13.0] — 2026-08-19
+
+### Agregado
+- **SPEC-028:** Ventanas propias (`appAlert`, `appConfirm`, `appPrompt`) en reemplazo de los diálogos nativos del navegador, para eliminar el prefijo con el dominio del sitio ("victormorenogarcia05-ux.github.io dice") que el navegador agrega y que no se puede ocultar de ninguna otra forma.
+  - **83** llamadas a `alert()` renombradas a `appAlert()`.
+  - **13** llamadas a `confirm()` convertidas a `await appConfirm()`; las 13 funciones que las contienen pasaron a `async`.
+  - **3** llamadas a `prompt()` convertidas a `await appPrompt()`.
+  - El modal reutiliza el mismo estilo visual que el resto de las ventanas de la app.
+
+### Notas
+- Se verificó que las 14 funciones convertidas a `async` se invocan solo desde `onclick`/`onchange` del HTML, nunca desde código que dependa de su retorno síncrono — la conversión no tiene efectos secundarios.
+- El texto y el orden de todos los mensajes se conservó igual; solo cambió el mecanismo de presentación.
+
+---
+
 ## [1.12.3] — 2026-08-18
 
 ### Corregido
