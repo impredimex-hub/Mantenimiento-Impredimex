@@ -6,6 +6,20 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.15.0] — 2026-08-21
+
+### Corregido
+- **SPEC-031:** El botón "Rechazar" del detalle de OT no hacía nada al pulsarlo. Causa: llamaba a `mostrarRechazo(id)`, una función que nunca se había definido (`ReferenceError` en consola). Se agregó la función faltante.
+
+### Cambiado
+- El motivo del rechazo ya no es texto libre obligatorio: se presentan **cuatro motivos predefinidos** en chips (Sin reparación al 100%, Técnico aún no termina, Suciedad en máquina, Sin acuerdo en dictamen), con un campo de detalle adicional **opcional**. Seleccionar un motivo es obligatorio para poder rechazar.
+- Se agregó `ot.rechazo = {motivo, detalle, fecha}` como registro estructurado, además de lo ya existente (comentario, notificaciones y push).
+
+### Notas
+- La OT sigue regresando a estado "En proceso" al rechazar, como ya ocurría.
+
+---
+
 ## [1.14.0] — 2026-08-20
 
 ### Corregido

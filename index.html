@@ -1222,9 +1222,16 @@ input[type=range].green{accent-color:var(--green)}
       <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
       <div>La OT volverá a estado "En proceso" y el técnico recibirá el motivo del rechazo.</div>
     </div>
+    <div class="section-head">Motivo del rechazo</div>
+    <div class="chip-group" id="rechazar-motivo-chips" style="padding:0 16px 4px">
+      <button class="chip" onclick="selectChip(this,'rechazar-motivo-chips')">Sin reparación al 100%</button>
+      <button class="chip" onclick="selectChip(this,'rechazar-motivo-chips')">Técnico aún no termina</button>
+      <button class="chip" onclick="selectChip(this,'rechazar-motivo-chips')">Suciedad en máquina</button>
+      <button class="chip" onclick="selectChip(this,'rechazar-motivo-chips')">Sin acuerdo en dictamen</button>
+    </div>
     <div class="field-row">
-      <div class="field-lbl">Motivo del rechazo</div>
-      <textarea class="field-textarea" id="rechazar-motivo" placeholder="Describe qué problema persiste o qué falta por resolver..."></textarea>
+      <div class="field-lbl">Detalle adicional (opcional)</div>
+      <textarea class="field-textarea" id="rechazar-motivo" placeholder="Agrega detalle si hace falta..."></textarea>
     </div>
     <div style="padding:16px;display:flex;gap:8px">
       <button class="btn btn-outline" onclick="closeModal('modal-rechazar')" style="flex:1">Cancelar</button>
@@ -2189,33 +2196,49 @@ function cerrarOT(id){
   renderSolOTs('todas');
 }
 
+// SPEC-031: abre el modal de rechazo para una OT específica desde la lista.
+// Esta función faltaba: el botón "Rechazar" la llamaba sin que existiera,
+// por eso no pasaba nada al pulsarlo.
+function mostrarRechazo(id){
+  otParaRechazar = id;
+  var chips = document.getElementById('rechazar-motivo-chips');
+  if(chips) chips.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('selected'); });
+  var det = document.getElementById('rechazar-motivo');
+  if(det) det.value = '';
+  openModal('modal-rechazar');
+}
+
 function confirmarRechazo(){
-  var motivo = document.getElementById('rechazar-motivo').value.trim();
-  if(!motivo){ appAlert('Escribe el motivo del rechazo'); return; }
+  var chip = document.querySelector('#rechazar-motivo-chips .chip.selected');
+  if(!chip){ appAlert('Selecciona el motivo del rechazo'); return; }
+  var motivo = chip.textContent.trim();
+  var detalle = document.getElementById('rechazar-motivo').value.trim();
+  var motivoCompleto = motivo + (detalle ? ' — ' + detalle : '');
   var oid = otParaRechazar || currentOTId;
   var ot = DB.ots.find(function(o){ return o.id===oid; });
   if(!ot){ closeModal('modal-rechazar'); return; }
   ot.status = 'proceso';
+  ot.rechazo = {motivo:motivo, detalle:detalle, fecha:new Date().toISOString()};
   if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
   ot.comentarios.push({
     autor: currentUser.nombre,
     fecha: new Date().toISOString(),
-    texto: 'Cierre rechazado por el solicitante: '+motivo
+    texto: 'Cierre rechazado por el solicitante: '+motivoCompleto
   });
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:'n'+Date.now(), para:'tecnico',
-    texto:'El solicitante rechazó el cierre de '+ot.folio+': '+motivo,
+    texto:'El solicitante rechazó el cierre de '+ot.folio+': '+motivoCompleto,
     fecha:new Date().toISOString(), leida:false
   });
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({
     id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' rechazada por '+currentUser.nombre+': '+motivo,
+    texto:'OT '+ot.folio+' rechazada por '+currentUser.nombre+': '+motivoCompleto,
     fecha:new Date().toISOString(), leida:false
   });
   // SPEC-011: push del rechazo enrutado por tipo de servicio
-  notifyPush(getNominasByTipoServicio(ot.tipo),'Cierre rechazado #'+ot.folio,(ot.equipo||'')+' — '+motivo.substring(0,60),'rechazo-'+ot.folio);
+  notifyPush(getNominasByTipoServicio(ot.tipo),'Cierre rechazado #'+ot.folio,(ot.equipo||'')+' — '+motivoCompleto.substring(0,60),'rechazo-'+ot.folio);
   saveDB();
   closeModal('modal-rechazar');
   document.getElementById('rechazar-motivo').value = '';

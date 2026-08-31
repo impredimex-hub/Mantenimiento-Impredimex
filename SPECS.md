@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.4
+**Versión:** 3.5
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1085,6 +1085,33 @@ Antes de evaluar quién está libre u ocupado, se filtra la lista de personas en
 
 ### Alcance
 Este filtro aplica únicamente a `avisarSiNoHayTecnicoLibre()`. No afecta la capacidad real de estas personas de tomar órdenes desde su propio panel, ni el módulo de Turnos, ni el ranking de técnicos.
+
+---
+
+# SPEC-031 — Rechazar cierre: botón roto y motivos predefinidos
+
+### Problema que resuelve
+El botón **"Rechazar"** en el detalle de la OT llamaba a `mostrarRechazo(id)`, una función que **nunca se había escrito**. Al pulsarlo no pasaba nada, salvo un error en la consola del navegador (`mostrarRechazo is not defined`).
+
+### Corrección del bug
+Se agregó `mostrarRechazo(id)`, que guarda el id en `otParaRechazar`, limpia la selección anterior del modal y lo abre. Es la pieza que faltaba para que el botón funcionara.
+
+### Motivos predefinidos
+El motivo ya no se captura como texto libre obligatorio. Se presentan cuatro opciones fijas, con el mismo patrón visual (chips) que usa "Poner en espera" (SPEC-008):
+
+- Sin reparación al 100%
+- Técnico aún no termina
+- Suciedad en máquina
+- Sin acuerdo en dictamen
+
+Seleccionar uno es **obligatorio**; sin selección, `confirmarRechazo()` no continúa y pide elegir un motivo. Debajo del selector hay un campo de texto **opcional** para agregar detalle adicional, que se concatena al motivo (`"Suciedad en máquina — Quedaron rebabas en la banda"`).
+
+### Qué se guarda
+Además de lo que ya existía (comentario en la OT, notificación interna al técnico y al supervisor, push enrutado por tipo de servicio), se agrega `ot.rechazo = {motivo, detalle, fecha}` como registro estructurado del último rechazo.
+
+### Postcondiciones
+- La OT vuelve a estado `proceso` — sin cambios respecto al comportamiento previo, una vez corregido el bug del botón
+- El técnico y el supervisor reciben el motivo completo (predefinido + detalle si lo hay)
 
 ---
 
