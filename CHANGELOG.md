@@ -6,6 +6,19 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.16.0] — 2026-08-22
+
+### Corregido
+- **SPEC-032:** "Pausar orden y tomar otra" solo ofrecía OT en estado `abierto` como destino, dejando fuera candidatas legítimas: una OT en proceso cuyo técnico ya cambió de turno (sí se podía unir desde el detalle, pero no aparecía aquí), y cualquier OT pausada, que **nadie** podía tomar todavía por ningún camino.
+- Se creó `puedeTomarOrden()`, regla única reutilizada en el detalle, en "pausar y tomar otra", y en su confirmación — antes existían copias ligeramente distintas de esta lógica en cada lugar.
+
+### Agregado
+- Una **OT pausada** ahora puede tomarla otro técnico, **solo si quien la pausó ya salió de su propio turno**. Mientras siga en el mismo turno en que la pausó, sigue siendo su responsabilidad resolverla — nadie más puede tomarla todavía, para que le dé tiempo de retomarla él mismo.
+- El detalle de una OT pausada tomable ahora muestra el botón correspondiente, con el mensaje "OT pausada — disponible para retomar".
+- Las tarjetas del modal de "pausar y tomar otra" indican cuando la candidata no es una OT simplemente abierta (reasignada o pausada).
+
+---
+
 ## [1.15.0] — 2026-08-21
 
 ### Corregido

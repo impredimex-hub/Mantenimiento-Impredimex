@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.5
+**Versión:** 3.6
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1112,6 +1112,33 @@ Además de lo que ya existía (comentario en la OT, notificación interna al té
 ### Postcondiciones
 - La OT vuelve a estado `proceso` — sin cambios respecto al comportamiento previo, una vez corregido el bug del botón
 - El técnico y el supervisor reciben el motivo completo (predefinido + detalle si lo hay)
+
+---
+
+# SPEC-032 — Regla única para "puede tomar esta orden"
+
+### Problema que resuelve
+Existían varias copias, ligeramente distintas, de la lógica que decide si un técnico puede tomar o unirse a una OT: la del detalle (`puedeUnirse`), la del listado de disponibles, y la de "pausar y tomar otra" (`abrirPausarOT`). Esta última era más estrecha que las demás — solo consideraba OT en `abierto`, dejando fuera:
+
+1. Una OT `en proceso` cuyo técnico ya cambió de turno (aunque unirse a ella **sí** era posible desde el detalle)
+2. Cualquier OT pausada (SPEC-021), que **nadie** podía tomar todavía — ni siquiera desde el detalle, porque `puedeUnirse` nunca contemplaba el estado `espera`
+
+### Solución
+Se creó `puedeTomarOrden(ot, nombreTecnico)`, la única función que responde esa pregunta, usada ahora en los tres lugares (`buildDetalleTec`, `abrirPausarOT`, `confirmarPausarYTomar`):
+
+1. **OT abierta o en proceso:** puede tomarse/unirse si el técnico no se ha registrado ya en el turno actual — sin cambios respecto a la regla de siempre
+2. **OT pausada (con registro en `ot.pausas`) y sin nadie activo:** solo puede tomarse si el técnico que la pausó **ya salió de su turno** — mientras siga en el mismo turno en el que la pausó, la responsabilidad de resolverla sigue siendo suya, para que nadie se la "quite" antes de que le dé tiempo de retomarla. La comparación es entre el turno guardado en su entrada de `ot.tecnicos` y el turno actual (`turnoActual()`)
+
+### Efectos del cambio
+
+**En "Pausar orden y tomar otra"** (`abrirPausarOT`): la lista de candidatas ahora incluye también OT en proceso uniéndose y OT pausadas tomables, no solo abiertas. La tarjeta de cada candidata indica su situación ("Reasignada de [técnico]" o "Pausada por [técnico], ya salió de turno") para que quede claro qué se está tomando. `confirmarPausarYTomar` revalida con la misma regla al confirmar, por si la candidata dejó de estar disponible entre que se abrió la lista y se confirmó.
+
+**En el detalle de la OT** (`buildDetalleTec`): una OT pausada y tomable ahora sí muestra el botón para tomarla, con un mensaje propio: *"OT pausada — disponible para retomar"*, indicando quién la pausó.
+
+### Reglas de negocio
+- Tomar una OT pausada la regresa a `proceso` y cierra el periodo de espera abierto — mismo mecanismo que ya usaba el reingreso normal (SPEC-013)
+- Siguen aplicando los candados existentes: un técnico con su propia OT pausada pendiente (SPEC-022) o con otra en proceso (SPEC-027) no puede tomar una OT pausada de otro sin resolver primero la suya
+- Si no hay dato de turno registrado para quien pausó, se permite tomarla igualmente, para no dejarla indefinidamente sin resolver por falta de información
 
 ---
 

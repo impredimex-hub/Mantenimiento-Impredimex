@@ -2814,6 +2814,39 @@ function otEnProcesoDelTecnico(){
   return lista[0] || null;
 }
 
+// SPEC-032: regla ÚNICA para "¿puede este técnico tomar/unirse a esta OT?".
+// Antes existían copias parecidas pero no idénticas en distintos lugares
+// (abrirPausarOT solo miraba 'abierto', dejando fuera casos legítimos de
+// unirse a una 'proceso'); centralizarla evita que vuelvan a desalinearse.
+//
+// Cubre tres situaciones:
+//  1) OT abierta o en proceso, sin que este técnico ya se haya registrado
+//     en el turno actual (la regla de "unirse"/"tomar" de siempre).
+//  2) OT pausada (SPEC-021, tiene registro en ot.pausas) sin nadie activo:
+//     solo se puede tomar si quien la pausó YA SALIÓ de su turno — mientras
+//     siga en su propio turno, la responsabilidad de resolverla es suya,
+//     para que no se la "quiten" antes de que le dé tiempo de retomarla.
+function puedeTomarOrden(ot, nombreTecnico){
+  if(!ot) return false;
+  if(ot.status==='abierto' || ot.status==='proceso'){
+    return !tecnicoEnTurnoActual(ot, nombreTecnico);
+  }
+  if(ot.status==='espera' && Array.isArray(ot.pausas) && ot.pausas.length){
+    var hayActivo = (ot.tecnicos||[]).some(function(t){ return t && !t.fechaSalida; });
+    if(hayActivo) return false;
+    var ultPausa = ot.pausas[ot.pausas.length-1];
+    var entrada = null;
+    for(var i=(ot.tecnicos||[]).length-1; i>=0; i--){
+      if(_mismoNombre(ot.tecnicos[i].nombre, ultPausa.tecnico)){ entrada = ot.tecnicos[i]; break; }
+    }
+    // Sin dato de turno registrado no se puede confirmar que siga en turno;
+    // se permite tomarla para no dejarla arrumbada indefinidamente.
+    if(!entrada || !entrada.turno) return true;
+    return entrada.turno !== turnoActual();
+  }
+  return false;
+}
+
 function otEnCursoDelTecnico(){
   if(!currentUser) return null;
   var lista = (DB.ots||[]).filter(function(ot){
@@ -2844,9 +2877,12 @@ function abrirPausarOT(){
     + 'Tu tiempo en ella deja de contar y la orden queda registrada en espera. '
     + 'Para pausarla debes <b>tomar otra orden</b> de la lista.</div>';
 
-  // Órdenes disponibles (sin técnico asignado), urgentes primero
+  // SPEC-032: candidatas para pausar y tomar — la MISMA regla que decide si
+  // se puede "tomar/unirse" en cualquier otra parte de la app (antes esta
+  // lista solo miraba OT 'abierto', dejando fuera casos legítimos como una
+  // 'proceso' cuyo técnico ya cambió de turno, o una pausada disponible).
   var disp = (DB.ots||[]).filter(function(o){
-    return o && o.status==='abierto' && o.id!==actual.id;
+    return o && o.id!==actual.id && puedeTomarOrden(o, currentUser.nombre);
   }).sort(function(a,b){
     var ua = /urgente|parada/i.test(a.prioridad||'') ? 1 : 0;
     var ub = /urgente|parada/i.test(b.prioridad||'') ? 1 : 0;
@@ -2863,10 +2899,19 @@ function abrirPausarOT(){
       var urg = /urgente|parada/i.test(o.prioridad||'')
         ? '<span class="pausa-urg">'+o.prioridad+'</span>' : '';
       var ubi = [o.nave ? 'Nave '+o.nave : '', o.equipo].filter(Boolean).join(' · ');
+      // SPEC-032: si la candidata no es una OT simplemente abierta, aclarar
+      // su situación (ya tenía técnico, o estaba pausada) para no confundir.
+      var nota = '';
+      if(o.status==='proceso' && (o.tecnicos||[]).length){
+        nota = ' · Reasignada de '+o.tecnicos[o.tecnicos.length-1].nombre;
+      } else if(o.status==='espera'){
+        var ultP = (o.pausas||[])[((o.pausas||[]).length-1)];
+        nota = ' · Pausada por '+(ultP?ultP.tecnico:'otro técnico')+', ya salió de turno';
+      }
       html += '<button class="pausa-card" onclick="confirmarPausarYTomar(\''+o.id+'\')">'
         + '<div class="pausa-folio">'+o.folio+urg+'</div>'
         + '<div class="pausa-desc">'+(o.desc||'').substring(0,90)+'</div>'
-        + '<div class="pausa-meta">'+(ubi||'Sin ubicación')+' · '+(o.tipo||'')+'</div>'
+        + '<div class="pausa-meta">'+(ubi||'Sin ubicación')+' · '+(o.tipo||'')+nota+'</div>'
         + '</button>';
     });
   }
@@ -2878,8 +2923,10 @@ async function confirmarPausarYTomar(idDestino){
   var actual  = otEnCursoDelTecnico();
   var destino = (DB.ots||[]).find(function(o){ return o.id===idDestino; });
   if(!actual || !destino){ appAlert('No fue posible completar la operación.'); return; }
-  if(destino.status!=='abierto'){
-    appAlert('Esa orden ya fue tomada por otro técnico. Elige otra.');
+  // SPEC-032: revalidar con la MISMA regla que armó la lista, por si alguien
+  // más tomó la candidata entre que se abrió el modal y se confirmó.
+  if(!puedeTomarOrden(destino, currentUser.nombre)){
+    appAlert('Esa orden ya no está disponible. Elige otra.');
     abrirPausarOT();
     return;
   }
@@ -3052,8 +3099,7 @@ function buildDetalleTec(ot){
     return !contactos[t.nomina] && !(!!ot.fechaPrimerContacto && ot.tecnicos[0] && ot.tecnicos[0].nomina===t.nomina);
   });
   var canEdit       = ot.status!=='cerrado' && ot.status!=='validar' && yaSoy && primerContacto && !!ot.tipoProblema;
-  var puedeUnirse   = (ot.status==='abierto'||ot.status==='proceso')
-    && !tecnicoEnTurnoActual(ot, currentUser.nombre)
+  var puedeUnirse   = puedeTomarOrden(ot, currentUser.nombre)
     && ot.status!=='validar' && ot.status!=='cerrado';
 
   var tipoProblemaSection = '';
@@ -3120,14 +3166,20 @@ function buildDetalleTec(ot){
 
   var tomarSec='';
   if(puedeUnirse){
-    var esPrimero = !ot.tecnicos || ot.tecnicos.length===0;
+    var esPrimero  = !ot.tecnicos || ot.tecnicos.length===0;
+    var esPausada  = ot.status==='espera' && Array.isArray(ot.pausas) && ot.pausas.length>0;
     // SPEC-023: el mensaje de "unirse" solo debe hablar de relevo de turno si
     // realmente lo es. Antes asumía siempre relevo, aunque el técnico anterior
     // siguiera en el MISMO turno (compañero ayudando, no cambio de turno).
     var ultimoTec = !esPrimero ? ot.tecnicos[ot.tecnicos.length-1] : null;
     var esCambioTurno = ultimoTec && ultimoTec.turno && ultimoTec.turno !== turnoActual();
     var tituloUnirse, textoUnirse;
-    if(esPrimero){
+    if(esPausada){
+      // SPEC-032: quedó pausada por otro técnico y ese técnico ya salió de turno
+      var nombrePausante = ot.pausas[ot.pausas.length-1].tecnico;
+      tituloUnirse = 'OT pausada — disponible para retomar';
+      textoUnirse  = nombrePausante+' la pausó para atender otra orden y ya salió de turno. Puedes tomarla para que no quede pendiente.';
+    } else if(esPrimero){
       tituloUnirse = 'OT sin atender';
       textoUnirse  = 'Regístrate para dejar constancia de que tú la atiendes.';
     } else if(esCambioTurno){
