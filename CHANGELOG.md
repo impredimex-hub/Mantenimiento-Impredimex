@@ -6,6 +6,21 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.19.0] — 2026-08-26
+
+### Agregado
+- **SPEC-036: PIN individual de 4 dígitos.** Los técnicos ya no comparten una sola contraseña; cada uno puede tener su propio PIN.
+  - Nuevo campo **PIN individual (opcional)** en el alta/edición de personal, validado como exactamente 4 dígitos.
+  - Si una persona tiene PIN asignado, debe usarlo — la contraseña compartida del rol deja de funcionarle. Si no tiene PIN, sigue entrando como siempre.
+  - El PIN asignado se muestra en el detalle de la persona.
+  - Precargados en `DEFAULT_PERSONAL`: nóminas 638, 1049, 1332, 1827, 2047 y 2366.
+
+### Notas
+- La nómina 2431 no existe en el catálogo por defecto de este archivo (se dio de alta en la base en vivo); su PIN debe asignarse manualmente desde el panel de administrador, igual que cualquier alta futura.
+- El estatus de baja sigue bloqueando el acceso incluso con el PIN correcto.
+
+---
+
 ## [1.18.0] — 2026-08-25
 
 ### Agregado

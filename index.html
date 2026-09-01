@@ -1708,8 +1708,23 @@ function doLogin(){
   if(!nomina){ appAlert('Ingresa tu número de nómina'); return; }
   if(!pass)  { appAlert('Ingresa tu contraseña'); return; }
 
-  // Determinar rol por contraseña
-  const role = PASSWORDS[pass];
+  // Buscar en catálogo (se necesita ANTES de resolver el rol, para el PIN individual)
+  const cat = (DB && DB.personal) ? DB.personal : CATALOG_PERSONAL;
+  const persona = cat.find(function(p){ return p.nomina.toString()===nomina; });
+
+  // SPEC-036: PIN individual de 4 dígitos por persona. Si esta nómina tiene
+  // un PIN propio asignado, debe coincidir exactamente con SU pin — la
+  // contraseña compartida del rol ya NO le funciona (evita que el PIN
+  // pierda sentido si la contraseña general sigue abriendo la puerta).
+  // Si no tiene PIN asignado, sigue entrando con la contraseña compartida,
+  // como hasta ahora.
+  var role;
+  if(persona && persona.pin){
+    role = (pass === persona.pin) ? (persona.rol || 'tecnico') : undefined;
+  } else {
+    role = PASSWORDS[pass];
+  }
+
   if(!role){
     // Shake animation on password field
     var pf = document.getElementById('login-pass');
@@ -1719,10 +1734,6 @@ function doLogin(){
     appAlert('Contraseña incorrecta');
     return;
   }
-
-  // Buscar en catálogo
-  const cat = (DB && DB.personal) ? DB.personal : CATALOG_PERSONAL;
-  const persona = cat.find(function(p){ return p.nomina.toString()===nomina; });
 
   if(persona && persona.estatus==='baja'){
     appAlert('Esta nómina está registrada como baja. Contacta a Recursos Humanos.');
@@ -6568,6 +6579,7 @@ function verPersona(nomina){
     <div class="field-row"><div class="field-lbl">Departamento</div><div class="field-val">${p.depto}</div></div>
     <div class="field-row"><div class="field-lbl">Rol en la app</div><div class="field-val">${rolLabel[p.rol]||p.rol}</div></div>
     <div class="field-row"><div class="field-lbl">Turno</div><div class="field-val">${p.turno?'Turno '+p.turno:'No aplica'}</div></div>
+    <div class="field-row"><div class="field-lbl">PIN individual</div><div class="field-val">${p.pin?p.pin:'Sin asignar — usa la contraseña compartida de su rol'}</div></div>
     ${p.obs?`<div class="field-row"><div class="field-lbl">Observaciones</div><div class="field-val" style="font-weight:400;font-size:13px">${p.obs}</div></div>`:''}
     <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
       <button class="btn btn-orange btn-block" onclick="abrirFormPersonal('${p.nomina}')">
@@ -6598,6 +6610,7 @@ function abrirFormPersonal(nomina){
     document.getElementById('frm-depto').value = p.depto;
     document.getElementById('frm-rol').value = p.rol;
     document.getElementById('frm-turno').value = p.turno||'';
+    document.getElementById('frm-pin').value = p.pin||'';
     document.getElementById('frm-estatus').value = p.estatus;
     document.getElementById('frm-obs').value = p.obs||'';
   } else {
@@ -6608,6 +6621,7 @@ function abrirFormPersonal(nomina){
     document.getElementById('frm-depto').value = '';
     document.getElementById('frm-rol').value = 'solicitante';
     document.getElementById('frm-turno').value = '';
+    document.getElementById('frm-pin').value = '';
     document.getElementById('frm-estatus').value = 'activo';
     document.getElementById('frm-obs').value = '';
   }
@@ -6621,18 +6635,21 @@ function guardarPersona(){
   const depto  = document.getElementById('frm-depto').value.trim();
   const rol    = document.getElementById('frm-rol').value;
   const turno  = document.getElementById('frm-turno').value;
+  const pin    = document.getElementById('frm-pin').value.trim();
   const estatus= document.getElementById('frm-estatus').value;
   const obs    = document.getElementById('frm-obs').value.trim();
   if(!nomina||!nombre||!puesto||!depto){appAlert('Nómina, nombre, puesto y departamento son obligatorios.');return;}
+  // SPEC-036: el PIN, si se captura, debe ser de exactamente 4 dígitos
+  if(pin && !/^\d{4}$/.test(pin)){ appAlert('El PIN debe ser de exactamente 4 dígitos (solo números).'); return; }
   if(personalEditar){
     const idx = DB.personal.findIndex(x=>x.nomina===personalEditar);
-    if(idx>=0) DB.personal[idx]={...DB.personal[idx],nombre,puesto,depto,rol,turno,estatus,obs};
+    if(idx>=0) DB.personal[idx]={...DB.personal[idx],nombre,puesto,depto,rol,turno,pin,estatus,obs};
     saveDB();
     appAlert('✓ Datos actualizados correctamente.');
     verPersona(personalEditar);
   } else {
     if(DB.personal.find(x=>x.nomina===nomina)){appAlert('Ya existe un empleado con esa nómina.');return;}
-    DB.personal.push({nomina,nombre,puesto,depto,rol,turno,estatus,obs});
+    DB.personal.push({nomina,nombre,puesto,depto,rol,turno,pin,estatus,obs});
     saveDB();
     document.getElementById('frm-nomina').disabled = false;
     appAlert('✓ Empleado dado de alta correctamente.');
@@ -7031,6 +7048,11 @@ function renderAdmPerfil(){
           <option value="">— No aplica —</option>
           <option value="1">Turno 1</option><option value="2">Turno 2</option><option value="3">Turno 3</option>
         </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">PIN individual (opcional)</div>
+        <input class="field-input" id="frm-pin" type="text" inputmode="numeric" maxlength="4" placeholder="4 dígitos, ej. 6381">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Si se asigna, esta persona entra con su nómina + este PIN, en vez de la contraseña compartida de su rol.</div>
       </div>
       <div class="field-row">
         <div class="field-lbl">Estatus</div>

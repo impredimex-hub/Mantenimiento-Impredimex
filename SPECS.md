@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.9
+**Versión:** 4.0
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1241,6 +1241,46 @@ Un botón flotante, arriba del de comedor (SPEC-034), visible únicamente cuando
 - `proximoLunes6am()` calcula la fecha exacta del lunes según el día en que se pulsa el botón (sábado, domingo, o lunes antes de las 06:00), no un cálculo aproximado
 - La reactivación ocurre exactamente al llegar la hora — se verificó que a las 05:59 la OT sigue pausada y a las 06:00 en punto ya se reactivó
 - El botón no aparece fuera de la ventana de fin de semana, ni si el técnico no tiene ninguna OT en curso
+
+---
+
+# SPEC-036 — PIN individual de 4 dígitos por persona
+
+### Actor
+Cualquier persona con PIN asignado (inicialmente, los técnicos de mantenimiento); administrador (para asignarlo).
+
+### Motivación
+Los técnicos compartían una sola contraseña ("mantenimiento") para todos. Se requiere que cada uno tenga su propio PIN de 4 dígitos, sin perder su perfil ni el resto de sus credenciales.
+
+### Cómo se determina el rol al iniciar sesión
+`doLogin()` ahora busca primero a la persona por su nómina:
+
+- **Si tiene un PIN individual asignado** (`persona.pin`), la contraseña capturada debe coincidir **exactamente** con ese PIN. La contraseña compartida de su rol **deja de funcionar para ella** — el PIN la sustituye, no la complementa. El rol se toma del propio catálogo (`persona.rol`).
+- **Si no tiene PIN asignado**, el inicio de sesión funciona exactamente igual que antes: contraseña compartida por rol (`PASSWORDS`).
+
+Esto permite una transición gradual: se puede asignar el PIN a un técnico a la vez sin afectar a los demás, y a cualquier persona (no solo técnicos) si el administrador decide usarlo en otro rol.
+
+### Asignación del PIN
+Se agregó un campo **"PIN individual (opcional)"** al formulario de alta/edición de personal, en el panel de administrador. Debe ser vacío o de **exactamente 4 dígitos numéricos**; cualquier otro formato se rechaza al guardar. El PIN asignado se muestra en el detalle de la persona.
+
+### Nóminas con PIN asignado por defecto
+Se precargaron los siguientes PIN en el catálogo por defecto (`DEFAULT_PERSONAL`), para nuevas instalaciones:
+
+| Nómina | PIN |
+|---|---|
+| 638 | 6381 |
+| 1049 | 1305 |
+| 1332 | 1332 |
+| 1827 | 2718 |
+| 2047 | 2047 |
+| 2366 | 8415 |
+
+> La nómina **2431** no existe en `DEFAULT_PERSONAL` (se dio de alta directamente en la base en vivo durante la operación), así que su PIN (0901) debe asignarse manualmente desde **Catálogo de personal** en el panel de administrador — igual que para cualquier persona que se dé de alta después de este cambio. Modificar el catálogo por defecto de este archivo no actualiza la base de datos ya desplegada.
+
+### Reglas de negocio
+- El estatus de baja sigue bloqueando el acceso **incluso con el PIN correcto** — la validación de baja ocurre después de resolver el rol, sin excepción
+- El PIN de una persona no funciona con la nómina de otra: se valida la combinación exacta nómina + PIN
+- No hay validación de PIN duplicado entre personas distintas; como el inicio de sesión exige nómina + PIN juntos, un PIN repetido en dos personas no representa un riesgo de acceso cruzado
 
 ---
 
