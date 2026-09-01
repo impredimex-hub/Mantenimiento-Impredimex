@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 4.1
+**Versión:** 4.2
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1335,6 +1335,31 @@ Cuatro opciones: **Últimos 30 días**, **Este mes**, **Mes anterior**, **Todo e
 ### Reglas de negocio
 - Si no hay suficientes datos para calcular un indicador (por ejemplo, ningún par de fallas consecutivas para MTBF, o ningún preventivo programado en el periodo), se muestra **"Sin datos"** en vez de un cero o un valor inventado
 - Los colores (verde/ámbar/rojo) de Disponibilidad y Cumplimiento son solo una guía visual de umbral, no un cálculo adicional
+
+---
+
+# SPEC-039 — Detalle desplegable en cada indicador
+
+### Actor
+Administrador.
+
+### Flujo principal
+Al tocar cualquiera de las seis tarjetas de indicadores, debajo de la cuadrícula aparece una tabla con los registros exactos que produjeron ese resultado. Tocar la misma tarjeta de nuevo cierra la tabla; tocar otra tarjeta cambia el detalle mostrado, sin necesidad de cerrar la anterior primero. Cambiar el periodo cierra cualquier tabla abierta, ya que los datos detrás de ella dejan de corresponder a lo mostrado.
+
+### Contenido de cada tabla
+
+| Tarjeta | Columnas |
+|---|---|
+| MTBF | Equipo, folio y cierre de la falla anterior, folio e inicio de la siguiente, intervalo |
+| MTTR | Folio, equipo, alta, cierre, tiempo en espera descontado, tiempo neto |
+| Disponibilidad | Folio, equipo, alta, fin real, horas de indisponibilidad contabilizadas en el periodo |
+| OT correctivas cerradas | Folio, equipo, solicitante, alta, cierre |
+| Reducción de fallas correctivas | Las OT del periodo actual y del periodo anterior en una sola tabla, etiquetadas para distinguirlas |
+| Cumplimiento preventivo | Fecha, turno, máquina, si se marcó como realizado, y quién lo marcó |
+
+### Reglas de negocio
+- Los datos de cada tabla se calculan en el mismo recorrido que ya arma el número de la tarjeta — no hay un segundo cálculo por separado, así que la tabla siempre coincide con el resultado mostrado
+- Solo una tabla puede estar abierta a la vez
 
 ---
 

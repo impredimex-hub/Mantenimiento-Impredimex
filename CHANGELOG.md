@@ -6,6 +6,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.21.0] — 2026-08-28
+
+### Agregado
+- **SPEC-039:** Cada tarjeta de Indicadores de mantenimiento ahora se puede tocar para desplegar, debajo de la cuadrícula, la tabla con los registros exactos detrás de ese número (las OT, los intervalos entre fallas, o las celdas del programa preventivo, según corresponda). Un segundo toque la cierra; tocar otra tarjeta cambia el detalle. Cambiar el periodo cierra cualquier tabla abierta.
+
+---
+
 ## [1.20.0] — 2026-08-27
 
 ### Agregado

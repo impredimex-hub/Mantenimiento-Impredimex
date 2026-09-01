@@ -246,6 +246,20 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .kpi-card-t{font-size:11px;font-weight:600;color:var(--text2);line-height:1.35;min-height:28px}
 .kpi-card-v{font-size:20px;font-weight:700;margin-top:6px;line-height:1.1}
 .kpi-card-s{font-size:10px;color:var(--text3);margin-top:4px}
+.kpi-card-click{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.kpi-card-click:active{transform:scale(.98)}
+.kpi-card-activa{border-color:var(--blue);box-shadow:0 0 0 1.5px var(--blue)}
+.kpi-detalle-box{margin-top:4px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.kpi-detalle-t{font-size:12px;font-weight:600;color:var(--blue-dark);padding:10px 12px;background:#F3F6FA;border-bottom:1px solid var(--border)}
+.kpi-detalle-vacio{padding:16px 12px;font-size:12px;color:var(--text3);text-align:center}
+.kpi-detalle-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.kpi-detalle-tbl{border-collapse:collapse;font-size:11px;min-width:100%;white-space:nowrap}
+.kpi-detalle-tbl th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--text3);padding:7px 10px;border-bottom:1px solid var(--border)}
+.kpi-detalle-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.kpi-detalle-tbl tr:last-child td{border-bottom:none}
+.kpi-td-s{color:var(--text3);font-size:10px}
+.kpi-tag-act{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#E3F5E9;color:var(--green)}
+.kpi-tag-ant{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#FDF0F0;color:var(--red)}
 .kpi{background:var(--surface);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border)}
 .kpi-label{font-size:11px;color:var(--text2);margin-bottom:4px}
 .kpi-val{font-size:24px;font-weight:600;line-height:1;color:var(--text)}
@@ -6825,6 +6839,103 @@ function _kpiFmtHoras(ms){
   return (horas/24).toFixed(1)+' días';
 }
 
+// SPEC-039: abre/cierra la tabla de detalle de una tarjeta. Un segundo clic
+// sobre la misma tarjeta la cierra; clic en otra tarjeta cambia el detalle.
+function mostrarDetalleKPI(tipo, reabrir){
+  var area = document.getElementById('kpi-detalle');
+  if(!area) return;
+  if(!reabrir && _kpiTarjetaActiva===tipo){
+    _kpiTarjetaActiva = null;
+    area.innerHTML = '';
+    var propia = document.getElementById('kpi-card-'+tipo);
+    if(propia) propia.classList.remove('kpi-card-activa');
+    return;
+  }
+  document.querySelectorAll('.kpi-card-activa').forEach(function(c){ c.classList.remove('kpi-card-activa'); });
+  _kpiTarjetaActiva = tipo;
+  var card = document.getElementById('kpi-card-'+tipo);
+  if(card) card.classList.add('kpi-card-activa');
+  area.innerHTML = _kpiTablaDetalle(tipo);
+}
+
+function _kpiTablaWrap(titulo, encabezados, filasHTML, vacio){
+  return '<div class="kpi-detalle-box">'
+    + '<div class="kpi-detalle-t">'+titulo+'</div>'
+    + (filasHTML
+        ? '<div class="kpi-detalle-scroll"><table class="kpi-detalle-tbl"><thead><tr>'+encabezados+'</tr></thead><tbody>'+filasHTML+'</tbody></table></div>'
+        : '<div class="kpi-detalle-vacio">'+(vacio||'Sin registros para este periodo.')+'</div>')
+    + '</div>';
+}
+
+function _kpiTablaDetalle(tipo){
+  if(tipo==='mtbf'){
+    var filas1 = _kpiDetalles.mtbf.map(function(g){
+      return '<tr><td>'+g.equipo+'</td>'
+        + '<td>'+g.folioAnterior+'<br><span class="kpi-td-s">cerró '+fmt(g.cierreAnterior)+'</span></td>'
+        + '<td>'+g.folioActual+'<br><span class="kpi-td-s">inició '+fmt(g.altaActual)+'</span></td>'
+        + '<td>'+_kpiFmtHoras(g.gapMs)+'</td></tr>';
+    }).join('');
+    return _kpiTablaWrap('MTBF — intervalos entre fallas por equipo',
+      '<th>Equipo</th><th>Falla anterior</th><th>Falla siguiente</th><th>Intervalo</th>', filas1);
+  }
+  if(tipo==='mttr'){
+    var filas2 = _kpiDetalles.mttr.map(function(o){
+      return '<tr><td>'+o.folio+'</td><td>'+o.equipo+'</td>'
+        + '<td>'+fmt(o.fechaAlta)+'</td><td>'+fmt(o.fechaCierre)+'</td>'
+        + '<td>'+_kpiFmtHoras(o.esperaMs)+'</td><td><b>'+_kpiFmtHoras(o.netoMs)+'</b></td></tr>';
+    }).join('');
+    return _kpiTablaWrap('MTTR — OT cerradas en el periodo',
+      '<th>Folio</th><th>Equipo</th><th>Alta</th><th>Cierre</th><th>En espera</th><th>Tiempo neto</th>', filas2);
+  }
+  if(tipo==='disp'){
+    var filas3 = _kpiDetalles.disp.map(function(o){
+      return '<tr><td>'+o.folio+'</td><td>'+o.equipo+'</td>'
+        + '<td>'+fmt(o.fechaAlta)+'</td><td>'+fmt(o.finReal)+'</td>'
+        + '<td>'+_kpiFmtHoras(o.horasMs)+'</td></tr>';
+    }).join('');
+    return _kpiTablaWrap('Disponibilidad — indisponibilidad contabilizada en el periodo',
+      '<th>Folio</th><th>Equipo</th><th>Alta</th><th>Fin real</th><th>Indisponible</th>', filas3);
+  }
+  if(tipo==='correctivas'){
+    var filas4 = _kpiDetalles.correctivas.map(function(o){
+      return '<tr><td>'+o.folio+'</td><td>'+o.equipo+'</td><td>'+(o.solicitante||'—')+'</td>'
+        + '<td>'+fmt(o.fechaAlta)+'</td><td>'+fmt(o.fechaCierre)+'</td></tr>';
+    }).join('');
+    return _kpiTablaWrap('OT correctivas cerradas en el periodo',
+      '<th>Folio</th><th>Equipo</th><th>Solicitante</th><th>Alta</th><th>Cierre</th>', filas4);
+  }
+  if(tipo==='reduccion'){
+    var conjuntas = _kpiDetalles.reduccion.actual.map(function(o){ return {o:o, tag:'Actual'}; })
+      .concat(_kpiDetalles.reduccion.previo.map(function(o){ return {o:o, tag:'Anterior'}; }));
+    conjuntas.sort(function(a,b){ return new Date(b.o.fechaCierre)-new Date(a.o.fechaCierre); });
+    var filas5 = conjuntas.map(function(x){
+      return '<tr><td><span class="kpi-tag-'+(x.tag==='Actual'?'act':'ant')+'">'+x.tag+'</span></td>'
+        + '<td>'+x.o.folio+'</td><td>'+x.o.equipo+'</td><td>'+fmt(x.o.fechaCierre)+'</td></tr>';
+    }).join('');
+    return _kpiTablaWrap('Correctivas del periodo actual vs. el anterior',
+      '<th>Periodo</th><th>Folio</th><th>Equipo</th><th>Cierre</th>', filas5);
+  }
+  if(tipo==='cumplimiento'){
+    var filas6 = _kpiDetalles.cumplimiento
+      .slice()
+      .sort(function(a,b){ return a.fecha.localeCompare(b.fecha) || a.turno-b.turno; })
+      .map(function(c){
+        return '<tr><td>'+fmtDate(c.fecha)+'</td><td>T'+c.turno+'</td><td>'+c.maquina+'</td>'
+          + '<td>'+(c.completado ? '<span class="kpi-tag-act">✓ Realizado</span>' : '<span class="kpi-tag-ant">Pendiente</span>')+'</td>'
+          + '<td>'+(c.por||'—')+'</td></tr>';
+      }).join('');
+    return _kpiTablaWrap('Cumplimiento del programa preventivo',
+      '<th>Fecha</th><th>Turno</th><th>Máquina</th><th>Estado</th><th>Marcado por</th>', filas6);
+  }
+  return '';
+}
+
+
+// SPEC-039: detalle de datos detrás de cada indicador, para desplegar en
+// tabla al dar clic en la tarjeta. Se llena en cada renderKPIs().
+var _kpiDetalles = {mtbf:[], mttr:[], disp:[], correctivas:[], reduccion:{actual:[],previo:[]}, cumplimiento:[]};
+var _kpiTarjetaActiva = null;
+
 function renderKPIs(){
   reloadDB();
   var cont = document.getElementById('adm-kpis-content');
@@ -6832,6 +6943,8 @@ function renderKPIs(){
   var clave = (document.getElementById('kpi-periodo')||{}).value || '30d';
   var per = _kpiRangoPeriodo(clave);
   var iniMs = per.ini.getTime(), finMs = per.fin.getTime();
+  _kpiDetalles = {mtbf:[], mttr:[], disp:[], correctivas:[], reduccion:{actual:[],previo:[]}, cumplimiento:[]};
+  _kpiTarjetaActiva = null; // el periodo cambió: cerrar cualquier tabla abierta
 
   var todasMaqOTs = (DB.ots||[]).filter(function(o){ return o && o.tipo==='MTTO-MAQ-PROD'; });
 
@@ -6840,6 +6953,9 @@ function renderKPIs(){
     if(o.status!=='cerrado' || !o.fechaCierre) return false;
     var t = new Date(o.fechaCierre).getTime();
     return t>=iniMs && t<=finMs;
+  });
+  _kpiDetalles.correctivas = cerradasPeriodo.map(function(o){
+    return {folio:o.folio, equipo:o.equipo, solicitante:o.solicitante, fechaAlta:o.fechaAlta, fechaCierre:o.fechaCierre};
   });
 
   // ── MTTR: promedio de (duración total - esperas) de las cerradas en el periodo ──
@@ -6850,7 +6966,9 @@ function renderKPIs(){
       var a = new Date(o.fechaAlta).getTime(), b = new Date(o.fechaCierre).getTime();
       var bruto = Math.max(0, b-a);
       var esperas = _kpiEsperasOT(o, a, b);
-      sumaMttr += Math.max(0, bruto - esperas);
+      var neto = Math.max(0, bruto - esperas);
+      sumaMttr += neto;
+      _kpiDetalles.mttr.push({folio:o.folio, equipo:o.equipo, fechaAlta:o.fechaAlta, fechaCierre:o.fechaCierre, esperaMs:esperas, netoMs:neto});
     });
     mttrMs = sumaMttr / cerradasPeriodo.length;
   }
@@ -6872,7 +6990,11 @@ function renderKPIs(){
       var tAlta = new Date(actual.fechaAlta).getTime();
       if(tAlta < iniMs || tAlta > finMs) continue; // solo fallas iniciadas en el periodo
       var gap = tAlta - new Date(finAnterior).getTime();
-      if(gap > 0) gaps.push(gap);
+      if(gap > 0){
+        gaps.push(gap);
+        _kpiDetalles.mtbf.push({equipo:eq, folioAnterior:anterior.folio, cierreAnterior:finAnterior,
+          folioActual:actual.folio, altaActual:actual.fechaAlta, gapMs:gap});
+      }
     }
   });
   var mtbfMs = gaps.length ? (gaps.reduce(function(a,b){return a+b;},0)/gaps.length) : null;
@@ -6888,21 +7010,28 @@ function renderKPIs(){
     var finReal = o.fechaCierreMantenimiento || o.fechaCierre || new Date().toISOString();
     var b = new Date(finReal).getTime();
     var s = Math.max(a, iniMs), t = Math.min(b, finMs);
-    if(t>s) indispMs += (t-s);
+    if(t>s){
+      indispMs += (t-s);
+      _kpiDetalles.disp.push({folio:o.folio, equipo:o.equipo, fechaAlta:o.fechaAlta, finReal:finReal, horasMs:(t-s)});
+    }
   });
   var disponibilidad = tiempoTotalMs>0 ? Math.max(0, Math.min(100, (1 - indispMs/tiempoTotalMs)*100)) : null;
 
   // ── Reducción de fallas correctivas: comparación contra el periodo previo ──
-  var reduccionTxt = null, reduccionValor = null;
+  var reduccionValor = null;
   if(per.prevIni){
     var prevIniMs = per.prevIni.getTime(), prevFinMs = per.prevFin.getTime();
-    var cerradasPrev = todasMaqOTs.filter(function(o){
+    var cerradasPrevLista = todasMaqOTs.filter(function(o){
       if(o.status!=='cerrado' || !o.fechaCierre) return false;
       var t = new Date(o.fechaCierre).getTime();
       return t>=prevIniMs && t<prevFinMs;
-    }).length;
-    if(cerradasPrev>0){
-      reduccionValor = ((cerradasPrev - cerradasPeriodo.length) / cerradasPrev) * 100;
+    });
+    _kpiDetalles.reduccion.actual = _kpiDetalles.correctivas;
+    _kpiDetalles.reduccion.previo = cerradasPrevLista.map(function(o){
+      return {folio:o.folio, equipo:o.equipo, solicitante:o.solicitante, fechaAlta:o.fechaAlta, fechaCierre:o.fechaCierre};
+    });
+    if(cerradasPrevLista.length>0){
+      reduccionValor = ((cerradasPrevLista.length - cerradasPeriodo.length) / cerradasPrevLista.length) * 100;
     }
   }
 
@@ -6913,17 +7042,21 @@ function renderKPIs(){
       var t = new Date(fechaISO+'T12:00:00').getTime(); // mediodía para evitar bordes de huso
       if(t<iniMs || t>finMs) return;
       Object.keys(pv.asignaciones[fechaISO]).forEach(function(turno){
-        if(!pv.asignaciones[fechaISO][turno]) return;
+        var maqId = pv.asignaciones[fechaISO][turno];
+        if(!maqId) return;
         progTotal++;
-        if(pv.completados && pv.completados[fechaISO] && pv.completados[fechaISO][turno]) progHechos++;
+        var marca = pv.completados && pv.completados[fechaISO] && pv.completados[fechaISO][turno];
+        if(marca) progHechos++;
+        _kpiDetalles.cumplimiento.push({fecha:fechaISO, turno:turno, maquina:maquinaNombre(maqId),
+          completado:!!marca, por:marca?marca.por:''});
       });
     });
   });
   var cumplimiento = progTotal>0 ? (progHechos/progTotal*100) : null;
 
   // ── Render ──
-  function tarjeta(titulo, valor, sub, color){
-    return '<div class="kpi-card">'
+  function tarjeta(tipo, titulo, valor, sub, color){
+    return '<div class="kpi-card kpi-card-click" id="kpi-card-'+tipo+'" onclick="mostrarDetalleKPI(\''+tipo+'\')">'
       + '<div class="kpi-card-t">'+titulo+'</div>'
       + '<div class="kpi-card-v" style="color:'+(color||'var(--text)')+'">'+valor+'</div>'
       + (sub ? '<div class="kpi-card-s">'+sub+'</div>' : '')
@@ -6932,30 +7065,32 @@ function renderKPIs(){
 
   var html = '<div class="section-head">'+per.label+'</div>'
     + '<div style="padding:0 16px 8px;font-size:11px;color:var(--text3);line-height:1.5">'
-    + 'MTBF, MTTR, disponibilidad y correctivas consideran solo OT de Maquinaria (MTTO-MAQ-PROD).'
+    + 'MTBF, MTTR, disponibilidad y correctivas consideran solo OT de Maquinaria (MTTO-MAQ-PROD). Toca una tarjeta para ver el detalle.'
     + '</div>'
     + '<div class="kpi-grid">'
-    + tarjeta('MTBF<br><span style="font-weight:400;font-size:10px">Tiempo medio entre fallos</span>',
+    + tarjeta('mtbf','MTBF<br><span style="font-weight:400;font-size:10px">Tiempo medio entre fallos</span>',
         mtbfMs!==null ? _kpiFmtHoras(mtbfMs) : 'Sin datos', gaps.length+' intervalo(s) medido(s)')
-    + tarjeta('MTTR<br><span style="font-weight:400;font-size:10px">Tiempo medio de reparación</span>',
+    + tarjeta('mttr','MTTR<br><span style="font-weight:400;font-size:10px">Tiempo medio de reparación</span>',
         mttrMs!==null ? _kpiFmtHoras(mttrMs) : 'Sin datos', cerradasPeriodo.length+' OT cerrada(s)')
-    + tarjeta('Disponibilidad',
+    + tarjeta('disp','Disponibilidad',
         disponibilidad!==null ? disponibilidad.toFixed(1)+'%' : 'Sin datos',
         maquinasCount+' máquina(s) activa(s)',
         disponibilidad!==null ? (disponibilidad>=90?'var(--green)':disponibilidad>=75?'var(--amber)':'var(--red)') : null)
-    + tarjeta('OT correctivas cerradas',
+    + tarjeta('correctivas','OT correctivas cerradas',
         cerradasPeriodo.length, 'En '+per.label.toLowerCase())
-    + tarjeta('Reducción de fallas correctivas',
+    + tarjeta('reduccion','Reducción de fallas correctivas',
         reduccionValor!==null ? (reduccionValor>=0?'-':'+')+Math.abs(reduccionValor).toFixed(1)+'%' : 'Sin periodo previo',
         reduccionValor!==null ? 'vs. periodo anterior' : 'Elige un periodo específico',
         reduccionValor!==null ? (reduccionValor>=0?'var(--green)':'var(--red)') : null)
-    + tarjeta('Cumplimiento preventivo',
+    + tarjeta('cumplimiento','Cumplimiento preventivo',
         cumplimiento!==null ? cumplimiento.toFixed(1)+'%' : 'Sin datos aún',
         cumplimiento!==null ? progHechos+' de '+progTotal+' programados' : 'Márcalos como realizados en Preventivo',
         cumplimiento!==null ? (cumplimiento>=90?'var(--green)':cumplimiento>=60?'var(--amber)':'var(--red)') : null)
-    + '</div>';
+    + '</div>'
+    + '<div id="kpi-detalle" style="padding:0 16px"></div>';
 
   cont.innerHTML = html;
+  if(_kpiTarjetaActiva) mostrarDetalleKPI(_kpiTarjetaActiva, true);
 }
 
 function renderAdmPerfil(){
