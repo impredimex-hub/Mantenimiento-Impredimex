@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 4.0
+**Versión:** 4.1
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1281,6 +1281,60 @@ Se precargaron los siguientes PIN en el catálogo por defecto (`DEFAULT_PERSONAL
 - El estatus de baja sigue bloqueando el acceso **incluso con el PIN correcto** — la validación de baja ocurre después de resolver el rol, sin excepción
 - El PIN de una persona no funciona con la nómina de otra: se valida la combinación exacta nómina + PIN
 - No hay validación de PIN duplicado entre personas distintas; como el inicio de sesión exige nómina + PIN juntos, un PIN repetido en dos personas no representa un riesgo de acceso cruzado
+
+---
+
+# SPEC-037 — Marcar mantenimiento preventivo como realizado
+
+### Actor
+Supervisor (dentro del módulo Preventivo).
+
+### Motivación
+El calendario de Preventivo solo registraba la **planeación** (qué máquina toca cada día y turno). No existía ningún rastro de si ese mantenimiento planeado se llevó a cabo, lo que hacía imposible calcular después el cumplimiento del programa.
+
+### Flujo principal
+1. En cada celda del calendario que ya tiene una máquina asignada, aparece un botón pequeño ("Marcar")
+2. Al pulsarlo, se registra `pv.completados[fecha][turno] = {fecha, por, nomina}` con el momento y quién lo marcó
+3. El botón cambia a "✓ Hecho" (verde); tocarlo de nuevo lo desmarca
+
+### Reglas de negocio
+- No se puede marcar un día **futuro** como realizado
+- Si se quita la máquina asignada a una celda, su marca de "realizado" (si la tenía) se limpia junto con ella
+- El registro de quién y cuándo se conserva mientras la celda siga marcada
+
+---
+
+# SPEC-038 — Indicadores de mantenimiento (panel de administrador)
+
+### Actor
+Administrador.
+
+### Acceso
+Nuevo módulo **"Indicadores de mantenimiento"** en el hub del administrador, junto a Catálogo de personal.
+
+### Alcance de las OT consideradas
+Por decisión explícita, **MTBF, MTTR, Disponibilidad y el conteo de correctivas cerradas solo consideran OT de tipo `MTTO-MAQ-PROD`** (fallas de máquina). Infraestructura y Seguridad quedan fuera de estos cuatro indicadores.
+
+### Selector de periodo
+Cuatro opciones: **Últimos 30 días**, **Este mes**, **Mes anterior**, **Todo el histórico**. El periodo activo recalcula los seis indicadores.
+
+### Los seis indicadores
+
+**MTBF (tiempo medio entre fallos)** — Para cada equipo, se mide el tiempo entre el cierre de una falla y el inicio de la siguiente en ese mismo equipo (solo se cuentan las fallas cuyo **inicio** cae dentro del periodo elegido). Se promedian todos los intervalos encontrados, sin importar el equipo.
+
+**MTTR (tiempo medio de reparación)** — Promedio de la duración de las OT cerradas en el periodo, **descontando el tiempo en espera** (SPEC-013): solo cuenta el tiempo de trabajo real, igual criterio que el resto del sistema.
+
+**Disponibilidad** — A diferencia de MTTR, aquí **no se descuenta la espera**: desde la perspectiva de la planta, la máquina sigue indisponible aunque el técnico esté esperando una refacción. Se calcula como `(1 − tiempo de indisponibilidad ⁄ tiempo total posible) × 100`, donde el tiempo total posible es la duración del periodo multiplicada por el número de máquinas activas.
+
+**OT correctivas cerradas** — Conteo directo de OT de Maquinaria cerradas dentro del periodo.
+
+**Reducción de fallas correctivas** — Compara las OT correctivas cerradas del periodo contra un periodo previo de la misma duración, justo antes. Se muestra como porcentaje: negativo (en verde) significa menos fallas que antes; positivo (en rojo), más fallas. No aplica en "Todo el histórico", que no tiene un periodo previo comparable.
+
+**Cumplimiento del programa preventivo** — De las celdas del calendario de Preventivo con máquina asignada dentro del periodo, qué porcentaje tiene su marca de "realizado" (SPEC-037). Si no hay celdas programadas en el periodo, se muestra "Sin datos" en vez de un porcentaje engañoso.
+
+### Reglas de negocio
+- Si no hay suficientes datos para calcular un indicador (por ejemplo, ningún par de fallas consecutivas para MTBF, o ningún preventivo programado en el periodo), se muestra **"Sin datos"** en vez de un cero o un valor inventado
+- Los colores (verde/ámbar/rojo) de Disponibilidad y Cumplimiento son solo una guía visual de umbral, no un cálculo adicional
 
 ---
 

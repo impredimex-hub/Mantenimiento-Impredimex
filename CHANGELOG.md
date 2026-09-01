@@ -6,6 +6,20 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.20.0] — 2026-08-27
+
+### Agregado
+- **SPEC-037:** Botón **"Marcar como realizado"** en cada celda del calendario de Preventivo con máquina asignada. Registra fecha y quién lo marcó; no permite marcar días futuros. Es el dato que hacía falta para poder medir el cumplimiento del programa preventivo.
+- **SPEC-038: Módulo "Indicadores de mantenimiento"** en el panel de administrador, con selector de periodo (últimos 30 días, este mes, mes anterior, todo el histórico) y seis indicadores:
+  - **MTBF** (tiempo medio entre fallos) y **MTTR** (tiempo medio de reparación, neto de esperas).
+  - **Disponibilidad**, calculada sin descontar esperas (la máquina sigue indisponible para la planta aunque el técnico esté esperando refacción).
+  - **OT correctivas cerradas** y **Reducción de fallas correctivas** contra el periodo anterior.
+  - **Cumplimiento del programa preventivo**, usando los registros de SPEC-037.
+  - MTBF, MTTR, Disponibilidad y el conteo de correctivas consideran únicamente OT de tipo Maquinaria (MTTO-MAQ-PROD).
+  - Cuando no hay datos suficientes para un cálculo, se muestra "Sin datos" en vez de un número engañoso.
+
+---
+
 ## [1.19.0] — 2026-08-26
 
 ### Agregado

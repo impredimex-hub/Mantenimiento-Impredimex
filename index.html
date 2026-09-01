@@ -242,6 +242,10 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .progress-fill.green{background:var(--green)}
 /* ===== KPI GRID ===== */
 .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 13px}
+.kpi-card-t{font-size:11px;font-weight:600;color:var(--text2);line-height:1.35;min-height:28px}
+.kpi-card-v{font-size:20px;font-weight:700;margin-top:6px;line-height:1.1}
+.kpi-card-s{font-size:10px;color:var(--text3);margin-top:4px}
 .kpi{background:var(--surface);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border)}
 .kpi-label{font-size:11px;color:var(--text2);margin-bottom:4px}
 .kpi-val{font-size:24px;font-weight:600;line-height:1;color:var(--text)}
@@ -408,6 +412,8 @@ input[type=range].green{accent-color:var(--green)}
 .pv-maq{padding:1px !important}
 .pv-sel-maq{width:100%;border:none;background:transparent;font-size:10px;font-family:inherit;color:#000;padding:2px 1px;cursor:pointer}
 .pv-sel-maq.has-val{font-weight:600}
+.pv-check{display:block;width:100%;margin-top:1px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text3);font-size:8px;line-height:1.5;padding:1px 2px;cursor:pointer;font-family:inherit}
+.pv-check.done{background:#E3F5E9;border-color:var(--green);color:var(--green)}
 .pv-sem-sep td{border-top:2px solid #000}
 .pv-firmas{width:100%;min-width:900px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:26px 0 6px}
 .pv-firma{text-align:center;padding:0 14px}
@@ -4790,6 +4796,11 @@ function switchAdmModule(mod){
     renderPersonal();
     return;
   }
+  if(mod === 'kpis'){
+    showScreen('adm-kpis');
+    renderKPIs();
+    return;
+  }
   // Temporarily switch to the target role page
   // We need to initialise it with the admin user context
   const saved = {...currentUser};
@@ -5672,6 +5683,7 @@ function renderPreventivoEditor(){
       html += '<td class="pv-turno-n">'+t+'</td>';
       sem.forEach(function(dia){
         var val = dia ? ((pv.asignaciones[dia.iso]||{})[t] || '') : '';
+        var hecho = dia ? ((pv.completados&&pv.completados[dia.iso]||{})[t] || null) : null;
         html += '<td class="pv-maq">';
         if(dia){
           html += '<select class="pv-sel-maq'+(val?' has-val':'')+'" onchange="setPvMaquina(\''+dia.iso+'\','+t+',this.value)">'
@@ -5680,6 +5692,14 @@ function renderPreventivoEditor(){
             html += '<option value="'+m.id+'"'+(val===m.id?' selected':'')+'>'+m.nombre+'</option>';
           });
           html += '</select>';
+          // SPEC-037: marcar como realizado, solo si hay máquina asignada
+          if(val){
+            html += '<button type="button" class="pv-check'+(hecho?' done':'')+'" '
+              + 'onclick="toggleCompletadoPv(\''+dia.iso+'\','+t+')" '
+              + 'title="'+(hecho?'Realizado por '+hecho.por+' — toca para desmarcar':'Marcar como realizado')+'">'
+              + (hecho?'✓ Hecho':'Marcar')
+              + '</button>';
+          }
         }
         html += '</td>';
         if(t===1){
@@ -5723,8 +5743,34 @@ function setPvMaquina(fechaISO, turno, maqId){
   if(!maqId){
     delete pv.asignaciones[fechaISO][turno];
     if(!Object.keys(pv.asignaciones[fechaISO]).length) delete pv.asignaciones[fechaISO];
+    // Si se quita la máquina, ya no tiene sentido conservar el "realizado"
+    if(pv.completados && pv.completados[fechaISO]) delete pv.completados[fechaISO][turno];
   } else {
     pv.asignaciones[fechaISO][turno] = maqId;
+  }
+  renderPreventivoEditor();
+}
+
+// SPEC-037: marca (o desmarca) un mantenimiento preventivo programado como
+// realizado. Es la pieza que faltaba para poder calcular después el
+// cumplimiento del programa: antes solo existía la planeación, nunca un
+// registro de ejecución real.
+function toggleCompletadoPv(fechaISO, turno){
+  var pv = getPvActual();
+  if(!pv) return;
+  var hoy = _isoDe(new Date());
+  if(fechaISO > hoy){ appAlert('No se puede marcar como realizado un día futuro.'); return; }
+  if(!pv.completados) pv.completados = {};
+  if(!pv.completados[fechaISO]) pv.completados[fechaISO] = {};
+  if(pv.completados[fechaISO][turno]){
+    delete pv.completados[fechaISO][turno];
+    if(!Object.keys(pv.completados[fechaISO]).length) delete pv.completados[fechaISO];
+  } else {
+    pv.completados[fechaISO][turno] = {
+      fecha: new Date().toISOString(),
+      por: currentUser ? currentUser.nombre : '',
+      nomina: currentUser ? currentUser.nomina : ''
+    };
   }
   renderPreventivoEditor();
 }
@@ -6730,6 +6776,188 @@ function renderEstadisticas(){
     <div class="spacer"></div>`;
 }
 
+/* ═══════ SPEC-038: INDICADORES DE MANTENIMIENTO ═══════ */
+// Alcance decidido con el usuario: MTBF, MTTR, Disponibilidad y el conteo de
+// correctivas SOLO consideran OT de tipo MTTO-MAQ-PROD (fallas de máquina).
+
+function _kpiRangoPeriodo(clave){
+  var hoy = new Date();
+  var finHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23,59,59);
+  if(clave==='30d'){
+    var ini = new Date(hoy.getTime() - 30*86400000);
+    return {ini:ini, fin:finHoy, prevIni:new Date(ini.getTime()-30*86400000), prevFin:ini, label:'Últimos 30 días'};
+  }
+  if(clave==='mes'){
+    var ini2 = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    var prevIni2 = new Date(hoy.getFullYear(), hoy.getMonth()-1, 1);
+    return {ini:ini2, fin:finHoy, prevIni:prevIni2, prevFin:ini2, label:'Este mes'};
+  }
+  if(clave==='mesant'){
+    var ini3 = new Date(hoy.getFullYear(), hoy.getMonth()-1, 1);
+    var fin3 = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23,59,59);
+    var prevIni3 = new Date(hoy.getFullYear(), hoy.getMonth()-2, 1);
+    return {ini:ini3, fin:fin3, prevIni:prevIni3, prevFin:ini3, label:'Mes anterior'};
+  }
+  // 'todo'
+  return {ini:new Date(2000,0,1), fin:finHoy, prevIni:null, prevFin:null, label:'Todo el histórico'};
+}
+
+// Duración total de esperas dentro de la propia OT (independiente de técnico),
+// acotada a [ini, fin] de la propia orden — para no restar tiempo fuera de ella.
+function _kpiEsperasOT(ot, iniMs, finMs){
+  if(!Array.isArray(ot.esperas) || !ot.esperas.length) return 0;
+  var tot = 0;
+  ot.esperas.forEach(function(e){
+    if(!e.inicio) return;
+    var a = new Date(e.inicio).getTime();
+    var b = e.fin ? new Date(e.fin).getTime() : finMs;
+    var s = Math.max(a, iniMs), t = Math.min(b, finMs);
+    if(t>s) tot += (t-s);
+  });
+  return tot;
+}
+
+function _kpiFmtHoras(ms){
+  if(ms===null || ms===undefined || isNaN(ms)) return '—';
+  var horas = ms/3600000;
+  if(horas < 1) return Math.round(ms/60000)+' min';
+  if(horas < 48) return horas.toFixed(1)+' h';
+  return (horas/24).toFixed(1)+' días';
+}
+
+function renderKPIs(){
+  reloadDB();
+  var cont = document.getElementById('adm-kpis-content');
+  if(!cont) return;
+  var clave = (document.getElementById('kpi-periodo')||{}).value || '30d';
+  var per = _kpiRangoPeriodo(clave);
+  var iniMs = per.ini.getTime(), finMs = per.fin.getTime();
+
+  var todasMaqOTs = (DB.ots||[]).filter(function(o){ return o && o.tipo==='MTTO-MAQ-PROD'; });
+
+  // ── Cerradas en el periodo (para MTTR y conteo) ──
+  var cerradasPeriodo = todasMaqOTs.filter(function(o){
+    if(o.status!=='cerrado' || !o.fechaCierre) return false;
+    var t = new Date(o.fechaCierre).getTime();
+    return t>=iniMs && t<=finMs;
+  });
+
+  // ── MTTR: promedio de (duración total - esperas) de las cerradas en el periodo ──
+  var mttrMs = null;
+  if(cerradasPeriodo.length){
+    var sumaMttr = 0;
+    cerradasPeriodo.forEach(function(o){
+      var a = new Date(o.fechaAlta).getTime(), b = new Date(o.fechaCierre).getTime();
+      var bruto = Math.max(0, b-a);
+      var esperas = _kpiEsperasOT(o, a, b);
+      sumaMttr += Math.max(0, bruto - esperas);
+    });
+    mttrMs = sumaMttr / cerradasPeriodo.length;
+  }
+
+  // ── MTBF: separación entre cierre de una falla y el inicio de la siguiente,
+  //    por equipo, considerando las fallas cuyo INICIO cae en el periodo ──
+  var porEquipo = {};
+  todasMaqOTs.forEach(function(o){
+    if(!o.equipo) return;
+    (porEquipo[o.equipo] = porEquipo[o.equipo]||[]).push(o);
+  });
+  var gaps = [];
+  Object.keys(porEquipo).forEach(function(eq){
+    var lista = porEquipo[eq].slice().sort(function(a,b){ return new Date(a.fechaAlta)-new Date(b.fechaAlta); });
+    for(var i=1;i<lista.length;i++){
+      var anterior = lista[i-1], actual = lista[i];
+      var finAnterior = anterior.fechaCierre || anterior.fechaCierreMantenimiento;
+      if(!finAnterior) continue; // la anterior sigue abierta: no hay "vuelta a operar" que medir
+      var tAlta = new Date(actual.fechaAlta).getTime();
+      if(tAlta < iniMs || tAlta > finMs) continue; // solo fallas iniciadas en el periodo
+      var gap = tAlta - new Date(finAnterior).getTime();
+      if(gap > 0) gaps.push(gap);
+    }
+  });
+  var mtbfMs = gaps.length ? (gaps.reduce(function(a,b){return a+b;},0)/gaps.length) : null;
+
+  // ── Disponibilidad: tiempo de indisponibilidad de MAQ-PROD dentro del periodo,
+  //    contra el tiempo total posible (periodo × máquinas activas) ──
+  var maquinasCount = maquinasActivas().length || 1;
+  var horasPeriodo = (finMs - iniMs) / 3600000;
+  var tiempoTotalMs = horasPeriodo * maquinasCount * 3600000;
+  var indispMs = 0;
+  todasMaqOTs.forEach(function(o){
+    var a = new Date(o.fechaAlta).getTime();
+    var finReal = o.fechaCierreMantenimiento || o.fechaCierre || new Date().toISOString();
+    var b = new Date(finReal).getTime();
+    var s = Math.max(a, iniMs), t = Math.min(b, finMs);
+    if(t>s) indispMs += (t-s);
+  });
+  var disponibilidad = tiempoTotalMs>0 ? Math.max(0, Math.min(100, (1 - indispMs/tiempoTotalMs)*100)) : null;
+
+  // ── Reducción de fallas correctivas: comparación contra el periodo previo ──
+  var reduccionTxt = null, reduccionValor = null;
+  if(per.prevIni){
+    var prevIniMs = per.prevIni.getTime(), prevFinMs = per.prevFin.getTime();
+    var cerradasPrev = todasMaqOTs.filter(function(o){
+      if(o.status!=='cerrado' || !o.fechaCierre) return false;
+      var t = new Date(o.fechaCierre).getTime();
+      return t>=prevIniMs && t<prevFinMs;
+    }).length;
+    if(cerradasPrev>0){
+      reduccionValor = ((cerradasPrev - cerradasPeriodo.length) / cerradasPrev) * 100;
+    }
+  }
+
+  // ── Cumplimiento del programa preventivo (SPEC-037) ──
+  var progTotal = 0, progHechos = 0;
+  (DB.preventivos||[]).forEach(function(pv){
+    Object.keys(pv.asignaciones||{}).forEach(function(fechaISO){
+      var t = new Date(fechaISO+'T12:00:00').getTime(); // mediodía para evitar bordes de huso
+      if(t<iniMs || t>finMs) return;
+      Object.keys(pv.asignaciones[fechaISO]).forEach(function(turno){
+        if(!pv.asignaciones[fechaISO][turno]) return;
+        progTotal++;
+        if(pv.completados && pv.completados[fechaISO] && pv.completados[fechaISO][turno]) progHechos++;
+      });
+    });
+  });
+  var cumplimiento = progTotal>0 ? (progHechos/progTotal*100) : null;
+
+  // ── Render ──
+  function tarjeta(titulo, valor, sub, color){
+    return '<div class="kpi-card">'
+      + '<div class="kpi-card-t">'+titulo+'</div>'
+      + '<div class="kpi-card-v" style="color:'+(color||'var(--text)')+'">'+valor+'</div>'
+      + (sub ? '<div class="kpi-card-s">'+sub+'</div>' : '')
+      + '</div>';
+  }
+
+  var html = '<div class="section-head">'+per.label+'</div>'
+    + '<div style="padding:0 16px 8px;font-size:11px;color:var(--text3);line-height:1.5">'
+    + 'MTBF, MTTR, disponibilidad y correctivas consideran solo OT de Maquinaria (MTTO-MAQ-PROD).'
+    + '</div>'
+    + '<div class="kpi-grid">'
+    + tarjeta('MTBF<br><span style="font-weight:400;font-size:10px">Tiempo medio entre fallos</span>',
+        mtbfMs!==null ? _kpiFmtHoras(mtbfMs) : 'Sin datos', gaps.length+' intervalo(s) medido(s)')
+    + tarjeta('MTTR<br><span style="font-weight:400;font-size:10px">Tiempo medio de reparación</span>',
+        mttrMs!==null ? _kpiFmtHoras(mttrMs) : 'Sin datos', cerradasPeriodo.length+' OT cerrada(s)')
+    + tarjeta('Disponibilidad',
+        disponibilidad!==null ? disponibilidad.toFixed(1)+'%' : 'Sin datos',
+        maquinasCount+' máquina(s) activa(s)',
+        disponibilidad!==null ? (disponibilidad>=90?'var(--green)':disponibilidad>=75?'var(--amber)':'var(--red)') : null)
+    + tarjeta('OT correctivas cerradas',
+        cerradasPeriodo.length, 'En '+per.label.toLowerCase())
+    + tarjeta('Reducción de fallas correctivas',
+        reduccionValor!==null ? (reduccionValor>=0?'-':'+')+Math.abs(reduccionValor).toFixed(1)+'%' : 'Sin periodo previo',
+        reduccionValor!==null ? 'vs. periodo anterior' : 'Elige un periodo específico',
+        reduccionValor!==null ? (reduccionValor>=0?'var(--green)':'var(--red)') : null)
+    + tarjeta('Cumplimiento preventivo',
+        cumplimiento!==null ? cumplimiento.toFixed(1)+'%' : 'Sin datos aún',
+        cumplimiento!==null ? progHechos+' de '+progTotal+' programados' : 'Márcalos como realizados en Preventivo',
+        cumplimiento!==null ? (cumplimiento>=90?'var(--green)':cumplimiento>=60?'var(--amber)':'var(--red)') : null)
+    + '</div>';
+
+  cont.innerHTML = html;
+}
+
 function renderAdmPerfil(){
   const total   = (DB.personal||[]).length;
   const activos = (DB.personal||[]).filter(p=>p.estatus==='activo').length;
@@ -6809,6 +7037,20 @@ function renderAdmPerfil(){
         </div>
       </div>
 
+      <!-- SPEC-038: Indicadores de mantenimiento -->
+      <div style="margin:0 12px 10px">
+        <div class="card" onclick="switchAdmModule('kpis')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Indicadores de mantenimiento</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">MTBF, MTTR, disponibilidad y cumplimiento</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
       <!-- Solicitante -->
       <div style="margin:0 12px 10px">
         <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista solicitante</div>
@@ -6879,6 +7121,29 @@ function renderAdmPerfil(){
   </div>
 
   <!-- SCREEN: Catálogo personal -->
+  <!-- SPEC-038: Indicadores de mantenimiento -->
+  <div id="adm-kpis" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="flex:1"><div class="topbar-title">Indicadores de mantenimiento</div></div>
+    </div>
+    <div class="scroll-content">
+      <div style="padding:12px 16px 4px">
+        <div class="field-lbl" style="margin-bottom:4px">Periodo</div>
+        <select class="field-select" id="kpi-periodo" onchange="renderKPIs()">
+          <option value="30d">Últimos 30 días</option>
+          <option value="mes">Este mes</option>
+          <option value="mesant">Mes anterior</option>
+          <option value="todo">Todo el histórico</option>
+        </select>
+      </div>
+      <div id="adm-kpis-content"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
   <div id="adm-personal" class="screen">
     <div class="topbar topbar-orange">
       <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
