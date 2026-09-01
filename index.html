@@ -274,6 +274,8 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .fab-comida{bottom:136px}
 .fab-comida.fab-comida-activa{background:var(--amber)}
 .fab-comida.fab-comida-usada{background:var(--text3);opacity:.55}
+/* SPEC-035: apilado arriba del de comida (136px + 52px alto + 12px separación) */
+.fab-finsemana{bottom:200px;background:#5B3AA6}
 .fab:active{transform:scale(.95)}
 .fab svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* ===== MODAL ===== */
@@ -327,6 +329,7 @@ input[type=range].green{accent-color:var(--green)}
   #page-login{padding:24px}
   .fab{bottom:80px}
   .fab-comida{bottom:144px}
+  .fab-finsemana{bottom:208px}
 }
 
 /* ===== ADMIN ===== */
@@ -746,6 +749,9 @@ input[type=range].green{accent-color:var(--green)}
       <div class="list-pad" id="tec-ot-list"></div>
       <div class="spacer"></div>
     </div>
+    <button class="fab fab-finsemana" id="tec-fab-finsemana" style="display:none" onclick="pausarFinSemana()" aria-label="Pausar hasta el lunes" title="Pausar hasta el lunes">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 15l2 2 4-4"/></svg>
+    </button>
     <button class="fab fab-comida" id="tec-fab-comida" onclick="abrirComida()" aria-label="Marcar tiempo de comedor" title="Marcar tiempo de comedor">
       <svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h1v11"/><path d="M6 2v7"/><path d="M9 2v7"/><path d="M18 2c-2 0-4 2-4 6v5h4v9"/></svg>
     </button>
@@ -1418,6 +1424,7 @@ function reloadDB(){
     if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
   }
   // Si Firebase está conectado, DB ya es la versión más reciente (listener activo)
+  revisarFinDeSemana(); // SPEC-035: reactiva solas las OT cuyo plazo del lunes ya pasó
 }
 
 // ── setSyncState: indicador visual de conexión ────────────────────
@@ -2482,6 +2489,7 @@ function renderTecOTs(filter){
   reloadDB();
   actualizarFabPausar();   // SPEC-021
   actualizarFabComida();   // SPEC-034
+  actualizarFabFinSemana(); // SPEC-035
   if(filter) currentFilter=filter;
   var statusF2 = currentFilter||'todas';
   var cnNorm=currentUser.nombre.toLowerCase();
@@ -3321,15 +3329,7 @@ function buildDetalleTec(ot){
     var btnEsp=ot.status!=='espera'
       ?'<button class="btn btn-warn btn-block" onclick="showScreen(&quot;tec-espera&quot;)">Poner en espera</button>'
       :'<button class="btn btn-outline btn-block" onclick="showScreen(&quot;tec-actividad&quot;)">Reanudar y registrar actividad</button>';
-    // SPEC-012: "Fin de mi turno" solo en el paro de fin de semana (sáb 21:20 → lun 06:00)
-    // y solo si el técnico tiene una participación abierta en esta OT.
-    var tengoAbierta = (ot.tecnicos||[]).some(function(t){
-      return String(t.nomina)===String(currentUser.nomina) && !t.fechaSalida;
-    });
-    var btnFin = (puedeFinTurno() && tengoAbierta)
-      ? '<button class="btn btn-outline btn-block" onclick="finDeMiTurno()">Fin de mi turno</button>'
-      : '';
-    acciones=btnRef+'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'+btnAct+btnEsp+btnFin+'</div>';
+    acciones=btnRef+'<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">'+btnAct+btnEsp+'</div>';
   } else if(ot.status==='validar'){
     acciones='<div class="alert alert-ok" style="margin:12px"><div class="alert-icon">✓</div>'
       +'<div>OT concluida — pendiente de validación por el solicitante.</div></div>';
@@ -3452,36 +3452,87 @@ function confirmarErrorOperativo(esError){
 
 // SPEC-012: Registra la salida del técnico en la OT (paro de fin de semana).
 // A partir de este momento deja de correrle el tiempo de intervención.
-async function finDeMiTurno(){
-  var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
-  if(!ot){ appAlert('OT no encontrada'); return; }
+/* ═══════ SPEC-035: PAUSA DE FIN DE SEMANA (reemplaza a SPEC-012) ═══════ */
+// Sustituye al botón "Fin de mi turno" anterior: aquel solo registraba la
+// salida del técnico sin cambiar el estatus de la OT ni reactivarla solo.
+// Este botón sí pausa la OT de verdad (status='espera') y la app la regresa
+// a 'proceso' automáticamente al llegar el lunes 06:00, sin acción manual.
+
+// Próximo lunes 06:00 a partir de "ahora" (asume que se llama dentro de la
+// ventana de puedeFinTurno(): sáb 21:20 → lun 06:00).
+function proximoLunes6am(ahora){
+  ahora = ahora || new Date();
+  var dia = ahora.getDay(); // 0=Dom,1=Lun...6=Sáb
+  var dias;
+  if(dia===1 && ahora.getHours()<6) dias = 0; // ya es lunes antes de las 6: hoy mismo
+  else if(dia===0) dias = 1;                  // domingo -> mañana
+  else if(dia===6) dias = 2;                  // sábado -> en 2 días
+  else dias = (8-dia)%7;                      // robustez ante otros días
+  return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()+dias, 6,0,0);
+}
+
+// SPEC-035: recorre las OT pausadas por fin de semana cuyo plazo ya venció
+// (llegó el lunes 06:00) y las regresa a 'proceso' automáticamente. Se llama
+// desde reloadDB(), que corre en todas las pantallas, así que la primera
+// sesión que se abra después del plazo hace la corrección — sin botón manual.
+function revisarFinDeSemana(){
+  var ahora = new Date();
+  var cambiaron = false;
+  (DB.ots||[]).forEach(function(ot){
+    if(!ot || ot.status!=='espera' || !ot.espera || ot.espera.tipo!=='finSemana') return;
+    if(!ot.espera.hastaLunes || ahora < new Date(ot.espera.hastaLunes)) return;
+    ot.status = 'proceso';
+    cambiaron = true;
+    if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
+    ot.comentarios.push({autor:'Sistema', fecha:ahora.toISOString(),
+      texto:'La OT se reanuda automáticamente tras el fin de semana.'});
+  });
+  if(cambiaron) saveDB();
+}
+
+function actualizarFabFinSemana(){
+  var fab = document.getElementById('tec-fab-finsemana');
+  if(!fab) return;
+  fab.style.display = (puedeFinTurno() && otEnCursoDelTecnico()) ? 'flex' : 'none';
+}
+
+async function pausarFinSemana(){
   if(!puedeFinTurno()){
     appAlert('Esta opción solo está disponible del sábado 21:20 al lunes 06:00.');
     return;
   }
-  var mias = (ot.tecnicos||[]).filter(function(t){
-    return String(t.nomina)===String(currentUser.nomina) && !t.fechaSalida;
-  });
-  if(!mias.length){
-    appAlert('No tienes una participación abierta en esta OT.');
-    return;
-  }
-  if(!(await appConfirm('¿Cerrar tu participación en la OT '+ot.folio+'?\n\nDejará de contarte el tiempo. La OT queda abierta para el siguiente turno.'))) return;
+  var ot = otEnCursoDelTecnico();
+  if(!ot){ appAlert('No tienes ninguna orden en curso para pausar.'); return; }
 
-  var ahora = new Date().toISOString();
-  mias[mias.length-1].fechaSalida = ahora;
-  cerrarEsperaAbierta(ot);
+  var lunes = proximoLunes6am(new Date());
+  var lunesTxt = lunes.toLocaleString('es-MX',{weekday:'long',hour:'2-digit',minute:'2-digit'});
+  if(!(await appConfirm('¿Pausar la OT '+ot.folio+' hasta el lunes?\n\n'
+    + 'Se reanudará sola el '+lunesTxt+', sin que tengas que hacer nada. '
+    + 'Úsalo solo si no vas a continuar hoy ni el domingo.', 'Pausar hasta el lunes'))) return;
+
+  var ahora = new Date();
+  var mias = (ot.tecnicos||[]).filter(function(t){
+    return t && _mismoNombre(t.nombre, currentUser.nombre) && !t.fechaSalida;
+  });
+  if(mias.length) mias[mias.length-1].fechaSalida = ahora.toISOString();
+
+  ot.status = 'espera';
+  ot.espera = {motivo:'Fin de semana — se retoma el lunes', tipo:'finSemana', hastaLunes:lunes.toISOString()};
+  if(!Array.isArray(ot.esperas)) ot.esperas = [];
+  ot.esperas.push({inicio:ahora.toISOString(), fin:lunes.toISOString(), motivo:'Fin de semana',
+    tecnico:currentUser.nombre, nomina:currentUser.nomina});
 
   if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
-  ot.comentarios.push({autor:currentUser.nombre, fecha:ahora,
-    texto:'Fin de turno — '+currentUser.nombre+' cerró su participación.'});
+  ot.comentarios.push({autor:currentUser.nombre, fecha:ahora.toISOString(),
+    texto:currentUser.nombre+' pausó la OT hasta el lunes por fin de semana.'});
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' — '+currentUser.nombre+' (Nóm. '+currentUser.nomina+') cerró su turno. La OT sigue abierta.',
-    fecha:ahora, leida:false});
+    texto:'OT '+ot.folio+' pausada por '+currentUser.nombre+' hasta el lunes (fin de semana).',
+    fecha:ahora.toISOString(), leida:false});
 
   saveDB();
-  appAlert('✓ Turno cerrado en la OT '+ot.folio+'.');
+  actualizarFabFinSemana();
+  appAlert('✓ OT '+ot.folio+' pausada hasta el lunes.');
   showScreen('tec-lista');
   renderTecOTs('todas');
 }

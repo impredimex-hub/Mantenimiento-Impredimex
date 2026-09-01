@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.8
+**Versión:** 3.9
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -412,7 +412,13 @@ Sistema (automático).
 
 ---
 
-# SPEC-012 — Fin de turno del técnico (paro de fin de semana)
+# SPEC-012 — (Sustituida por SPEC-035)
+
+> Esta especificación quedó reemplazada por **SPEC-035 — Pausa de fin de semana**, que cubre el mismo escenario con un botón flotante más visible y reactivación automática. Se conserva este encabezado como referencia histórica; ver SPEC-035 para el comportamiento vigente.
+
+---
+
+# SPEC-012 (histórico) — Fin de turno del técnico (paro de fin de semana)
 
 ### Actor
 Técnico de mantenimiento.
@@ -1202,6 +1208,39 @@ Se calcula el **bloque de turno vigente** (inicio y fin reales, en fecha y hora,
 - El registro de comida no depende de tener una OT asignada
 - La OT nunca cambia de estado por el comedor; solo se descuenta el tiempo
 - `DB.comidas` se sincroniza como catálogo (SPEC-018) para que el aviso de disponibilidad lo vea en tiempo real desde cualquier sesión
+
+---
+
+# SPEC-035 — Pausa de fin de semana (reemplaza a SPEC-012)
+
+### Actor
+Técnico de mantenimiento.
+
+### Motivación
+Normalmente la semana de trabajo termina al concluir el segundo turno del sábado (21:30). Si no hay tercer turno ni actividad en domingo, el técnico no puede continuar su OT hasta el lunes. El botón de pausar (SPEC-021) no resuelve este caso porque **exige elegir una orden destino**, y habitualmente no hay otra orden a la cual cambiarse — simplemente hay que detenerse hasta el lunes.
+
+La versión anterior (SPEC-012, "Fin de mi turno") solo registraba la salida del técnico sin cambiar el estatus de la OT ni reactivarla sola. Se sustituyó por este botón, que sí pausa la orden visiblemente y la reactiva sin intervención.
+
+### Acceso
+Un botón flotante, arriba del de comedor (SPEC-034), visible únicamente cuando se cumplen **dos condiciones a la vez**:
+
+1. La hora actual cae en la ventana de fin de semana: **sábado 21:20 → lunes 06:00** (misma ventana que usaba SPEC-012, función `puedeFinTurno()`)
+2. El técnico tiene una OT en curso (`otEnCursoDelTecnico()`)
+
+### Flujo principal
+1. El técnico pulsa el botón y confirma, viendo la fecha y hora exacta en que se reanudará
+2. Se registra su `fechaSalida` en la OT (su tiempo deja de contar desde ese instante, igual que en SPEC-012)
+3. La OT pasa a estado **`espera`**, con `ot.espera = {motivo, tipo:'finSemana', hastaLunes}`, donde `hastaLunes` es la fecha/hora exacta del próximo lunes 06:00, calculada en el momento de pausar
+4. Se agrega un periodo a `ot.esperas` con esa misma ventana ya cerrada (`inicio`/`fin` fijos), para que el tiempo se descuente automáticamente igual que en SPEC-013 y SPEC-034
+5. Se notifica al supervisor
+
+### Reactivación automática
+**No hay ninguna acción manual para reanudar.** `reloadDB()` — que se ejecuta en absolutamente todas las pantallas de la app — llama a `revisarFinDeSemana()` en cada carga. Esta función recorre las OT pausadas con `tipo:'finSemana'` y, en cuanto la hora actual alcanza `hastaLunes`, las regresa a `proceso` automáticamente y deja un comentario indicándolo. La primera sesión de cualquier usuario que se abra después del lunes 06:00 dispara la corrección.
+
+### Reglas de negocio
+- `proximoLunes6am()` calcula la fecha exacta del lunes según el día en que se pulsa el botón (sábado, domingo, o lunes antes de las 06:00), no un cálculo aproximado
+- La reactivación ocurre exactamente al llegar la hora — se verificó que a las 05:59 la OT sigue pausada y a las 06:00 en punto ya se reactivó
+- El botón no aparece fuera de la ventana de fin de semana, ni si el técnico no tiene ninguna OT en curso
 
 ---
 

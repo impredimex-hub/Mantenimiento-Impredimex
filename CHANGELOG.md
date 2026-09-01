@@ -6,6 +6,19 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.18.0] — 2026-08-25
+
+### Agregado
+- **SPEC-035: Pausa de fin de semana.** Nuevo botón flotante, arriba del de comedor, visible solo de sábado 21:20 a lunes 06:00 y solo con una OT en curso.
+  - Pausa la OT de verdad (estatus **"En espera"**), a diferencia del botón anterior que no cambiaba el estatus.
+  - **Se reactiva sola** al llegar el lunes 06:00 — no hay ningún botón ni acción manual para reanudarla. Se verificó que a las 05:59 sigue pausada y exactamente a las 06:00 se reactiva.
+  - El tiempo de pausa se descuenta automáticamente del técnico, igual que en el resto de los mecanismos de espera.
+
+### Eliminado
+- **SPEC-012 ("Fin de mi turno"):** botón dentro del detalle de la OT, reemplazado por SPEC-035. Solo registraba la salida del técnico sin pausar visiblemente la orden ni reactivarla sola — el nuevo botón hace ambas cosas.
+
+---
+
 ## [1.17.0] — 2026-08-24
 
 ### Agregado
