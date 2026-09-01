@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.6
+**Versión:** 3.7
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1139,6 +1139,27 @@ Se creó `puedeTomarOrden(ot, nombreTecnico)`, la única función que responde e
 - Tomar una OT pausada la regresa a `proceso` y cierra el periodo de espera abierto — mismo mecanismo que ya usaba el reingreso normal (SPEC-013)
 - Siguen aplicando los candados existentes: un técnico con su propia OT pausada pendiente (SPEC-022) o con otra en proceso (SPEC-027) no puede tomar una OT pausada de otro sin resolver primero la suya
 - Si no hay dato de turno registrado para quien pausó, se permite tomarla igualmente, para no dejarla indefinidamente sin resolver por falta de información
+
+---
+
+# SPEC-033 — Comparación de "mismo día" en hora local, no UTC
+
+### Problema que resuelve
+`tecnicoEnTurnoActual()` — la función que evita que un técnico se registre dos veces en la misma OT durante el mismo turno — comparaba fechas con `new Date().toISOString().split('T')[0]`, que da la fecha en **UTC**. `turnoActual()`, en cambio, usa `getHours()`/`getMinutes()`, que son **hora local**.
+
+Esas dos bases de tiempo no coinciden. México opera en UTC-6: pasadas aproximadamente las 18:00 horas locales, el reloj UTC ya marca el **día siguiente**. Un técnico que se registró a las 14:05 (hora local, dentro del turno T2) quedaba comparado más tarde, a las 18:08, contra "hoy" en UTC — que para ese momento ya era otro día calendario. La comparación de fecha fallaba, `tecnicoEnTurnoActual()` devolvía `false` aunque el técnico sí estuviera registrado hoy y en este turno, y el sistema lo dejaba **unirse a su propia orden por segunda vez**, apareciendo dos veces en `ot.tecnicos`.
+
+### Corrección
+Tanto la fecha de "hoy" como la fecha de registro del técnico (`t.fecha`, guardada en UTC) se convierten a su representación de **fecha local** con `_isoDe()` antes de compararse — la misma función ya usada para el módulo de Turnos, que sí opera correctamente en hora local.
+
+### Segundo caso encontrado con el mismo patrón
+`buildDetalleTec()` precargaba la fecha del formulario "Registrar actividad" con el mismo patrón UTC (`now.toISOString().split('T')[0]`), mientras que la hora sí se tomaba en local. Pasadas las 18:00 en México, un técnico que abriera el formulario para registrar una actividad vería la **fecha de mañana** precargada, con la hora de hoy. Se corrigió con el mismo cambio a `_isoDe()`.
+
+### Alcance
+Este era un problema de fondo, no aislado a un único botón: `tecnicoEnTurnoActual()` se usa en cuatro puntos (el filtro de "Disponibles", el candado de re-registro en `tomarOT`, y la regla central `puedeTomarOrden` de SPEC-032), así que la corrección repara la causa una sola vez para todos ellos.
+
+### Nota para revisiones futuras
+Cualquier comparación de "mismo día" en esta app debe construirse con componentes de fecha **locales** (`getFullYear()`, `getMonth()`, `getDate()`, como hace `_isoDe()`), nunca con `toISOString()`, que siempre da UTC. La discrepancia solo se manifiesta en ciertas horas del día, según el huso horario, lo que la vuelve fácil de pasar por alto en pruebas hechas a otra hora.
 
 ---
 

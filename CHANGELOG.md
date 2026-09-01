@@ -6,6 +6,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.16.1] — 2026-08-23
+
+### Corregido
+- **SPEC-033:** Un técnico podía unirse dos veces a su propia OT en el mismo turno. Causa: `tecnicoEnTurnoActual()` comparaba la fecha de "hoy" en **UTC**, mientras que `turnoActual()` calcula el turno en **hora local**. En México (UTC-6), pasadas ~18:00 horas el reloj UTC ya marca el día siguiente, así que la comparación de fecha fallaba y el sistema dejaba de reconocer que el técnico ya estaba registrado, ofreciéndole su propia orden como "disponible".
+- Mismo patrón corregido en la fecha que se precarga al abrir "Registrar actividad" (`buildDetalleTec`), que también usaba UTC mientras la hora sí usaba local — pasadas las 18:00 en México, el formulario precargaba la fecha del día siguiente.
+- Ambos casos ahora usan `_isoDe()` (fecha en componentes locales), consistente con el resto del código de turnos.
+
+### Notas
+- El problema no era aislado a un botón: `tecnicoEnTurnoActual()` alimenta el filtro de "Disponibles", el candado de re-registro en `tomarOT`, y la regla central `puedeTomarOrden` (SPEC-032) — la corrección repara la causa una sola vez para los tres.
+
+---
+
 ## [1.16.0] — 2026-08-22
 
 ### Corregido

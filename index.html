@@ -2735,12 +2735,19 @@ function tecnicoEnOT(ot, nombre){
 function tecnicoEnTurnoActual(ot, nombre){
   // Returns true only if tech registered TODAY in the CURRENT shift
   // Used to prevent double-registration in the same shift
+  //
+  // SPEC-033: antes comparaba fechas con toISOString() (UTC). turnoActual()
+  // usa hora LOCAL, así que en cualquier huso con offset negativo (México,
+  // UTC-6), pasadas las ~18:00 locales el UTC ya marca el día siguiente:
+  // "hoy" y la fecha de registro dejaban de coincidir aunque fuera el mismo
+  // día real, y el sistema dejaba de reconocer que el técnico ya se había
+  // registrado — permitiendo que se uniera dos veces a su propia OT.
   if(!ot.tecnicos || !ot.tecnicos.length) return false;
   var n    = nombre.toLowerCase();
-  var hoy  = new Date().toISOString().split('T')[0];
+  var hoy  = _isoDe(new Date());
   var turno= turnoActual();
   return ot.tecnicos.some(function(t){
-    var diaReg = t.fecha ? t.fecha.split('T')[0] : '';
+    var diaReg = t.fecha ? _isoDe(new Date(t.fecha)) : '';
     return t.nombre.toLowerCase()===n && diaReg===hoy && t.turno===turno;
   });
 }
@@ -3076,7 +3083,7 @@ function getTipoFallas(tipoServicio){
 function buildDetalleTec(ot){
   var now=new Date();
   var hh=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  var dd=now.toISOString().split('T')[0];
+  var dd=_isoDe(now); // SPEC-033: fecha local, no UTC (ver tecnicoEnTurnoActual)
 
   setTimeout(function(){
     var fa=document.getElementById('act-fecha'); if(fa) fa.value=dd;
