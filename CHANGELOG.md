@@ -6,6 +6,19 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.17.0] — 2026-08-24
+
+### Agregado
+- **SPEC-034: Tiempo de comedor.** Nuevo botón circular en la pantalla del técnico, arriba del botón de pausar ("="), visible en todo momento.
+  - **Duración automática según el turno asignado:** 30 minutos para T1/T2/T3, 45 minutos para D12/N12 (jornadas de 12 horas).
+  - Si el técnico tiene una OT en proceso, ese tiempo se descuenta solo de su intervención — la OT **no cambia de estado**, sigue en proceso.
+  - **Auto-reanudación:** pasado el tiempo límite, el descuento se detiene solo, sin necesidad de que el técnico marque su regreso.
+  - **Un uso por turno:** el botón queda deshabilitado tras usarse, hasta el siguiente turno del técnico (calculado por bloque real de horario, no solo por fecha).
+  - Un técnico en el comedor, incluso **sin** OT asignada, ahora cuenta como "ocupado" en el aviso de técnicos ocupados (SPEC-020) al crear una nueva OT, con su hora estimada de regreso.
+- Nueva colección `DB.comidas`, sincronizada como catálogo.
+
+---
+
 ## [1.16.1] — 2026-08-23
 
 ### Corregido

@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 3.7
+**Versión:** 3.8
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1160,6 +1160,48 @@ Este era un problema de fondo, no aislado a un único botón: `tecnicoEnTurnoAct
 
 ### Nota para revisiones futuras
 Cualquier comparación de "mismo día" en esta app debe construirse con componentes de fecha **locales** (`getFullYear()`, `getMonth()`, `getDate()`, como hace `_isoDe()`), nunca con `toISOString()`, que siempre da UTC. La discrepancia solo se manifiesta en ciertas horas del día, según el huso horario, lo que la vuelve fácil de pasar por alto en pruebas hechas a otra hora.
+
+---
+
+# SPEC-034 — Tiempo de comedor
+
+### Actor
+Técnico de mantenimiento.
+
+### Motivación
+No existía forma de registrar que un técnico está en su horario de comedor. Si tenía una OT activa, ese tiempo se le cargaba como si estuviera trabajando; y si un solicitante creaba una OT nueva, el sistema no tenía forma de saber que el único técnico en turno estaba comiendo, no disponible por otra causa.
+
+### Acceso
+Un botón circular, arriba del botón de pausar ("="), visible en todo momento para el rol técnico (a diferencia del de pausar, que solo aparece con una orden en curso).
+
+### Duración según el tipo de turno
+Se consulta el turno **asignado en el rol de turnos** (no el cálculo de reloj de `turnoActual()`, que solo distingue T1/T2/T3):
+
+| Tipo de turno | Duración del comedor |
+|---|---|
+| T1, T2, T3 (jornadas de ~7.5–8 h) | 30 minutos |
+| D12, N12 (jornadas de 12 h) | 45 minutos |
+| G8, Horario libre, o sin rol cargado | 30 minutos (valor por defecto; el usuario no especificó estos casos) |
+
+Si no hay rol de turnos cargado para hoy, se usa el turno de reloj (T1/T2/T3) como respaldo, garantizando que el botón funcione siempre.
+
+### Flujo principal
+1. El técnico pulsa el botón y confirma
+2. Se calcula la duración según su turno y se registra en `DB.comidas`: `{nomina, nombre, turno, inicio, fin}`, con `fin` ya calculado desde el inicio — no requiere una acción de "regresar"
+3. Si tiene una OT en proceso, se agrega un periodo a `ot.esperas` con la **misma ventana ya cerrada** (`inicio` y `fin` fijos desde el momento de la confirmación), para que ese tiempo se descuente solo, sin intervención posterior
+4. La OT **no cambia de estado** — sigue en `proceso` durante y después del comedor; es una interrupción rutinaria, no una incidencia
+5. Pasado el tiempo límite, el descuento de tiempo se detiene automáticamente: como la ventana de espera tiene `fin` fijo, el cálculo existente de tiempos (`segsEsperaEnRango`, SPEC-013) deja de contarla en cuanto el reloj la rebasa, sin ninguna acción adicional
+
+### Un uso por turno
+Se calcula el **bloque de turno vigente** (inicio y fin reales, en fecha y hora, del turno actual — reutilizando los minutos ya definidos en `CAT_TURNOS`, con el mismo tratamiento para turnos que cruzan medianoche que usa SPEC-020). Si ya existe un registro de comida cuyo `inicio` cae dentro de ese bloque, el botón queda deshabilitado (visualmente atenuado) y no permite un segundo uso, con el mensaje *"Ya usaste tu tiempo de comedor en este turno."* En cuanto el bloque cambia (nuevo turno), el botón vuelve a estar disponible automáticamente — no se necesita ningún reinicio manual.
+
+### Visibilidad para otros usuarios
+`avisarSiNoHayTecnicoLibre()` (SPEC-020) ahora también considera "ocupado" a un técnico en su tiempo de comedor, **aunque no tenga ninguna OT asignada**. En la ventana de "técnicos ocupados" aparece con una tarjeta propia: *Etapa: En el comedor* y la hora estimada de regreso. Si además tiene una OT activa, `etapaDeOT()` prioriza mostrar "En el comedor" sobre el avance del trabajo, porque refleja mejor su situación en ese momento.
+
+### Reglas de negocio
+- El registro de comida no depende de tener una OT asignada
+- La OT nunca cambia de estado por el comedor; solo se descuenta el tiempo
+- `DB.comidas` se sincroniza como catálogo (SPEC-018) para que el aviso de disponibilidad lo vea en tiempo real desde cualquier sesión
 
 ---
 

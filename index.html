@@ -270,6 +270,10 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .tec-sub{font-size:11px;color:var(--text2)}
 /* ===== FAB ===== */
 .fab{position:fixed;bottom:72px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(24,95,165,.35);z-index:100}
+/* SPEC-034: botón de comedor, apilado arriba del de pausar (72px + 52px alto + 12px separación) */
+.fab-comida{bottom:136px}
+.fab-comida.fab-comida-activa{background:var(--amber)}
+.fab-comida.fab-comida-usada{background:var(--text3);opacity:.55}
 .fab:active{transform:scale(.95)}
 .fab svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* ===== MODAL ===== */
@@ -322,6 +326,7 @@ input[type=range].green{accent-color:var(--green)}
 @media(min-width:480px){
   #page-login{padding:24px}
   .fab{bottom:80px}
+  .fab-comida{bottom:144px}
 }
 
 /* ===== ADMIN ===== */
@@ -741,6 +746,9 @@ input[type=range].green{accent-color:var(--green)}
       <div class="list-pad" id="tec-ot-list"></div>
       <div class="spacer"></div>
     </div>
+    <button class="fab fab-comida" id="tec-fab-comida" onclick="abrirComida()" aria-label="Marcar tiempo de comedor" title="Marcar tiempo de comedor">
+      <svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h1v11"/><path d="M6 2v7"/><path d="M9 2v7"/><path d="M18 2c-2 0-4 2-4 6v5h4v9"/></svg>
+    </button>
     <button class="fab" id="tec-fab-pausar" style="display:none" onclick="abrirPausarOT()" aria-label="Pausar orden y tomar otra">
       <svg viewBox="0 0 24 24"><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/></svg>
     </button>
@@ -1278,7 +1286,8 @@ let DB = {
   maquinas: [],
   infraestructura: [],
   turnos: [],         // SPEC-016: roles de turnos del personal
-  preventivos: []     // SPEC-017: programas mensuales de mantenimiento preventivo
+  preventivos: [],    // SPEC-017: programas mensuales de mantenimiento preventivo
+  comidas: []          // SPEC-034: registros de tiempo de comedor por técnico
 };
 
 // ── SPEC-018: Sincronización granular ────────────────────────────
@@ -1289,7 +1298,7 @@ var _snap = {};              // ruta -> JSON de lo último sincronizado
 var _renderTimer = null;
 var _migrar = {};
 
-var CATALOGOS_FB  = ['personal','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos'];
+var CATALOGOS_FB  = ['personal','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos','comidas'];
 var COLECCIONES_FB = ['ots','notifs'];
 
 function _js(v){ try{ return JSON.stringify(v===undefined?null:v); }catch(e){ return ''; } }
@@ -1507,7 +1516,7 @@ function initFirebase(){
     // Fallback a localStorage
     var stored = localStorage.getItem('mantoDB');
     if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
-    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[],turnos:[],preventivos:[]}; }
+    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[],turnos:[],preventivos:[],comidas:[]}; }
     initPersonal(); initCatalogos();
   }
 }
@@ -2472,6 +2481,7 @@ function initTecnico(){
 function renderTecOTs(filter){
   reloadDB();
   actualizarFabPausar();   // SPEC-021
+  actualizarFabComida();   // SPEC-034
   if(filter) currentFilter=filter;
   var statusF2 = currentFilter||'todas';
   var cnNorm=currentUser.nombre.toLowerCase();
@@ -2871,6 +2881,91 @@ function actualizarFabPausar(){
   var fab = document.getElementById('tec-fab-pausar');
   if(!fab) return;
   fab.style.display = otEnCursoDelTecnico() ? 'flex' : 'none';
+}
+
+// SPEC-034: actualiza el aspecto del botón de comedor según el momento:
+// disponible, activo (en curso) o ya usado hasta el siguiente turno.
+function actualizarFabComida(){
+  var fab = document.getElementById('tec-fab-comida');
+  if(!fab || !currentUser) return;
+  var ahora = new Date();
+  var activa = comidaActivaDe(currentUser.nomina, ahora);
+  var tb = turnoYBloqueDe(currentUser.nomina, ahora);
+  var usada = comidaUsadaEnBloque(currentUser.nomina, tb.bloque);
+
+  fab.classList.remove('fab-comida-activa','fab-comida-usada');
+  if(activa){
+    fab.classList.add('fab-comida-activa');
+    var finHHMM = new Date(activa.fin).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    fab.setAttribute('aria-label','En el comedor, regresa a las '+finHHMM);
+    fab.title = 'En el comedor — regresa a las '+finHHMM;
+  } else if(usada){
+    fab.classList.add('fab-comida-usada');
+    fab.setAttribute('aria-label','Comedor ya usado en este turno');
+    fab.title = 'Ya usaste tu tiempo de comedor en este turno';
+  } else {
+    fab.setAttribute('aria-label','Marcar tiempo de comedor');
+    fab.title = 'Marcar tiempo de comedor';
+  }
+}
+
+function abrirComida(){
+  var ahora = new Date();
+  var activa = comidaActivaDe(currentUser.nomina, ahora);
+  if(activa){
+    var finHHMM = new Date(activa.fin).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    appAlert('Ya estás en tu tiempo de comedor. Regresa a las '+finHHMM+'.');
+    return;
+  }
+  var tb = turnoYBloqueDe(currentUser.nomina, ahora);
+  if(comidaUsadaEnBloque(currentUser.nomina, tb.bloque)){
+    appAlert('Ya usaste tu tiempo de comedor en este turno.\n\nEstará disponible de nuevo en tu siguiente turno.');
+    return;
+  }
+  confirmarComida(tb.tipo);
+}
+
+async function confirmarComida(tipoTurno){
+  var min = duracionComidaMin(tipoTurno);
+  var otAtendiendo = otEnProcesoDelTecnico();
+  var avisoOT = otAtendiendo
+    ? '\n\nTu OT '+otAtendiendo.folio+' no contará ese tiempo en tu contra.'
+    : '';
+  if(!(await appConfirm('¿Vas a tomar tu tiempo de comedor?\n\nSerán '+min+' minutos, y el sistema los controla de forma automática.'+avisoOT, 'Tiempo de comedor'))) return;
+
+  var ahora = new Date();
+  var fin = new Date(ahora.getTime() + min*60000);
+  if(!Array.isArray(DB.comidas)) DB.comidas = [];
+  DB.comidas.push({
+    id: 'cm'+Date.now(),
+    nomina: currentUser.nomina,
+    nombre: currentUser.nombre,
+    turno: tipoTurno,
+    inicio: ahora.toISOString(),
+    fin: fin.toISOString()
+  });
+
+  // SPEC-034: si tiene una OT en proceso, ese tiempo no le cuenta en contra —
+  // se registra como un periodo de espera con ventana YA CERRADA (fin fijo),
+  // de modo que se descuenta solo, sin necesidad de "cerrarlo" después.
+  if(otAtendiendo){
+    if(!Array.isArray(otAtendiendo.esperas)) otAtendiendo.esperas = [];
+    otAtendiendo.esperas.push({
+      inicio: ahora.toISOString(), fin: fin.toISOString(),
+      motivo: 'Comedor', tecnico: currentUser.nombre, nomina: currentUser.nomina
+    });
+    if(!Array.isArray(otAtendiendo.comentarios)) otAtendiendo.comentarios = [];
+    otAtendiendo.comentarios.push({
+      autor: currentUser.nombre, fecha: ahora.toISOString(),
+      texto: currentUser.nombre+' tomó su tiempo de comedor ('+min+' min).'
+    });
+  }
+
+  saveDB();
+  actualizarFabComida();
+  var finHHMM = fin.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  appAlert('✓ Comedor iniciado. Regresa a las '+finHHMM+'.');
+  if(currentUser.role==='tecnico') { showScreen('tec-lista'); renderTecOTs('todas'); }
 }
 
 function abrirPausarOT(){
@@ -4878,8 +4973,91 @@ function otActivaDeTecnico(nombre){
 }
 
 // Etapa legible en la que va la intervención.
+/* ═══════ SPEC-034: TIEMPO DE COMEDOR ═══════ */
+
+// Duración del comedor según el TIPO de turno asignado en el rol (CAT_TURNOS.id).
+// T1/T2/T3 (jornadas de ~7.5–8 h) -> 30 min. D12/N12 (jornadas de 12 h) -> 45 min.
+// G8 y LIB no los especificó el usuario; se usa 30 min como valor conservador.
+function duracionComidaMin(tipoTurno){
+  if(tipoTurno==='D12' || tipoTurno==='N12') return 45;
+  return 30;
+}
+
+// SPEC-034: tipo de turno (CAT_TURNOS.id) asignado a esta persona AHORA, según
+// el rol de turnos — igual criterio que tecnicosEnTurno() para turnos que
+// cruzan medianoche (revisa la asignación de ayer si sigue vigente).
+function turnoAsignadoTecnico(nomina, ahora){
+  ahora = ahora || new Date();
+  var hoy = _isoDe(ahora);
+  var min = ahora.getHours()*60 + ahora.getMinutes();
+
+  var aHoy = asignacionDe(nomina, hoy);
+  if(aHoy && aHoy.t && aHoy.t!=='LIB'){
+    var rHoy = rangoDeAsignacion(aHoy);
+    if(rHoy && minutoEnRango(min, rHoy)) return aHoy.t;
+  }
+  var ayer = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()-1);
+  var aAyer = asignacionDe(nomina, _isoDe(ayer));
+  if(aAyer && aAyer.t && aAyer.t!=='LIB'){
+    var rAyer = rangoDeAsignacion(aAyer);
+    if(rAyer && rAyer.fin<=rAyer.ini && min<rAyer.fin) return aAyer.t;
+  }
+  return null; // sin rol cargado o turno libre: se resuelve con reloj (T1/T2/T3)
+}
+
+// Bloque {inicio, fin} (objetos Date) del turno vigente AHORA, para un tipo
+// de turno del catálogo. Se usa para saber "hasta cuándo" abarca el turno
+// actual y así soltar el candado de "una comida por turno" al cambiar de uno.
+function bloqueTurnoActual(tipoTurno, ahora){
+  var cat = catTurnoById(tipoTurno);
+  if(!cat || cat.ini===undefined) return null;
+  var base = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  var iniHoy = new Date(base.getTime() + cat.ini*60000);
+  var finHoy = new Date(base.getTime() + (cat.fin>cat.ini ? cat.fin : cat.fin+1440)*60000);
+  if(ahora>=iniHoy && ahora<finHoy) return {inicio:iniHoy, fin:finHoy};
+  if(cat.fin<=cat.ini){ // turno que cruza medianoche: puede que haya iniciado ayer
+    var iniAyer = new Date(iniHoy.getTime()-86400000);
+    var finAyer = new Date(finHoy.getTime()-86400000);
+    if(ahora>=iniAyer && ahora<finAyer) return {inicio:iniAyer, fin:finAyer};
+  }
+  return {inicio:iniHoy, fin:finHoy};
+}
+
+// Tipo de turno + bloque vigente para ESTA persona ahora mismo. Si no hay
+// asignación en el rol, cae en el modelo de reloj de siempre (T1/T2/T3).
+function turnoYBloqueDe(nomina, ahora){
+  ahora = ahora || new Date();
+  var tipo = turnoAsignadoTecnico(nomina, ahora);
+  if(!tipo){
+    var actual = turnoActual(); // "T1 (06:00–14:00)" etc.
+    tipo = actual.split(' ')[0];
+  }
+  return {tipo:tipo, bloque:bloqueTurnoActual(tipo, ahora)};
+}
+
+// Registro de comida vigente AHORA (dentro de su ventana inicio–fin) para esa nómina.
+function comidaActivaDe(nomina, ahora){
+  ahora = ahora || new Date();
+  return (DB.comidas||[]).find(function(c){
+    return c && c.nomina===nomina && new Date(c.inicio)<=ahora && ahora<new Date(c.fin);
+  }) || null;
+}
+
+// ¿Ya usó su comida dentro del bloque de turno vigente? (uno por turno)
+function comidaUsadaEnBloque(nomina, bloque){
+  if(!bloque) return false;
+  return (DB.comidas||[]).some(function(c){
+    if(!c || c.nomina!==nomina) return false;
+    var ini = new Date(c.inicio);
+    return ini>=bloque.inicio && ini<bloque.fin;
+  });
+}
+
 function etapaDeOT(ot, nomina){
   if(!ot) return '';
+  // SPEC-034: si el técnico está en su tiempo de comedor, eso manda sobre
+  // cualquier otra etapa — es lo que refleja mejor su situación real ahora.
+  if(nomina && comidaActivaDe(nomina)) return 'En el comedor';
   if(ot.status==='espera'){
     var mot = (ot.espera && ot.espera.motivo) ? ot.espera.motivo : 'sin motivo registrado';
     return 'Suspendida en espera — ' + mot;
@@ -4918,14 +5096,27 @@ function avisarSiNoHayTecnicoLibre(nuevaOT, fecha){
 
   var ocupados = [], hayLibre = false;
   enTurno.forEach(function(p){
+    // SPEC-034: en el comedor cuenta como ocupado aunque no tenga OT asignada
+    var comida = comidaActivaDe(p.nomina, fecha||new Date());
     var ot = otActivaDeTecnico(p.nombre);
-    if(!ot){ hayLibre = true; return; }
-    ocupados.push({persona:p, ot:ot});
+    if(!ot && !comida){ hayLibre = true; return; }
+    ocupados.push({persona:p, ot:ot, comida:comida});
   });
 
   if(hayLibre || !ocupados.length) return false;
 
   var filas = ocupados.map(function(o){
+    // SPEC-034: si está en el comedor sin OT asignada, la tarjeta lo refleja
+    // sin inventar una "orden" ni una "ubicación" que no existen.
+    if(!o.ot && o.comida){
+      var finHHMM = new Date(o.comida.fin).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+      return '<div class="dispo-card">'
+        + '<div class="dispo-nom">'+o.persona.nombre+'</div>'
+        + '<div class="dispo-puesto">'+(o.persona.puesto||'')+'</div>'
+        + '<div class="dispo-fila"><span>Etapa</span><b>En el comedor</b></div>'
+        + '<div class="dispo-fila"><span>Regresa</span><b>'+finHHMM+'</b></div>'
+        + '</div>';
+    }
     var naveEq = [o.ot.nave ? 'Nave '+o.ot.nave : '', o.ot.equipo].filter(Boolean).join(' · ');
     return '<div class="dispo-card">'
       + '<div class="dispo-nom">'+o.persona.nombre+'</div>'
