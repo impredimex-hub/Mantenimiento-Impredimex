@@ -6,6 +6,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.22.1] — 2026-09-06
+
+### Corregido
+- **SPEC-041:** Un técnico con su única OT en estado "En espera" por **"Poner en espera"** (sin refacción, sin tiempo, esperando proveedor, etc.) seguía apareciendo como ocupado en el aviso de "técnicos ocupados" al crear una OT nueva, aunque en la práctica estuviera libre. Causa: `otActivaDeTecnico()` contaba `espera` como ocupado sin distinguir el motivo. Las pausas reales ("=" y fin de semana) sí marcan la salida del técnico y ya quedaban excluidas correctamente; el ajuste solo afecta al caso de "Poner en espera", tal como se reportó.
+- Ahora usa el mismo criterio que SPEC-027 (`status==='proceso'`), alineando ambas reglas: si el técnico puede tomar una orden nueva, tampoco debe reportarse como ocupado.
+
+---
+
 ## [1.22.0] — 2026-08-29
 
 ### Agregado

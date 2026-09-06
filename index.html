@@ -5050,8 +5050,19 @@ function tecnicosEnTurno(fecha){
 
 // OT que un técnico tiene asignada y activa en este momento.
 function otActivaDeTecnico(nombre){
+  // Corrección: antes contaba 'espera' como ocupado, pero "Poner en espera"
+  // (SPEC-008: sin refacción, sin tiempo, esperando proveedor, etc.) no marca
+  // fechaSalida — el técnico sigue "con" la orden aunque esté esperando algo
+  // externo, sin trabajar en ella activamente. Eso lo hacía aparecer como
+  // ocupado en el aviso de disponibilidad (SPEC-020) aunque en la práctica
+  // estuviera libre para atender otra cosa mientras tanto — coincide con
+  // SPEC-027, que por la misma razón nunca bloqueó tomar una orden nueva
+  // mientras la propia está en espera por falta de refacción.
+  // Las pausas reales (SPEC-021 y SPEC-035) sí marcan fechaSalida, así que
+  // ese caso seguía excluido de todos modos; el ajuste solo afecta al caso
+  // de "poner en espera" tal como pidió el usuario.
   var lista = (DB.ots||[]).filter(function(ot){
-    if(!ot || (ot.status!=='proceso' && ot.status!=='espera')) return false;
+    if(!ot || ot.status!=='proceso') return false;
     return (ot.tecnicos||[]).some(function(t){
       return t && _mismoNombre(t.nombre, nombre) && !t.fechaSalida;
     });

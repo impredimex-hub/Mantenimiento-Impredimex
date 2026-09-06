@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 4.3
+**Versión:** 4.4
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1388,6 +1388,19 @@ Nuevo selector **"Técnico"**, junto al de periodo, con la opción **"Todos — 
 - Las tarjetas de MTBF, Disponibilidad, Reducción y Cumplimiento se muestran atenuadas, sin la posibilidad de tocarlas para ver detalle, con una explicación breve de por qué no aplican
 - MTTR y OT correctivas siguen siendo tocables; su tabla de detalle (SPEC-039) muestra únicamente las órdenes del técnico elegido
 - Cambiar de técnico o de periodo cierra cualquier tabla de detalle abierta
+
+---
+
+# SPEC-041 — "Poner en espera" ya no cuenta como ocupado en el aviso de disponibilidad
+
+### Problema que resuelve
+`otActivaDeTecnico()` —usada por el aviso de "técnicos ocupados" (SPEC-020)— consideraba ocupado a un técnico con una orden en estado `espera`, sin distinguir el motivo. Esto era correcto para las pausas reales (SPEC-021 "=", SPEC-035 fin de semana), que sí marcan `fechaSalida` y por lo tanto ya quedaban excluidas por ese otro criterio — pero **"Poner en espera"** (SPEC-008: sin refacción, sin tiempo, esperando proveedor, etc.) **no marca `fechaSalida`**, porque el técnico sigue siendo responsable de la orden, solo que está esperando algo externo. El resultado: un técnico con su única orden detenida por falta de refacción, con fecha estimada de reparación semanas a futuro, seguía apareciendo como "ocupado" para cualquier solicitante que creara una orden nueva — aunque en la práctica estuviera libre y de hecho pudiera tomarla sin problema (SPEC-027 ya lo permitía).
+
+### Corrección
+`otActivaDeTecnico()` ahora solo considera **`status==='proceso'`** como ocupado — el mismo criterio que ya usaba `otEnProcesoDelTecnico()` (SPEC-027) para decidir si un técnico puede tomar una orden nueva. Con esto, ambas reglas quedan alineadas: si SPEC-027 no bloquea tomar otra orden, SPEC-020 tampoco debe reportar al técnico como ocupado.
+
+### Por qué no afecta a las pausas reales
+Un técnico que pausó con "=" o por fin de semana ya tenía `fechaSalida` registrada en su entrada de `ot.tecnicos`, así que el filtro por nombre (`!t.fechaSalida`) ya lo excluía de todos modos. Quitar `'espera'` de la condición de estatus no cambia su comportamiento; solo corrige el caso de "Poner en espera", que es al que no le aplicaba ese otro filtro.
 
 ---
 
