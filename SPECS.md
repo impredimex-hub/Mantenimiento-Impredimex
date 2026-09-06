@@ -4,7 +4,7 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 4.2
+**Versión:** 4.3
 **Fecha:** 13 de agosto de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
@@ -1360,6 +1360,34 @@ Al tocar cualquiera de las seis tarjetas de indicadores, debajo de la cuadrícul
 ### Reglas de negocio
 - Los datos de cada tabla se calculan en el mismo recorrido que ya arma el número de la tarjeta — no hay un segundo cálculo por separado, así que la tabla siempre coincide con el resultado mostrado
 - Solo una tabla puede estar abierta a la vez
+
+---
+
+# SPEC-040 — Filtro por técnico en los indicadores
+
+### Actor
+Administrador.
+
+### Alcance decidido
+Solo **MTTR** y **OT correctivas cerradas** tienen sentido a nivel de una persona con los datos disponibles hoy — ambas se recalculan usando únicamente las OT donde el técnico seleccionado participó (por nómina, en `ot.tecnicos[]`).
+
+Los otros cuatro son métricas de **máquina** o de **programa**, no de persona, y con un técnico filtrado se muestran como **"No aplica a nivel técnico"** en vez de forzar un número que no significaría lo que parece:
+
+| Indicador | Por qué no aplica por persona |
+|---|---|
+| MTBF | Mide qué tan seguido falla una máquina, no depende de quién la atiende |
+| Disponibilidad | Mide tiempo de planta parada, no es atribuible a una persona |
+| Reducción de fallas correctivas | Es una tendencia de fallas reportadas; un técnico no controla cuántas le llegan |
+| Cumplimiento preventivo | El calendario de Preventivo asigna **máquinas** a cada celda, no técnicos — no hay una meta atribuible a una persona con la que comparar |
+
+### Acceso
+Nuevo selector **"Técnico"**, junto al de periodo, con la opción **"Todos — vista general"** (comportamiento igual que antes) y cada persona activa del departamento de Mantenimiento.
+
+### Comportamiento
+- Al elegir un técnico, el encabezado indica el periodo y el nombre elegido
+- Las tarjetas de MTBF, Disponibilidad, Reducción y Cumplimiento se muestran atenuadas, sin la posibilidad de tocarlas para ver detalle, con una explicación breve de por qué no aplican
+- MTTR y OT correctivas siguen siendo tocables; su tabla de detalle (SPEC-039) muestra únicamente las órdenes del técnico elegido
+- Cambiar de técnico o de periodo cierra cualquier tabla de detalle abierta
 
 ---
 

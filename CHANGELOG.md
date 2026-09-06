@@ -6,6 +6,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.22.0] — 2026-08-29
+
+### Agregado
+- **SPEC-040: Filtro por técnico** en Indicadores de mantenimiento. **MTTR** y **OT correctivas cerradas** se recalculan por persona (tabla de detalle incluida); **MTBF, Disponibilidad, Reducción de fallas correctivas y Cumplimiento preventivo** son métricas de máquina o de programa, no de persona, y se muestran como "No aplica a nivel técnico" cuando hay un filtro activo, en vez de un número engañoso.
+
+### Corregido
+- Un descuido al construir el filtro dejó una línea vieja que sobrescribía el resultado de Cumplimiento preventivo justo después de calcularlo, deshaciendo el estado "no aplica" recién asignado. Detectado en pruebas antes de publicar; corregido.
+
+---
+
 ## [1.21.0] — 2026-08-28
 
 ### Agregado
