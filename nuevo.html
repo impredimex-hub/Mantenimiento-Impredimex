@@ -1583,6 +1583,9 @@ function saveFCMToken(){
   oneSignalPush(function(OneSignal){
     // Funcion auxiliar para limpiar tags viejos y aplicar los nuevos
     function aplicarTags(){
+      // OneSignal.init tarda, y para cuando resuelve la sesión pudo haberse
+      // cerrado. Sin esta guarda, aplicarTags leía currentUser en null.
+      if(!currentUser) return;
       try {
         // Limpiar tags previos (importante cuando cambia el usuario en el mismo dispositivo)
         OneSignal.User.removeTags(['nomina','role','nombre']);
@@ -1713,6 +1716,11 @@ function buscarNomina(val){
   const v = val.trim();
   if(!v){ preview.style.display='none'; return; }
   const cat = (DB && DB.personal) ? DB.personal : [];
+  // Antes de iniciar sesión no hay catálogo: la lista de personas se pide a la
+  // suite con la sesión ya abierta. Sin ella no se puede saber de quién es una
+  // nómina, así que la vista previa se queda callada en vez de afirmar que no
+  // existe, que es lo que hacía y era falso.
+  if(!cat.length){ preview.style.display='none'; return; }
   const persona = cat.find(function(p){ return p.nomina.toString()===v; });
   if(persona){
     var statusColor = persona.estatus==='baja'
@@ -1794,7 +1802,7 @@ function cargarPersonalDeSuite(){
         return {
           nomina: d.id,
           nombre: (c.nombreCompleto || '').trim(),
-          puesto: (c.departamento === undefined ? '' : (c.puesto || '')).trim(),
+          puesto: (c.puesto || '').trim(),
           depto:  (c.departamento || '').trim(),
           rol:    (c.roles || {})[APP_ID] || 'solicitante',
           // La suite usa ACTIVO y BAJA en mayúsculas; el resto de esta app
