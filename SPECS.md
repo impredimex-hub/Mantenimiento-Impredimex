@@ -4,9 +4,17 @@
 
 Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
 
-**Versión:** 4.4
-**Fecha:** 13 de agosto de 2026
+**Versión:** 5.0
+**Fecha:** 5 de septiembre de 2026
 **Metodología:** Spec-Driven Development (SDD)
+
+> **Novedad de la v5.0 — integración con la suite Impredimex.** La identidad y la
+> lista de personal dejan de vivir en esta aplicación y pasan al proyecto
+> compartido `impredimex-suite`, igual que en EPP, Procesos y RRHH. Desaparecen
+> las cuatro contraseñas compartidas que estaban escritas en el código. Lo que sí
+> se queda aquí son los atributos operativos de Mantenimiento —turno y qué tipos
+> de orden atiende cada técnico—, porque son decisiones del área y no de Recursos
+> Humanos. Ver SPEC-042 a SPEC-045.
 
 ---
 
@@ -25,46 +33,64 @@ Cada spec sigue esta estructura:
 
 # SPEC-001 — Autenticación de usuario
 
+**Estado:** implementado — reescrita por completo en la v5.0
+
 ### Actor
-Cualquier persona con acceso a la URL pública de la app.
+Persona con cuenta en la suite y acceso concedido a esta aplicación.
 
 ### Precondiciones
-- La app está cargada en el navegador
-- Firebase Authentication anónima está activa (uid asignado automáticamente)
-- La conexión a Firebase Realtime Database está establecida
+- La persona existe en la colección `colaboradores` del proyecto
+  **impredimex-suite**, con `estatus` en `ACTIVO`
+- Su campo `apps` incluye el valor `manto`
+- Tiene cuenta en Firebase Auth del proyecto suite, con identificador
+  `<noNomina>@impredimex.local`
 
 ### Flujo principal
-1. Sistema muestra pantalla de login con dos campos: `# Nómina` y `Contraseña`
-2. Usuario ingresa su número de nómina (debe existir en `DB.personal`)
-3. Usuario ingresa la contraseña correspondiente a su rol
-4. Usuario presiona "ENTRAR"
-5. Sistema valida que la nómina exista en el catálogo de personal con estatus "activo"
-6. Sistema valida que la contraseña coincida con uno de los 4 roles válidos
-7. Sistema asigna el rol según la contraseña ingresada
-8. Sistema almacena `currentUser` con: nomina, nombre, puesto, depto, role, turno
-9. Sistema invoca `saveFCMToken()` para etiquetar al dispositivo en OneSignal con `nomina`, `role` y `nombre`
-10. Sistema navega a la pantalla principal del rol correspondiente
+1. Sistema muestra la pantalla de acceso con dos campos: número de nómina y clave
+2. Usuario escribe su nómina y su clave
+3. Sistema arma el identificador `<nómina>@impredimex.local` y llama a
+   `signInWithEmailAndPassword` contra Auth del proyecto suite
+4. Sistema lee el documento `colaboradores/<nómina>`
+5. Sistema valida que `estatus` sea `ACTIVO` y que `apps` incluya `manto`
+6. Sistema toma el papel de `roles.manto`
+7. Sistema lee los atributos operativos de esa nómina en su propio proyecto
+   (turno y tipos de orden que atiende), según la SPEC-043
+8. Sistema abre además una sesión anónima en el proyecto de Mantenimiento, para
+   poder leer y escribir su base (SPEC-044)
+9. Sistema etiqueta el dispositivo en OneSignal con `nomina`, `role` y `nombre`
+10. Sistema navega a la pantalla principal del papel correspondiente
 
 ### Postcondiciones
-- `currentUser` contiene los datos del usuario autenticado
-- El dispositivo está etiquetado en OneSignal con los tags actuales
-- Los tags previos (de un usuario anterior en el mismo dispositivo) fueron limpiados
-- La UI muestra la vista correspondiente al rol
+- `currentUser` contiene nómina, nombre, puesto y departamento tomados de la
+  suite, y el papel tomado de `roles.manto`
+- La sesión sobrevive al recargar y al cerrar el navegador
+- El dispositivo está etiquetado en OneSignal, con los tags previos limpiados
 
 ### Reglas de negocio
-- **Contraseñas fijas por rol:**
-  - `solicitud` → rol **solicitante**
-  - `mantenimiento` → rol **técnico**
-  - `administrador` → rol **supervisor**
-  - `IMPREDIMEX` → rol **admin**
-- Un mismo dispositivo puede cambiar de rol haciendo logout y login con distinta contraseña
-- La nómina debe estar registrada en el catálogo de personal y con estatus "activo" para poder ingresar
-- No existe sistema de recuperación de contraseña (son fijas por rol)
+- **Nunca hay contraseñas ni PIN en el código.** Desaparecen las cuatro claves
+  compartidas de la v4 —`solicitud`, `mantenimiento`, `administrador` e
+  `IMPREDIMEX`—, que estaban escritas en un repositorio público y permitían que
+  cualquiera entrara con el papel que quisiera escribiendo la nómina de otro.
+- **El dominio `@impredimex.local` no existe de verdad.** Solo forma un
+  identificador único; Firebase no envía correos ni lo verifica.
+- **Tener cuenta no da acceso.** Lo da estar en `apps`. Una persona con cuenta
+  para EPP no entra aquí salvo que se le agregue `manto`.
+- **Ausencia de papel equivale a `solicitante`**, el más bajo. Nunca se concede
+  privilegio por omisión.
+- **Los cambios de papel surten efecto al siguiente inicio de sesión**, porque
+  el papel se lee una vez al entrar.
+- **Una persona en `BAJA` no entra a ninguna aplicación de la suite.** Darla de
+  baja en RRHH la deja fuera de Mantenimiento, EPP y Procesos a la vez.
+- **No hay autoservicio de recuperación.** Un administrador restablece la clave
+  desde la consola de Firebase.
 
 ### Flujos alternativos
-- **Nómina no existe o está inactiva:** Sistema muestra mensaje "Usuario no encontrado o inactivo"
-- **Contraseña incorrecta:** Sistema muestra mensaje "Contraseña incorrecta"
-- **Sin conexión a internet:** Sistema permite el login pero opera en modo offline con datos cacheados; los cambios se sincronizan al recuperar conexión
+- **Nómina o clave incorrecta:** mensaje genérico, sin distinguir cuál falló
+- **`estatus` es `BAJA`:** se rechaza el acceso y se cierra la sesión
+- **`apps` no incluye `manto`:** se rechaza el acceso y se cierra la sesión
+- **Sin conexión:** no se puede iniciar sesión, porque la identidad se verifica
+  contra la suite. Una sesión ya abierta sigue operando con los datos en caché y
+  sincroniza al recuperar la conexión
 
 ---
 
@@ -364,7 +390,7 @@ Usuario con rol **admin**.
 - Usuario autenticado como admin
 
 ### Flujo principal
-1. Admin accede al hub principal con módulos: Personal, Tipos de servicio, Naves, Máquinas, Infraestructura, Vistas de otros roles
+1. Admin accede al hub principal con módulos: Personal de mantenimiento, Tipos de servicio, Naves, Máquinas, Infraestructura, Vistas de otros roles
 2. Admin selecciona un catálogo
 3. Sistema muestra listado con opción de agregar, editar o eliminar
 4. Admin realiza la operación
@@ -376,9 +402,11 @@ Usuario con rol **admin**.
 - Cambios reflejados inmediatamente en todas las sesiones activas
 
 ### Reglas de negocio
-- **Catálogo de personal:**
-  - Campos: nómina (único), nombre, puesto, depto, role, turno, estatus
-  - Eliminar es soft-delete (cambia estatus a "inactivo")
+- **El personal ya no se administra aquí.** Altas, bajas, nombres, puestos y
+  departamentos vienen de `colaboradores` en la suite y solo RRHH los escribe.
+  El módulo "Personal de mantenimiento" pasa a editar únicamente los atributos
+  operativos de la SPEC-043: turno y qué tipos de orden atiende cada quien.
+  Los papeles se asignan en la suite, en `roles.manto`.
 - **Tipos de servicio:** 3 tipos fijos por ahora (MAQ-PROD, INFRAESTRUCTURA, SEGURIDAD)
 - **Naves:** 4 naves fijas (A1, A2, B16, B17)
 - **Máquinas:** agrupadas por nave; cada nave tiene su catálogo independiente
@@ -1075,19 +1103,32 @@ Tras registrar la salida del técnico que se retira, se evalúa si **queda algui
 `avisarSiNoHayTecnicoLibre()` (SPEC-020) consideraba "en turno" a cualquier persona con asignación en el rol de turnos, incluyendo puestos que en la práctica no toman órdenes de trabajo. Esto podía dar lugar a evaluaciones incorrectas: por ejemplo, si el Jefe de Mantenimiento aparecía en el rol y estaba libre, el sistema asumía que había alguien disponible aunque él no fuera quien realmente atendería la orden.
 
 ### Reglas de elegibilidad aplicadas
-Antes de evaluar quién está libre u ocupado, se filtra la lista de personas en turno:
 
-| Puesto | Regla |
+**Cambio en la v5.0: la elegibilidad deja de deducirse del texto del puesto.**
+Hasta la v4 estas reglas comparaban cadenas como `AUXILIAR DE MANTENIMIENTO`.
+A partir de la integración con la suite, el puesto lo escribe RRHH: si alguien
+allá lo renombra a «Ayudante de Mantenimiento», la regla dejaba de aplicarse sin
+mostrar ningún error, y la orden se enrutaba mal en silencio.
+
+Ahora la elegibilidad es un atributo explícito de cada persona dentro de
+Mantenimiento (`tiposOT`, SPEC-043), configurable desde el propio módulo. El
+comportamiento visible es el mismo; lo que cambia es de dónde sale el dato.
+
+Equivalencia con la configuración que se migra desde la v4:
+
+| Persona | Configuración |
 |---|---|
-| Jefe de Mantenimiento | **Nunca** cuenta como disponible para tomar OT, aunque aparezca en el rol de turnos |
-| Analista de Mantenimiento | **Nunca** cuenta como disponible para tomar OT, aunque aparezca en el rol de turnos |
-| Auxiliar de Mantenimiento | Solo cuenta para OT de **MTTO-INFRAESTRUCTURA** y **MTTO-SEGURIDAD**. Para MTTO-MAQ-PROD no se considera, esté libre u ocupado |
-| Cualquier otro puesto | Sin cambios, se evalúa con normalidad |
+| Jefe de Mantenimiento | `tiposOT: []` — **nunca** cuenta como disponible, aunque aparezca en el rol de turnos |
+| Analista de Mantenimiento | `tiposOT: []` — **nunca** cuenta como disponible |
+| Auxiliar de Mantenimiento | `tiposOT: ['INFRAESTRUCTURA','SEGURIDAD']` — para MAQ-PROD no se considera, esté libre u ocupado |
+| Cualquier otro técnico | `tiposOT` con los tres tipos; se evalúa con normalidad |
 
 ### Efecto práctico
 - Si tras filtrar no queda **nadie elegible** en turno, no se muestra el aviso (no hay con quién comparar)
 - Si el Auxiliar está libre pero la orden es de MAQ-PROD, su disponibilidad **no cuenta** para decidir si hay alguien libre: el aviso se basa únicamente en el resto del personal elegible
-- La comparación de puesto usa `_normNombre()`, tolerante a mayúsculas y acentos
+- Una persona sin `tiposOT` configurado se considera elegible para los tres
+  tipos. Es el caso más común y evita que un técnico nuevo quede invisible por
+  falta de configuración; restringir es un acto deliberado
 
 ### Alcance
 Este filtro aplica únicamente a `avisarSiNoHayTecnicoLibre()`. No afecta la capacidad real de estas personas de tomar órdenes desde su propio panel, ni el módulo de Turnos, ni el ranking de técnicos.
@@ -1246,11 +1287,48 @@ Un botón flotante, arriba del de comedor (SPEC-034), visible únicamente cuando
 
 # SPEC-036 — PIN individual de 4 dígitos por persona
 
+**Estado:** pendiente — replanteada en la v5.0
+
 ### Actor
-Cualquier persona con PIN asignado (inicialmente, los técnicos de mantenimiento); administrador (para asignarlo).
+Cualquier persona que decida activar el PIN en su dispositivo.
 
 ### Motivación
-Los técnicos compartían una sola contraseña ("mantenimiento") para todos. Se requiere que cada uno tenga su propio PIN de 4 dígitos, sin perder su perfil ni el resto de sus credenciales.
+Los técnicos compartían una sola contraseña ("mantenimiento") para todos. La v4
+les dio un PIN propio de 4 dígitos, pero lo hizo mal: los PIN quedaron escritos
+en claro dentro del código de un repositorio público, y dos de ellos eran el
+propio número de nómina de la persona, así que cualquiera podía entrar como
+ellos. Además, cuatro dígitos son diez mil combinaciones sin nada del lado del
+servidor que frene los intentos: no aguantan como única puerta.
+
+La v5.0 conserva la comodidad de los cuatro dígitos sin sostener la seguridad en
+ellos.
+
+### Cómo funciona a partir de la v5.0
+El PIN **no es una credencial de acceso, es un candado local**, igual que la
+huella en EPP. Desbloquea una sesión que ya estaba autenticada; no identifica a
+nadie ante el servidor.
+
+1. La persona entra una vez con su nómina y su clave de la suite (SPEC-001)
+2. Si lo desea, activa un PIN de 4 dígitos en ese dispositivo
+3. A partir de entonces, al volver a la app le basta con sus cuatro dígitos
+4. El PIN se guarda **solo en el dispositivo**; nunca viaja a la base ni existe
+   en el código
+5. Cerrar sesión con el botón Salir borra el PIN de ese dispositivo
+
+### Reglas de negocio
+- **Un dispositivo, una persona.** El PIN no está diseñado para equipos
+  compartidos: si dos técnicos usan la misma tableta, el segundo debe cerrar
+  sesión y entrar con su clave.
+- **El PIN no sustituye a la clave.** Es un atajo sobre una sesión viva. Si la
+  sesión se cierra o expira, se vuelve a entrar con nómina y clave.
+- **Nadie más que el dueño del dispositivo conoce su PIN.** Ni el administrador
+  puede consultarlo ni restablecerlo, porque no está almacenado en ningún lado
+  al que él tenga acceso. Si lo olvida, cierra sesión y vuelve a entrar con su
+  clave.
+- **Los PIN de la v4 dejan de existir.** Los seis que estaban precargados en el
+  código se eliminan; no se migran ni se convierten en claves.
+- El estatus de baja sigue bloqueando el acceso, y lo hace antes: una persona en
+  `BAJA` no puede siquiera iniciar sesión en la suite.
 
 ### Cómo se determina el rol al iniciar sesión
 `doLogin()` ahora busca primero a la persona por su nómina:
@@ -1260,27 +1338,14 @@ Los técnicos compartían una sola contraseña ("mantenimiento") para todos. Se 
 
 Esto permite una transición gradual: se puede asignar el PIN a un técnico a la vez sin afectar a los demás, y a cualquier persona (no solo técnicos) si el administrador decide usarlo en otro rol.
 
-### Asignación del PIN
-Se agregó un campo **"PIN individual (opcional)"** al formulario de alta/edición de personal, en el panel de administrador. Debe ser vacío o de **exactamente 4 dígitos numéricos**; cualquier otro formato se rechaza al guardar. El PIN asignado se muestra en el detalle de la persona.
-
-### Nóminas con PIN asignado por defecto
-Se precargaron los siguientes PIN en el catálogo por defecto (`DEFAULT_PERSONAL`), para nuevas instalaciones:
-
-| Nómina | PIN |
-|---|---|
-| 638 | 6381 |
-| 1049 | 1305 |
-| 1332 | 1332 |
-| 1827 | 2718 |
-| 2047 | 2047 |
-| 2366 | 8415 |
-
-> La nómina **2431** no existe en `DEFAULT_PERSONAL` (se dio de alta directamente en la base en vivo durante la operación), así que su PIN (0901) debe asignarse manualmente desde **Catálogo de personal** en el panel de administrador — igual que para cualquier persona que se dé de alta después de este cambio. Modificar el catálogo por defecto de este archivo no actualiza la base de datos ya desplegada.
-
-### Reglas de negocio
-- El estatus de baja sigue bloqueando el acceso **incluso con el PIN correcto** — la validación de baja ocurre después de resolver el rol, sin excepción
-- El PIN de una persona no funciona con la nómina de otra: se valida la combinación exacta nómina + PIN
-- No hay validación de PIN duplicado entre personas distintas; como el inicio de sesión exige nómina + PIN juntos, un PIN repetido en dos personas no representa un riesgo de acceso cruzado
+### Lo que desaparece de la v4
+- El campo "PIN individual" del formulario de personal, en el panel de
+  administrador. Ya no hay PIN que asignar a nadie: cada quien pone el suyo en
+  su propio dispositivo.
+- Los seis PIN precargados en `DEFAULT_PERSONAL`, y el PIN de la nómina 2431 que
+  se había capturado directo en la base en vivo.
+- La regla de que un PIN sustituye a la contraseña compartida del papel, que ya
+  no tiene sentido porque las contraseñas compartidas desaparecieron.
 
 ---
 
@@ -1404,6 +1469,164 @@ Un técnico que pausó con "=" o por fin de semana ya tenía `fechaSalida` regis
 
 ---
 
+# SPEC-042 — Identidad y personal desde la suite
+
+**Estado:** implementado
+**Nuevo en la v5.0**
+
+### Alcance
+De dónde salen los datos de las personas a partir de esta versión.
+
+### Reglas de negocio
+- **La colección `colaboradores` de `impredimex-suite` es la única lista de
+  personal válida.** Esta aplicación la **lee y nunca la escribe**. Solo RRHH la
+  modifica.
+- **Desaparece el catálogo propio.** Las 119 personas que estaban escritas en el
+  código, y el nodo `personal/` de la base de Mantenimiento, dejan de existir.
+- **De la suite vienen:** nómina, nombre, puesto, departamento y estatus.
+- **De la suite viene también el papel**, en `roles.manto`: `solicitante`,
+  `tecnico`, `supervisor` o `admin`.
+- **Cuidado con el estatus.** La suite usa `ACTIVO` y `BAJA` en mayúsculas; esta
+  aplicación usaba `activo` y `baja` en minúsculas. Hay diez comparaciones
+  exactas en el código que deben ajustarse, o dejarán a todo el personal fuera
+  sin mostrar ningún error.
+- **Los registros históricos guardan copia, no referencia.** Una orden de
+  trabajo conserva la nómina **y** el nombre tal como estaban al crearla, para
+  que el historial no cambie si después se corrige el padrón. Esto ya se cumplía
+  en `solicitante` y `tecnicos`, y se mantiene.
+
+---
+
+# SPEC-043 — Atributos operativos de Mantenimiento
+
+**Estado:** implementado
+**Nuevo en la v5.0**
+
+### Motivación
+Mantenimiento necesita saber cosas de su gente que Recursos Humanos no
+administra: en qué turno está cada quien y qué tipos de orden puede atender.
+Esos datos cambian cada mes y los decide el jefe del área, no RRHH.
+
+Meterlos en `colaboradores` rompería la regla de que solo RRHH escribe ahí.
+Deducirlos del puesto —como hacía la v4— los ata a un texto que RRHH puede
+cambiar en cualquier momento, y cuando eso pasa el enrutamiento falla en
+silencio.
+
+### Modelo
+En el proyecto propio de Mantenimiento, indexado por número de nómina:
+
+```
+operativo/<nomina>/
+  turno:    "1" | "2" | "3" | ""      // rol de turnos, SPEC-016
+  tiposOT:  ["MAQ-PROD", "INFRAESTRUCTURA", "SEGURIDAD"]
+  obs:      "texto libre"
+```
+
+### Actor
+Usuario con papel `admin` o `supervisor`, desde el módulo "Personal de
+mantenimiento".
+
+### Flujo principal
+1. Sistema muestra la lista de personas que tienen `manto` en su campo `apps`,
+   con su nombre y puesto tomados de la suite
+2. Usuario edita turno, tipos de orden y observaciones
+3. Sistema guarda en `operativo/<nomina>` de su propio proyecto
+
+### Reglas de negocio
+- **Aquí no se dan altas ni bajas de personal.** La lista de personas la
+  determina la suite; este módulo solo les cuelga atributos.
+- **Una nómina sin registro en `operativo/` es válida** y se comporta con los
+  valores por defecto: sin turno asignado y elegible para los tres tipos de
+  orden. Restringir es un acto deliberado, no un descuido de configuración.
+- **`tiposOT` sustituye la deducción por puesto** de la SPEC-030. El
+  comportamiento visible no cambia; lo que cambia es que ahora está escrito
+  donde se decide.
+- **Si una persona pierde el acceso a `manto`, su registro operativo se
+  conserva.** Volver a darle acceso no obliga a reconfigurar su turno.
+
+---
+
+# SPEC-044 — Reglas de acceso a los datos
+
+**Estado:** la sesión anónima ya existía desde la v4 y se conserva; **pendiente**
+la configuración de App Check y la publicación de las reglas en la consola
+**Nuevo en la v5.0**
+
+### Alcance
+La base de Mantenimiento está hoy abierta: cualquiera con la dirección del
+proyecto puede leerla y escribirla.
+
+### Reglas de negocio
+- **Las reglas de un proyecto no pueden validar los tokens de otro.** La sesión
+  del usuario vive en el proyecto suite, así que las reglas de Mantenimiento no
+  pueden saber quién es. En vez de duplicar cuentas o pagar Cloud Functions, la
+  aplicación abre además una **sesión anónima** en su propio proyecto, y las
+  reglas exigen esa sesión junto con App Check.
+- Eso cierra el acceso a extraños pero **no distingue entre usuarios**. Riesgo
+  aceptado a conciencia, igual que en EPP: son empleados de confianza, y la
+  trazabilidad no depende de las reglas sino de los datos que la app graba en
+  cada orden.
+- **Si falla la sesión anónima, la aplicación debe avisarlo con claridad**, no
+  quedarse en blanco ni fallar en silencio.
+
+### Orden de puesta en marcha
+No se puede invertir:
+
+1. Publicar esta versión con la sesión anónima y App Check en modo monitoreo
+2. Verificar que las peticiones llegan con testigo válido
+3. Hasta entonces, exigir App Check y publicar las reglas
+
+Aplicar las reglas antes del paso 1 deja sin leer ni escribir a la versión que
+está en producción, que hoy no inicia sesión de ninguna clase.
+
+---
+
+# SPEC-045 — Migración a la suite
+
+**Estado:** en curso — permisos y cuentas ya aplicados; falta publicar la
+aplicación, migrar los turnos y eliminar el nodo `personal/`
+**Nuevo en la v5.0** — se ejecuta una sola vez
+
+### Personas con acceso
+Veinticuatro, de las cuales quince ya tienen cuenta en la suite. Hay que crear
+nueve: 638, 1049, 1332, 1827, 2047, 2339, 2366, 2396 y 2431.
+
+| Papel | Nóminas |
+|---|---|
+| `admin` | 2058 |
+| `supervisor` | 1237, 2432 |
+| `tecnico` | 638, 1049, 1332, 1827, 2047, 2366, 2431 |
+| `solicitante` | 20, 885, 1802, 1853, 2068, 2129, 2159, 2292, 2308, 2339, 2377, 2396, 2398, 2435 |
+
+### Personas que pierden el acceso
+Siete tenían papel elevado en el catálogo de la v4 y no continúan:
+
+- **86, 810 y 2034** siguen en la empresa pero no interactúan con la aplicación:
+  simplemente no reciben `manto` en su campo `apps`.
+- **2182, 2324, 2408 y 2411** ya no trabajan en Impredimex. Se les da de baja en
+  RRHH, con lo que quedan fuera de las cinco aplicaciones a la vez. No hay que
+  hacer nada específico en Mantenimiento.
+
+### Flujo
+1. Agregar `manto` a `apps` y el papel en `roles.manto` de las 24 personas
+2. Crear las nueve cuentas faltantes
+3. Migrar el turno vigente de cada técnico al nodo `operativo/`
+4. Configurar `tiposOT` según la equivalencia de la SPEC-030
+5. Publicar la aplicación
+6. Verificar, y hasta entonces aplicar las reglas (SPEC-044)
+7. Eliminar el nodo `personal/` de la base de Mantenimiento
+
+### Reglas de negocio
+- **El nodo `personal/` se elimina al final, no al principio.** Mientras la
+  versión anterior siga publicada, lo necesita para funcionar.
+- **Los PIN de la v4 no se migran.** Ver SPEC-036.
+- **Antes de publicar hay que corregir el registro 2396 en RRHH**, que hoy tiene
+  la nómina y la fecha de (nombre retirado) con el nombre de (nombre retirado)
+  encima. Si no, esa persona entra a Mantenimiento con el nombre equivocado y
+  cada orden que levante queda sellada así, porque los registros guardan copia.
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -1428,8 +1651,10 @@ manto_db/
 │
 ├── folioSig: 1           (contador de folio, reinicia a 1 si ots está vacío)
 │
-├── personal/             (catálogo de personas)
-│   └── [n]/ {nomina, nombre, puesto, depto, role, turno, estatus}
+├── operativo/            (atributos propios de Mantenimiento, por nómina)
+│   └── <nomina>/ {turno, tiposOT: [...], obs}
+│                          identidad, nombre, puesto, depto y papel NO viven
+│                          aquí: vienen de la suite (SPEC-042)
 │
 ├── tiposServicio/        (3 tipos)
 ├── naves/                (4 naves)
