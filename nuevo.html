@@ -1852,6 +1852,7 @@ function doLogin(){
   suiteAuth.signInWithEmailAndPassword(nomina + DOMINIO, pass)
     .then(function(){ return abrirSesion(suiteAuth.currentUser); })
     .catch(function(err){
+      console.error('Login:', err);
       var pf = document.getElementById('login-pass');
       if(pf){
         pf.style.borderColor='var(--red)';
@@ -1897,10 +1898,17 @@ function abrirSesion(user){
       var pf = document.getElementById('login-pass');
       if(pf) pf.value = '';
 
-      if(role==='admin'){            showPage('page-admin');       initAdmin(); }
-      else if(role==='solicitante'){ showPage('page-solicitante'); initSolicitante(); }
-      else if(role==='tecnico'){     showPage('page-tecnico');     initTecnico(); }
-      else {                         showPage('page-supervisor');  initSupervisor(); }
+      // El acceso ya está resuelto. Lo que sigue es pintar la pantalla, y un
+      // error ahí no debe cerrar la sesión ni reportarse como fallo de login:
+      // se registra en la consola y la persona se queda dentro.
+      try {
+        if(role==='admin'){            showPage('page-admin');       initAdmin(); }
+        else if(role==='solicitante'){ showPage('page-solicitante'); initSolicitante(); }
+        else if(role==='tecnico'){     showPage('page-tecnico');     initTecnico(); }
+        else {                         showPage('page-supervisor');  initSupervisor(); }
+      } catch(e){
+        console.error('Error al dibujar la pantalla de ' + role + ':', e);
+      }
     });
   });
 }
@@ -7266,11 +7274,17 @@ function renderKPIs(){
 }
 
 function renderAdmPerfil(){
+  // El elemento 'adm-perfil-content' no existe en el HTML desde la v4: esta
+  // función lanzaba un error en cada entrada de administrador, que pasaba
+  // desapercibido porque nadie lo atrapaba. Se conserva la función para no
+  // alterar el comportamiento, pero ya no truena.
+  const cont = document.getElementById('adm-perfil-content');
+  if(!cont) return;
   const total   = (DB.personal||[]).length;
   const activos = (DB.personal||[]).filter(p=>p.estatus==='activo').length;
   const bajas   = total - activos;
   const ots     = DB.ots||[];
-  document.getElementById('adm-perfil-content').innerHTML =
+  cont.innerHTML =
     '<div style="padding:20px 16px 12px;text-align:center;border-bottom:1px solid var(--border)">'
       +'<div class="avatar" style="width:56px;height:56px;font-size:18px;margin:0 auto 10px;background:var(--orange-light);color:var(--orange-dark)">'+initials(currentUser.nombre)+'</div>'
       +'<div style="font-size:16px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
