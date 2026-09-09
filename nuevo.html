@@ -6785,8 +6785,7 @@ function verPersona(nomina){
     <div class="field-row"><div class="field-lbl">Puesto</div><div class="field-val">${p.puesto}</div></div>
     <div class="field-row"><div class="field-lbl">Departamento</div><div class="field-val">${p.depto}</div></div>
     <div class="field-row"><div class="field-lbl">Rol en la app</div><div class="field-val">${rolLabel[p.rol]||p.rol}</div></div>
-    <div class="field-row"><div class="field-lbl">Turno</div><div class="field-val">${p.turno?'Turno '+p.turno:'No aplica'}</div></div>
-    <div class="field-row"><div class="field-lbl">Tipos de orden</div><div class="field-val">${(Array.isArray(p.tiposOT)?p.tiposOT:TIPOS_OT).map(function(t){return t.replace('MTTO-','');}).join(', ')||'Ninguno — no toma órdenes'}</div></div>
+    ${p.depto==='MANTENIMIENTO'?`<div class="field-row"><div class="field-lbl">Tipos de orden</div><div class="field-val">${(Array.isArray(p.tiposOT)?p.tiposOT:TIPOS_OT).map(function(t){return t.replace('MTTO-','');}).join(', ')||'Ninguno — no toma órdenes'}</div></div>`:''}
     ${p.obs?`<div class="field-row"><div class="field-lbl">Observaciones</div><div class="field-val" style="font-weight:400;font-size:13px">${p.obs}</div></div>`:''}
     <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
       <button class="btn btn-orange btn-block" onclick="abrirFormPersonal('${p.nomina}')">
@@ -6828,8 +6827,14 @@ function abrirFormPersonal(nomina){
   document.getElementById('frm-depto').value   = p.depto;
   document.getElementById('frm-rol').value     = p.rol;
   document.getElementById('frm-estatus').value = p.estatus;
-  document.getElementById('frm-turno').value   = p.turno || '';
   document.getElementById('frm-obs').value     = p.obs || '';
+
+  // Los tipos de orden solo tienen sentido para el personal de Mantenimiento:
+  // el enrutamiento nunca evalúa a nadie de otro departamento, así que
+  // mostrarlos ahí afirmaba algo que no era cierto.
+  var esDeManto = (p.depto === 'MANTENIMIENTO');
+  var filaOT = document.getElementById('frm-row-ot');
+  if(filaOT) filaOT.style.display = esDeManto ? '' : 'none';
 
   var tipos = Array.isArray(p.tiposOT) ? p.tiposOT : TIPOS_OT;
   document.getElementById('frm-ot-maq').checked = tipos.indexOf('MTTO-MAQ-PROD') !== -1;
@@ -6841,8 +6846,7 @@ function abrirFormPersonal(nomina){
 
 function guardarPersona(){
   if(!personalEditar) return;
-  const turno = document.getElementById('frm-turno').value;
-  const obs   = document.getElementById('frm-obs').value.trim();
+  const obs = document.getElementById('frm-obs').value.trim();
   const tiposOT = ['frm-ot-maq','frm-ot-inf','frm-ot-seg']
     .map(function(id){ var el = document.getElementById(id); return el && el.checked ? el.value : null; })
     .filter(Boolean);
@@ -6851,7 +6855,7 @@ function guardarPersona(){
   // toca la suite: el nombre, el puesto y el departamento son de RRHH.
   if(!Array.isArray(DB.operativo)) DB.operativo = [];
   const idx = DB.operativo.findIndex(function(o){ return o && String(o.nomina) === String(personalEditar); });
-  const reg = { nomina: String(personalEditar), turno: turno, tiposOT: tiposOT, obs: obs };
+  const reg = { nomina: String(personalEditar), tiposOT: tiposOT, obs: obs };
   if(idx >= 0) DB.operativo[idx] = reg; else DB.operativo.push(reg);
 
   armarPersonal();
@@ -7352,7 +7356,7 @@ function renderAdmPerfil(){
           </div>
           <div style="flex:1">
             <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo de personal</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de empleados</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Consulta del personal y configuración operativa</div>
           </div>
           <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
@@ -7639,14 +7643,7 @@ function renderAdmPerfil(){
           <option value="ninguno">Sin acceso a la app</option>
         </select>
       </div>
-      <div class="field-row">
-        <div class="field-lbl">Turno</div>
-        <select class="field-select" id="frm-turno">
-          <option value="">— No aplica —</option>
-          <option value="1">Turno 1</option><option value="2">Turno 2</option><option value="3">Turno 3</option>
-        </select>
-      </div>
-      <div class="field-row">
+      <div class="field-row" id="frm-row-ot">
         <div class="field-lbl">Tipos de orden que atiende</div>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
           <input type="checkbox" id="frm-ot-maq" value="MTTO-MAQ-PROD"> Máquinas de producción

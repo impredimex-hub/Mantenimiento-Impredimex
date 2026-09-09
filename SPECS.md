@@ -1517,10 +1517,16 @@ En el proyecto propio de Mantenimiento, indexado por número de nómina:
 
 ```
 operativo/<nomina>/
-  turno:    "1" | "2" | "3" | ""      // rol de turnos, SPEC-016
-  tiposOT:  ["MAQ-PROD", "INFRAESTRUCTURA", "SEGURIDAD"]
+  tiposOT:  ["MTTO-MAQ-PROD", "MTTO-INFRAESTRUCTURA", "MTTO-SEGURIDAD"]
   obs:      "texto libre"
 ```
+
+**El turno no está aquí.** La ficha de personal tenía un campo `turno` desde
+versiones tempranas, cuando el turno era fijo por persona. Al llegar el rol de
+turnos de la SPEC-016 ese campo dejó de leerse: quien decide si alguien está en
+turno es `asignacionDe(nomina, fecha)`, que consulta el calendario día por día.
+El campo siguió ahí sin que nadie lo usara, invitando a configurarlo. Se retiró
+en la v5.0.
 
 ### Actor
 Usuario con papel `admin` o `supervisor`, desde el módulo "Personal de
@@ -1535,6 +1541,10 @@ mantenimiento".
 ### Reglas de negocio
 - **Aquí no se dan altas ni bajas de personal.** La lista de personas la
   determina la suite; este módulo solo les cuelga atributos.
+- **Los tipos de orden solo se muestran al personal de MANTENIMIENTO.** El
+  enrutamiento nunca evalúa a nadie de otro departamento, porque el rol de
+  turnos solo contempla a esa área. Mostrarlos en la ficha de un solicitante
+  afirmaba algo que no era cierto.
 - **Una nómina sin registro en `operativo/` es válida** y se comporta con los
   valores por defecto: sin turno asignado y elegible para los tres tipos de
   orden. Restringir es un acto deliberado, no un descuido de configuración.
