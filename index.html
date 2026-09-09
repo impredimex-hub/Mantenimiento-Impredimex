@@ -35,11 +35,18 @@
 
   // Tipos de orden que puede atender un técnico (SPEC-043).
   const TIPOS_OT = ['MTTO-MAQ-PROD','MTTO-INFRAESTRUCTURA','MTTO-SEGURIDAD'];
+
+  // ⚠️ PENDIENTE — Clave de sitio de reCAPTCHA v3 para App Check (SPEC-044).
+  // Es pública, va en el código a propósito. Se saca de la consola de Firebase,
+  // proyecto impredimex-mantoapp, en Compilación → App Check.
+  // Mientras esté vacía, App Check no se activa y la base queda como está hoy.
+  const APPCHECK_SITE_KEY = '';
 </script>
 <!-- Firebase SDKs (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <!-- OneSignal SDK -->
@@ -1485,6 +1492,16 @@ function setSyncState(state, msg){
 function initFirebase(){
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
+
+    // SPEC-044: App Check acompaña a la sesión anónima. Ninguna de las dos
+    // distingue entre usuarios; lo que hacen es demostrar que quien pregunta
+    // es esta aplicación y no un extraño con la dirección del proyecto.
+    // Debe activarse antes de la primera lectura de la base.
+    if(APPCHECK_SITE_KEY){
+      try { firebase.appCheck().activate(APPCHECK_SITE_KEY, true); }
+      catch(e){ console.error('App Check no se pudo activar:', e); }
+    }
+
     db = firebase.database();
     setSyncState('syncing', 'Conectando…');
 
