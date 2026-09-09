@@ -1558,8 +1558,37 @@ mantenimiento".
 
 # SPEC-044 — Reglas de acceso a los datos
 
-**Estado:** la sesión anónima ya existía desde la v4 y se conserva; **pendiente**
-la configuración de App Check y la publicación de las reglas en la consola
+**Estado:** reglas publicadas; **App Check aplazado a conciencia**.
+
+El código de la aplicación ya trae el soporte listo —el SDK cargado y la
+constante `APPCHECK_SITE_KEY` esperando—, así que activarlo después es pegar una
+cadena, sin volver a tocar nada. Lo que se aplazó es la configuración en la
+consola.
+
+**Qué queda abierto.** Las reglas exigen una sesión, pero esa sesión es anónima
+y cualquiera puede abrir una. Alguien que tome la configuración de Firebase del
+código, que está en un repositorio público, podría abrir su propia sesión
+anónima y leer o escribir la base desde la consola del navegador. App Check es
+lo que cerraría esa puerta, porque comprueba que la petición viene de esta
+aplicación y no de un script cualquiera.
+
+**Por qué se aceptó.** Contra alguien de fuera el riesgo es bajo: haría falta
+leer el código, entender Firebase y proponérselo. Contra alguien de dentro con
+conocimientos técnicos, la puerta es real y la única barrera es que nadie
+quiera cruzarla.
+
+**Lo que reduce más el riesgo por el mismo esfuerzo** es hacer privados los
+repositorios, porque de ahí sale la configuración que hace posible el ataque.
+Está pendiente como parte de mover el hosting.
+
+**Nota sobre reCAPTCHA.** Google marcó como obsoleto el reCAPTCHA clásico y
+empuja hacia reCAPTCHA Enterprise. Enterprise **sí funciona en el plan Spark**,
+con cuatro niveles de puntuación en vez de once y el umbral recomendado de 0.5
+disponible; no hace falta vincular una cuenta de facturación. La clave se crea
+en la consola de Google Cloud, en Fraud Defense, de tipo Web y sin marcar la
+casilla de verificación. Al registrarla conviene poner el tiempo de vida del
+testigo en **7 días**, el máximo: por omisión se renueva dos veces por hora y
+cada renovación consume una evaluación de la cuota mensual sin costo.
 **Nuevo en la v5.0**
 
 ### Alcance
