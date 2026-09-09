@@ -15,11 +15,32 @@
     messagingSenderId: "294064610592",
     appId:             "1:294064610592:web:6a352dbf44ec6749898b45"
   };
+
+  // ── Proyecto compartido de la suite: login y lista de personal ────────
+  // No es secreto: la configuración de un cliente web de Firebase es pública.
+  // Lo que protege el acceso son las reglas, no ocultar esto.
+  const SUITE_CONFIG = {
+    apiKey:            "AIzaSyBAfEAWPYCdt_7kN1uHqTmPiRHIn6BgOyo",
+    authDomain:        "impredimex-suite.firebaseapp.com",
+    projectId:         "impredimex-suite",
+    storageBucket:     "impredimex-suite.firebasestorage.app",
+    messagingSenderId: "272151508788",
+    appId:             "1:272151508788:web:df68c90faa8cc1996cd761"
+  };
+
+  // Identificador de esta app dentro del campo `apps` de cada colaborador.
+  const APP_ID  = 'manto';
+  // No existe como dominio real: solo arma un identificador único para Auth.
+  const DOMINIO = '@impredimex.local';
+
+  // Tipos de orden que puede atender un técnico (SPEC-043).
+  const TIPOS_OT = ['MTTO-MAQ-PROD','MTTO-INFRAESTRUCTURA','MTTO-SEGURIDAD'];
 </script>
 <!-- Firebase SDKs (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <!-- OneSignal SDK -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -32,12 +53,12 @@
 <title>IMPREDIMEX — Órdenes de Trabajo</title>
 <!-- PWA: manifest e iconos -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1B3A6B">
+<meta name="theme-color" content="#003580">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="MantoApp">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 /* ===== RESET & BASE ===== */
 *{box-sizing:border-box;margin:0;padding:0}
@@ -548,7 +569,7 @@ input[type=range].green{accent-color:var(--green)}
       <label class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3)">Contraseña</label>
       <input class="form-input" id="login-pass" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
-    <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+    <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Entrar</button>
     <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:24px">Impresión y Diseño de México S.A. de C.V.</p>
   </div>
 </div>
@@ -1325,7 +1346,10 @@ var _snap = {};              // ruta -> JSON de lo último sincronizado
 var _renderTimer = null;
 var _migrar = {};
 
-var CATALOGOS_FB  = ['personal','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos','comidas'];
+// `personal` ya no está aquí: la lista de personas viene de la suite y esta
+// app no la escribe. En su lugar se sincroniza `operativo`, que guarda lo que
+// sí decide Mantenimiento de cada quien: turno y tipos de orden (SPEC-043).
+var CATALOGOS_FB  = ['operativo','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos','comidas'];
 var COLECCIONES_FB = ['ots','notifs'];
 
 function _js(v){ try{ return JSON.stringify(v===undefined?null:v); }catch(e){ return ''; } }
@@ -1486,6 +1510,9 @@ function initFirebase(){
           var v = s.val();
           DB[k] = v ? (Array.isArray(v) ? v : Object.values(v)) : [];
           _snap[k] = _js(DB[k]);
+          // El turno y los tipos de orden viven aquí, así que al cambiar hay
+          // que rehacer DB.personal, que los combina con lo que da la suite.
+          if(k === 'operativo') armarPersonal();
           _renderDebounced();
         }, function(err){ console.warn('Listener ' + k + ':', err.message); });
       });
@@ -1503,8 +1530,8 @@ function initFirebase(){
         ref.on('child_removed', function(s){ _quitarHijo(col, s.key); });
       });
 
-      // Primera carga: si no hay personal, sembrar los catálogos por defecto.
-      db.ref('manto_db/personal').once('value', function(s){
+      // Primera carga: si no hay catálogos, sembrar los valores por defecto.
+      db.ref('manto_db/tiposServicio').once('value', function(s){
         if(!s.exists()){
           setSyncState('syncing', 'Inicializando…');
           initPersonal(); initCatalogos();
@@ -1556,6 +1583,9 @@ function saveFCMToken(){
   oneSignalPush(function(OneSignal){
     // Funcion auxiliar para limpiar tags viejos y aplicar los nuevos
     function aplicarTags(){
+      // OneSignal.init tarda, y para cuando resuelve la sesión pudo haberse
+      // cerrado. Sin esta guarda, aplicarTags leía currentUser en null.
+      if(!currentUser) return;
       try {
         // Limpiar tags previos (importante cuando cambia el usuario en el mismo dispositivo)
         OneSignal.User.removeTags(['nomina','role','nombre']);
@@ -1685,7 +1715,12 @@ function buscarNomina(val){
   const preview = document.getElementById('login-nombre-preview');
   const v = val.trim();
   if(!v){ preview.style.display='none'; return; }
-  const cat = (DB && DB.personal) ? DB.personal : CATALOG_PERSONAL;
+  const cat = (DB && DB.personal) ? DB.personal : [];
+  // Antes de iniciar sesión no hay catálogo: la lista de personas se pide a la
+  // suite con la sesión ya abierta. Sin ella no se puede saber de quién es una
+  // nómina, así que la vista previa se queda callada en vez de afirmar que no
+  // existe, que es lo que hacía y era falso.
+  if(!cat.length){ preview.style.display='none'; return; }
   const persona = cat.find(function(p){ return p.nomina.toString()===v; });
   if(persona){
     var statusColor = persona.estatus==='baja'
@@ -1720,78 +1755,162 @@ function toTitleCase(str){
   }).join(' ');
 }
 
-// Contraseñas por rol — la contraseña determina el perfil de acceso
-const PASSWORDS = { /* Retiradas del historial */ };
+// ══════════════════════════════════════════════════════════════════
+// ACCESO POR LA SUITE (SPEC-001, SPEC-042)
+// ══════════════════════════════════════════════════════════════════
+// Desaparecen las cuatro contraseñas compartidas que estaban escritas aquí
+// —solicitud, mantenimiento, administrador e IMPREDIMEX—, que permitían a
+// cualquiera entrar con el papel que quisiera escribiendo la nómina de otro.
+
+var suiteAuth = null, suiteDb = null;
+var _suitePersonas = [];   // lo que dio la suite, sin mezclar
+
+// Dos proyectos a la vez: el de Mantenimiento (por defecto, sus datos) y el
+// de la suite (con nombre, login y personal). Sin el nombre se pisan.
+function initSuite(){
+  if(suiteAuth) return;
+  var app = firebase.apps.filter(function(a){ return a.name === 'suite'; })[0]
+            || firebase.initializeApp(SUITE_CONFIG, 'suite');
+  suiteAuth = app.auth();
+  suiteDb   = app.firestore();
+  // La sesión sobrevive al recargar y al cerrar el navegador.
+  suiteAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(e){
+    console.warn('Persistencia de sesión:', e);
+  });
+}
+
+function mensajeDeErrorSuite(codigo){
+  switch(codigo){
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':        return 'Nómina o clave incorrecta.';
+    case 'auth/invalid-email':         return 'Ese número de nómina no tiene un formato válido.';
+    case 'auth/too-many-requests':     return 'Demasiados intentos fallidos. Espera unos minutos.';
+    case 'auth/network-request-failed':return 'Sin conexión. Revisa tu red e inténtalo otra vez.';
+    default:                           return 'No se pudo iniciar sesión. Inténtalo de nuevo.';
+  }
+}
+
+// Trae de la suite a quienes tienen acceso a esta aplicación.
+// Son unas 24 lecturas por inicio de sesión, no las 121 del padrón completo.
+function cargarPersonalDeSuite(){
+  return suiteDb.collection('colaboradores')
+    .where('apps','array-contains',APP_ID).get()
+    .then(function(snap){
+      _suitePersonas = snap.docs.map(function(d){
+        var c = d.data() || {};
+        return {
+          nomina: d.id,
+          nombre: (c.nombreCompleto || '').trim(),
+          puesto: (c.puesto || '').trim(),
+          depto:  (c.departamento || '').trim(),
+          rol:    (c.roles || {})[APP_ID] || 'solicitante',
+          // La suite usa ACTIVO y BAJA en mayúsculas; el resto de esta app
+          // compara contra 'activo' en minúsculas en once lugares distintos.
+          // La conversión se hace aquí, en un solo punto, para no tener que
+          // tocar esas once comparaciones.
+          estatus: (c.estatus === 'ACTIVO') ? 'activo' : 'baja'
+        };
+      });
+      armarPersonal();
+    });
+}
+
+// DB.personal conserva exactamente la forma de siempre. Lo único que cambia
+// es de dónde salen sus datos: identidad de la suite, turno y tipos de orden
+// del nodo `operativo` de esta app.
+function armarPersonal(){
+  var oper = {};
+  (DB.operativo || []).forEach(function(o){ if(o && o.nomina) oper[String(o.nomina)] = o; });
+  DB.personal = _suitePersonas.map(function(p){
+    var o = oper[p.nomina] || {};
+    return {
+      nomina:  p.nomina,
+      nombre:  p.nombre,
+      puesto:  p.puesto,
+      depto:   p.depto,
+      rol:     p.rol,
+      estatus: p.estatus,
+      turno:   o.turno || '',
+      // Sin configurar, atiende los tres tipos. Restringir es deliberado.
+      tiposOT: Array.isArray(o.tiposOT) ? o.tiposOT : TIPOS_OT.slice(),
+      obs:     o.obs || ''
+    };
+  });
+}
 
 function doLogin(){
   const nomina = document.getElementById('login-nomina').value.trim();
   const pass   = document.getElementById('login-pass').value;
   if(!nomina){ appAlert('Ingresa tu número de nómina'); return; }
-  if(!pass)  { appAlert('Ingresa tu contraseña'); return; }
+  if(!pass)  { appAlert('Ingresa tu clave'); return; }
 
-  // Buscar en catálogo (se necesita ANTES de resolver el rol, para el PIN individual)
-  const cat = (DB && DB.personal) ? DB.personal : CATALOG_PERSONAL;
-  const persona = cat.find(function(p){ return p.nomina.toString()===nomina; });
+  initSuite();
+  var btn = document.getElementById('login-btn');
+  if(btn){ btn.disabled = true; }
 
-  // SPEC-036: PIN individual de 4 dígitos por persona. Si esta nómina tiene
-  // un PIN propio asignado, debe coincidir exactamente con SU pin — la
-  // contraseña compartida del rol ya NO le funciona (evita que el PIN
-  // pierda sentido si la contraseña general sigue abriendo la puerta).
-  // Si no tiene PIN asignado, sigue entrando con la contraseña compartida,
-  // como hasta ahora.
-  var role;
-  if(persona && persona.pin){
-    role = (pass === persona.pin) ? (persona.rol || 'tecnico') : undefined;
-  } else {
-    role = PASSWORDS[pass];
-  }
+  suiteAuth.signInWithEmailAndPassword(nomina + DOMINIO, pass)
+    .then(function(){ return abrirSesion(suiteAuth.currentUser); })
+    .catch(function(err){
+      console.error('Login:', err);
+      var pf = document.getElementById('login-pass');
+      if(pf){
+        pf.style.borderColor='var(--red)';
+        pf.style.animation='shake .35s ease';
+        setTimeout(function(){ pf.style.animation=''; pf.style.borderColor=''; }, 400);
+      }
+      appAlert(err && err.esDeAcceso ? err.message : mensajeDeErrorSuite(err && err.code));
+      try { suiteAuth.signOut(); } catch(e){}
+    })
+    .then(function(){ if(btn) btn.disabled = false; });
+}
 
-  if(!role){
-    // Shake animation on password field
-    var pf = document.getElementById('login-pass');
-    pf.style.borderColor='var(--red)';
-    pf.style.animation='shake .35s ease';
-    setTimeout(function(){ pf.style.animation=''; pf.style.borderColor=''; }, 400);
-    appAlert('Contraseña incorrecta');
-    return;
-  }
+// Tener cuenta no da acceso: lo da el valor 'manto' en `apps`.
+function abrirSesion(user){
+  var nomina = (user.email || '').split('@')[0];
+  return suiteDb.collection('colaboradores').doc(nomina).get().then(function(doc){
+    function rechazar(msg){ var e = new Error(msg); e.esDeAcceso = true; throw e; }
+    if(!doc.exists) rechazar('Tu cuenta no tiene registro de personal. Avisa a Recursos Humanos.');
+    var c = doc.data() || {};
+    if(c.estatus !== 'ACTIVO') rechazar('Esta cuenta está dada de baja. Contacta a Recursos Humanos.');
+    if((c.apps || []).indexOf(APP_ID) === -1) rechazar('Tu cuenta no tiene acceso a Mantenimiento.');
 
-  if(persona && persona.estatus==='baja'){
-    appAlert('Esta nómina está registrada como baja. Contacta a Recursos Humanos.');
-    return;
-  }
+    // Ausencia de papel equivale al más bajo: nunca se concede por omisión.
+    var role = (c.roles || {})[APP_ID] || 'solicitante';
 
-  const nombreReal = persona ? toTitleCase(persona.nombre) : ('Usuario '+nomina);
-  const puestoReal = persona ? persona.puesto : '';
-  const deptoReal  = persona ? persona.depto  : '';
-  const turnoReal  = persona ? persona.turno  : '';
+    return cargarPersonalDeSuite().then(function(){
+      var yo = (DB.personal || []).filter(function(p){ return p.nomina === nomina; })[0] || {};
+      currentUser = {
+        nomina: nomina,
+        nombre: toTitleCase(c.nombreCompleto || nomina),
+        puesto: c.puesto || '',
+        depto:  c.departamento || '',
+        role:   role,
+        turno:  yo.turno || ''
+      };
 
-  currentUser = {nomina:nomina, nombre:nombreReal, puesto:puestoReal, depto:deptoReal, role:role, turno:turnoReal};
+      // SPEC-024: la sesión de la interfaz sobrevive a F5.
+      try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); } catch(e){}
+      var lb = document.getElementById('fb-logout-btn');
+      if(lb) lb.style.display = 'flex';
 
-  // SPEC-024: persistir la sesión para que sobreviva a F5 / recargar la página
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); } catch(e){}
-  var lb = document.getElementById('fb-logout-btn');
-  if(lb) lb.style.display = 'flex';
+      saveFCMToken();
+      var pf = document.getElementById('login-pass');
+      if(pf) pf.value = '';
 
-  // Inicializar OneSignal con el usuario ya autenticado
-  saveFCMToken();
-
-  // Limpiar campos
-  document.getElementById('login-pass').value = '';
-
-  if(role==='admin'){
-    showPage('page-admin');
-    initAdmin();
-  } else if(role==='solicitante'){
-    showPage('page-solicitante');
-    initSolicitante();
-  } else if(role==='tecnico'){
-    showPage('page-tecnico');
-    initTecnico();
-  } else {
-    showPage('page-supervisor');
-    initSupervisor();
-  }
+      // El acceso ya está resuelto. Lo que sigue es pintar la pantalla, y un
+      // error ahí no debe cerrar la sesión ni reportarse como fallo de login:
+      // se registra en la consola y la persona se queda dentro.
+      try {
+        if(role==='admin'){            showPage('page-admin');       initAdmin(); }
+        else if(role==='solicitante'){ showPage('page-solicitante'); initSolicitante(); }
+        else if(role==='tecnico'){     showPage('page-tecnico');     initTecnico(); }
+        else {                         showPage('page-supervisor');  initSupervisor(); }
+      } catch(e){
+        console.error('Error al dibujar la pantalla de ' + role + ':', e);
+      }
+    });
+  });
 }
 
 function logout(){
@@ -1805,6 +1924,9 @@ function logout(){
   } catch(e){}
   // SPEC-024: borrar la sesión persistida y ocultar el botón de apagar
   try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
+  // La sesión de la suite también se cierra: si no, el siguiente en usar el
+  // dispositivo entraría sin escribir su clave.
+  try { if(suiteAuth) suiteAuth.signOut(); } catch(e){}
   var lb = document.getElementById('fb-logout-btn');
   if(lb) lb.style.display = 'none';
   currentUser=null;
@@ -5178,19 +5300,17 @@ function avisarSiNoHayTecnicoLibre(nuevaOT, fecha){
   // Sin rol de turnos cargado para hoy no hay forma de saberlo: no se avisa.
   if(!enTurno.length) return false;
 
-  // SPEC-030: el Jefe y el Analista de Mantenimiento no cuentan como
-  // "disponibles para tomar OT" en esta regla, aunque aparezcan en el rol de
-  // turnos (su presencia ahí es informativa, no significa que tomen órdenes).
-  // El Auxiliar de Mantenimiento solo cuenta para OT de Infraestructura y
-  // Seguridad; para MTTO-MAQ-PROD no se considera disponible.
+  // SPEC-030: no todo el que aparece en el rol de turnos cuenta como
+  // "disponible para tomar OT". El Jefe y el Analista están ahí de forma
+  // informativa, y el Auxiliar solo atiende Infraestructura y Seguridad.
+  //
+  // Hasta la v4 esto se deducía comparando el texto del puesto. A partir de la
+  // integración con la suite el puesto lo escribe RRHH: si allá lo renombraran,
+  // la regla dejaba de aplicarse sin mostrar ningún error. Ahora es un atributo
+  // explícito de cada persona, configurable desde el propio módulo (SPEC-043).
   enTurno = enTurno.filter(function(p){
-    var puesto = _normNombre(p.puesto);
-    if(puesto === _normNombre('JEFE DE MANTENIMIENTO')) return false;
-    if(puesto === _normNombre('ANALISTA DE MANTENIMIENTO')) return false;
-    if(puesto === _normNombre('AUXILIAR DE MANTENIMIENTO')){
-      return nuevaOT.tipo === 'MTTO-INFRAESTRUCTURA' || nuevaOT.tipo === 'MTTO-SEGURIDAD';
-    }
-    return true;
+    var tipos = Array.isArray(p.tiposOT) ? p.tiposOT : TIPOS_OT;
+    return tipos.indexOf(nuevaOT.tipo) !== -1;
   });
   if(!enTurno.length) return false;
 
@@ -6391,7 +6511,11 @@ function activarCatalogo(tipo, id){
 }
 
 // ==================== ADMIN ====================
-const CATALOG_PERSONAL = [ /* Lista retirada del historial por privacidad */ ];
+// La lista de 119 personas que estaba escrita aquí desapareció.
+// El personal viene de `colaboradores` en la suite y solo RRHH lo
+// escribe (SPEC-042). Con ella se fueron los seis PIN que estaban en
+// claro dentro de un repositorio público, dos de los cuales eran el
+// propio número de nómina de la persona.
 
 // Catálogos de Tipo de Servicio y Nave — valores iniciales
 var DEFAULT_TIPOS = [
@@ -6522,10 +6646,9 @@ var DEFAULT_MAQUINAS = [
 
 // Inicializar catálogo de personal en DB para TODOS los roles
 function initPersonal(){
-  if(!DB.personal || DB.personal.length === 0){
-    DB.personal = JSON.parse(JSON.stringify(CATALOG_PERSONAL));
-    saveDB();
-  }
+  // La lista de personas ya no se siembra desde esta aplicación: viene de
+  // `colaboradores` en la suite y solo RRHH la escribe (SPEC-042).
+  if(!DB.operativo) DB.operativo = [];
 }
 function initCatalogos(){
   if(!DB.tiposServicio || !DB.tiposServicio.length){
@@ -6547,6 +6670,20 @@ function initCatalogos(){
 }
 restoreSession(); // SPEC-024: si hay sesión guardada, entra directo sin pasar por login
 initFirebase();
+
+// La lista de personas vive en memoria, así que al recargar la página hay que
+// volver a pedirla a la suite. Y si la sesión de la suite ya no existe, la
+// pantalla restaurada no vale: se cierra todo y se pide la clave otra vez.
+initSuite();
+suiteAuth.onAuthStateChanged(function(user){
+  if(user){
+    if(currentUser) cargarPersonalDeSuite().then(_renderDebounced).catch(function(e){
+      console.warn('No se pudo cargar el personal:', e);
+    });
+  } else if(currentUser){
+    logout();
+  }
+});
     setTimeout(function(){if(typeof Notification!=='undefined'&&Notification.permission==='default'){Notification.requestPermission().then(function(p){if(p==='granted')saveFCMToken();});}else if(typeof Notification!=='undefined'&&Notification.permission==='granted'){saveFCMToken();}},2500);
 
 let admStatusFilter = 'activo';
@@ -6556,10 +6693,7 @@ let personalBajaId = null;
 function initAdmin(){
   document.getElementById('adm-greeting').textContent = currentUser.nombre;
   showScreen('adm-hub');
-  if(!DB.personal){
-    DB.personal = JSON.parse(JSON.stringify(CATALOG_PERSONAL));
-    saveDB();
-  }
+  if(!DB.personal) DB.personal = [];
   // Populate dept filter
   const deptos = [...new Set(DB.personal.map(p=>p.depto))].sort();
   const sel = document.getElementById('adm-filter-dept');
@@ -6651,8 +6785,7 @@ function verPersona(nomina){
     <div class="field-row"><div class="field-lbl">Puesto</div><div class="field-val">${p.puesto}</div></div>
     <div class="field-row"><div class="field-lbl">Departamento</div><div class="field-val">${p.depto}</div></div>
     <div class="field-row"><div class="field-lbl">Rol en la app</div><div class="field-val">${rolLabel[p.rol]||p.rol}</div></div>
-    <div class="field-row"><div class="field-lbl">Turno</div><div class="field-val">${p.turno?'Turno '+p.turno:'No aplica'}</div></div>
-    <div class="field-row"><div class="field-lbl">PIN individual</div><div class="field-val">${p.pin?p.pin:'Sin asignar — usa la contraseña compartida de su rol'}</div></div>
+    ${p.depto==='MANTENIMIENTO'?`<div class="field-row"><div class="field-lbl">Tipos de orden</div><div class="field-val">${(Array.isArray(p.tiposOT)?p.tiposOT:TIPOS_OT).map(function(t){return t.replace('MTTO-','');}).join(', ')||'Ninguno — no toma órdenes'}</div></div>`:''}
     ${p.obs?`<div class="field-row"><div class="field-lbl">Observaciones</div><div class="field-val" style="font-weight:400;font-size:13px">${p.obs}</div></div>`:''}
     <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
       <button class="btn btn-orange btn-block" onclick="abrirFormPersonal('${p.nomina}')">
@@ -6670,99 +6803,82 @@ function verPersona(nomina){
 }
 
 function abrirFormPersonal(nomina){
-  personalEditar = nomina;
-  const titulo = nomina ? 'Modificar datos' : 'Alta de personal';
-  document.getElementById('adm-form-titulo').textContent = titulo;
-  if(nomina){
-    const p = DB.personal.find(x=>x.nomina===nomina);
-    if(!p) return;
-    document.getElementById('frm-nomina').value = p.nomina;
-    document.getElementById('frm-nomina').disabled = true;
-    document.getElementById('frm-nombre').value = p.nombre;
-    document.getElementById('frm-puesto').value = p.puesto;
-    document.getElementById('frm-depto').value = p.depto;
-    document.getElementById('frm-rol').value = p.rol;
-    document.getElementById('frm-turno').value = p.turno||'';
-    document.getElementById('frm-pin').value = p.pin||'';
-    document.getElementById('frm-estatus').value = p.estatus;
-    document.getElementById('frm-obs').value = p.obs||'';
-  } else {
-    document.getElementById('frm-nomina').value = '';
-    document.getElementById('frm-nomina').disabled = false;
-    document.getElementById('frm-nombre').value = '';
-    document.getElementById('frm-puesto').value = '';
-    document.getElementById('frm-depto').value = '';
-    document.getElementById('frm-rol').value = 'solicitante';
-    document.getElementById('frm-turno').value = '';
-    document.getElementById('frm-pin').value = '';
-    document.getElementById('frm-estatus').value = 'activo';
-    document.getElementById('frm-obs').value = '';
+  // Aquí ya no hay altas: la lista de personas la determina la suite. Este
+  // formulario solo cuelga atributos operativos a alguien que ya existe.
+  if(!nomina){
+    appAlert('Las altas de personal se hacen en la aplicación de Recursos Humanos. ' +
+             'El acceso a Mantenimiento se concede desde la suite.');
+    return;
   }
+  personalEditar = nomina;
+  const p = DB.personal.find(x=>x.nomina===nomina);
+  if(!p) return;
+  document.getElementById('adm-form-titulo').textContent = 'Configuración operativa';
+
+  // Lo que administra Recursos Humanos se muestra, pero no se edita.
+  ['frm-nomina','frm-nombre','frm-puesto','frm-depto','frm-rol','frm-estatus'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){ el.disabled = true; el.style.opacity = '.6'; }
+  });
+
+  document.getElementById('frm-nomina').value  = p.nomina;
+  document.getElementById('frm-nombre').value  = p.nombre;
+  document.getElementById('frm-puesto').value  = p.puesto;
+  document.getElementById('frm-depto').value   = p.depto;
+  document.getElementById('frm-rol').value     = p.rol;
+  document.getElementById('frm-estatus').value = p.estatus;
+  document.getElementById('frm-obs').value     = p.obs || '';
+
+  // Los tipos de orden solo tienen sentido para el personal de Mantenimiento:
+  // el enrutamiento nunca evalúa a nadie de otro departamento, así que
+  // mostrarlos ahí afirmaba algo que no era cierto.
+  var esDeManto = (p.depto === 'MANTENIMIENTO');
+  var filaOT = document.getElementById('frm-row-ot');
+  if(filaOT) filaOT.style.display = esDeManto ? '' : 'none';
+
+  var tipos = Array.isArray(p.tiposOT) ? p.tiposOT : TIPOS_OT;
+  document.getElementById('frm-ot-maq').checked = tipos.indexOf('MTTO-MAQ-PROD') !== -1;
+  document.getElementById('frm-ot-inf').checked = tipos.indexOf('MTTO-INFRAESTRUCTURA') !== -1;
+  document.getElementById('frm-ot-seg').checked = tipos.indexOf('MTTO-SEGURIDAD') !== -1;
+
   showScreen('adm-form-persona');
 }
 
 function guardarPersona(){
-  const nomina = document.getElementById('frm-nomina').value.toString().trim();
-  const nombre = document.getElementById('frm-nombre').value.trim().toUpperCase();
-  const puesto = document.getElementById('frm-puesto').value.trim().toUpperCase();
-  const depto  = document.getElementById('frm-depto').value.trim();
-  const rol    = document.getElementById('frm-rol').value;
-  const turno  = document.getElementById('frm-turno').value;
-  const pin    = document.getElementById('frm-pin').value.trim();
-  const estatus= document.getElementById('frm-estatus').value;
-  const obs    = document.getElementById('frm-obs').value.trim();
-  if(!nomina||!nombre||!puesto||!depto){appAlert('Nómina, nombre, puesto y departamento son obligatorios.');return;}
-  // SPEC-036: el PIN, si se captura, debe ser de exactamente 4 dígitos
-  if(pin && !/^\d{4}$/.test(pin)){ appAlert('El PIN debe ser de exactamente 4 dígitos (solo números).'); return; }
-  if(personalEditar){
-    const idx = DB.personal.findIndex(x=>x.nomina===personalEditar);
-    if(idx>=0) DB.personal[idx]={...DB.personal[idx],nombre,puesto,depto,rol,turno,pin,estatus,obs};
-    saveDB();
-    appAlert('✓ Datos actualizados correctamente.');
-    verPersona(personalEditar);
-  } else {
-    if(DB.personal.find(x=>x.nomina===nomina)){appAlert('Ya existe un empleado con esa nómina.');return;}
-    DB.personal.push({nomina,nombre,puesto,depto,rol,turno,pin,estatus,obs});
-    saveDB();
-    document.getElementById('frm-nomina').disabled = false;
-    appAlert('✓ Empleado dado de alta correctamente.');
-    showScreen('adm-personal');
-    renderPersonal();
-  }
+  if(!personalEditar) return;
+  const obs = document.getElementById('frm-obs').value.trim();
+  const tiposOT = ['frm-ot-maq','frm-ot-inf','frm-ot-seg']
+    .map(function(id){ var el = document.getElementById(id); return el && el.checked ? el.value : null; })
+    .filter(Boolean);
+
+  // Se escribe en `operativo`, el nodo propio de Mantenimiento. Nada de esto
+  // toca la suite: el nombre, el puesto y el departamento son de RRHH.
+  if(!Array.isArray(DB.operativo)) DB.operativo = [];
+  const idx = DB.operativo.findIndex(function(o){ return o && String(o.nomina) === String(personalEditar); });
+  const reg = { nomina: String(personalEditar), tiposOT: tiposOT, obs: obs };
+  if(idx >= 0) DB.operativo[idx] = reg; else DB.operativo.push(reg);
+
+  armarPersonal();
+  saveDB();
+  appAlert('✓ Configuración guardada.');
+  verPersona(personalEditar);
 }
 
+// Las bajas y las reactivaciones se hacen en Recursos Humanos, que es quien
+// escribe el padrón. Darla de baja allá deja a la persona fuera de las cinco
+// aplicaciones de la suite a la vez, no solo de esta.
 function abrirBaja(nomina){
-  personalBajaId = nomina;
-  const p = DB.personal.find(x=>x.nomina===nomina);
-  document.getElementById('modal-baja-texto').textContent =
-    '¿Confirmas la baja de ' + p.nombre + ' (Nóm. '+p.nomina+')?';
-  document.getElementById('baja-motivo').value = '';
-  openModal('modal-baja');
+  appAlert('Las bajas se registran en la aplicación de Recursos Humanos. ' +
+           'Al darla de baja ahí, esta persona deja de poder entrar a Mantenimiento ' +
+           'y al resto de las aplicaciones.');
 }
 
 function confirmarBaja(){
-  const motivo = document.getElementById('baja-motivo').value.trim();
-  const p = DB.personal.find(x=>x.nomina===personalBajaId);
-  if(!p) return;
-  p.estatus = 'baja';
-  p.obs = motivo ? ('Baja: ' + motivo + (p.obs?' — '+p.obs:'')) : p.obs;
-  p.fechaBaja = new Date().toISOString();
-  saveDB();
   closeModal('modal-baja');
-  appAlert('✓ Empleado dado de baja: ' + p.nombre);
-  showScreen('adm-personal');
-  renderPersonal();
 }
 
 async function reactivarPersona(nomina){
-  const p = DB.personal.find(x=>x.nomina===nomina);
-  if(!p) return;
-  if(!(await appConfirm('¿Reactivar a ' + p.nombre + '?'))) return;
-  p.estatus = 'activo';
-  p.fechaBaja = null;
-  saveDB();
-  appAlert('✓ Empleado reactivado.');
-  verPersona(nomina);
+  appAlert('Las reactivaciones se hacen en la aplicación de Recursos Humanos.');
 }
 
 function renderEstadisticas(){
@@ -7162,11 +7278,17 @@ function renderKPIs(){
 }
 
 function renderAdmPerfil(){
+  // El elemento 'adm-perfil-content' no existe en el HTML desde la v4: esta
+  // función lanzaba un error en cada entrada de administrador, que pasaba
+  // desapercibido porque nadie lo atrapaba. Se conserva la función para no
+  // alterar el comportamiento, pero ya no truena.
+  const cont = document.getElementById('adm-perfil-content');
+  if(!cont) return;
   const total   = (DB.personal||[]).length;
   const activos = (DB.personal||[]).filter(p=>p.estatus==='activo').length;
   const bajas   = total - activos;
   const ots     = DB.ots||[];
-  document.getElementById('adm-perfil-content').innerHTML =
+  cont.innerHTML =
     '<div style="padding:20px 16px 12px;text-align:center;border-bottom:1px solid var(--border)">'
       +'<div class="avatar" style="width:56px;height:56px;font-size:18px;margin:0 auto 10px;background:var(--orange-light);color:var(--orange-dark)">'+initials(currentUser.nombre)+'</div>'
       +'<div style="font-size:16px;font-weight:600;color:var(--text)">'+currentUser.nombre+'</div>'
@@ -7234,7 +7356,7 @@ function renderAdmPerfil(){
           </div>
           <div style="flex:1">
             <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo de personal</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de empleados</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Consulta del personal y configuración operativa</div>
           </div>
           <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
@@ -7493,6 +7615,11 @@ function renderAdmPerfil(){
     </div>
     <div class="scroll-content">
       <div class="section-head">Datos del empleado</div>
+      <div style="padding:10px 16px;font-size:12px;color:var(--text3);line-height:1.5">
+        El nombre, el puesto, el departamento y el estatus los administra Recursos Humanos
+        y aquí solo se muestran. El papel en la app se asigna en la suite. Desde esta
+        pantalla se configura el turno y qué tipos de orden atiende cada quien.
+      </div>
       <div class="field-row"><div class="field-lbl">Nómina <span style="color:var(--red)">*</span></div><input class="field-input" type="number" id="frm-nomina" placeholder="Ej. 2430" min="1"></div>
       <div class="field-row"><div class="field-lbl">Nombre completo <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-nombre" placeholder="Apellido Paterno Materno Nombre(s)"></div>
       <div class="field-row"><div class="field-lbl">Puesto <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-puesto" placeholder="Ej. Técnico de Mantenimiento"></div>
@@ -7516,17 +7643,21 @@ function renderAdmPerfil(){
           <option value="ninguno">Sin acceso a la app</option>
         </select>
       </div>
-      <div class="field-row">
-        <div class="field-lbl">Turno</div>
-        <select class="field-select" id="frm-turno">
-          <option value="">— No aplica —</option>
-          <option value="1">Turno 1</option><option value="2">Turno 2</option><option value="3">Turno 3</option>
-        </select>
-      </div>
-      <div class="field-row">
-        <div class="field-lbl">PIN individual (opcional)</div>
-        <input class="field-input" id="frm-pin" type="text" inputmode="numeric" maxlength="4" placeholder="4 dígitos, ej. 6381">
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">Si se asigna, esta persona entra con su nómina + este PIN, en vez de la contraseña compartida de su rol.</div>
+      <div class="field-row" id="frm-row-ot">
+        <div class="field-lbl">Tipos de orden que atiende</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
+          <input type="checkbox" id="frm-ot-maq" value="MTTO-MAQ-PROD"> Máquinas de producción
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
+          <input type="checkbox" id="frm-ot-inf" value="MTTO-INFRAESTRUCTURA"> Infraestructura
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
+          <input type="checkbox" id="frm-ot-seg" value="MTTO-SEGURIDAD"> Seguridad
+        </label>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">
+          Sin nada marcado, esta persona no se considera disponible para tomar órdenes,
+          aunque aparezca en el rol de turnos. Es lo que corresponde al Jefe y al Analista.
+        </div>
       </div>
       <div class="field-row">
         <div class="field-lbl">Estatus</div>

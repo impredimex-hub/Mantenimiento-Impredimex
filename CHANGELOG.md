@@ -6,6 +6,68 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.0.0] — 2026-09-08
+
+Integración con la suite Impredimex. Es un cambio mayor: la forma de entrar a la
+aplicación cambia por completo y las contraseñas anteriores dejan de servir.
+
+### Agregado
+- **SPEC-001 reescrita:** acceso con nómina y clave contra Firebase Auth del
+  proyecto `impredimex-suite`. La sesión sobrevive al recargar y al cerrar el
+  navegador, y se cierra con el botón de apagado del encabezado.
+- **SPEC-042:** la identidad, el nombre, el puesto, el departamento y el papel
+  vienen de la colección `colaboradores` de la suite. Esta aplicación los lee y
+  nunca los escribe: solo RRHH los modifica.
+- **SPEC-043:** nodo `operativo`, indexado por nómina, con lo que sí decide
+  Mantenimiento de cada quien. Hoy guarda los tipos de orden que atiende cada
+  técnico y sus observaciones.
+- **SPEC-045:** 24 personas con acceso, repartidas en 1 administrador,
+  2 supervisores, 7 técnicos y 14 solicitantes. Se crearon 9 cuentas nuevas.
+
+### Cambiado
+- **La elegibilidad para tomar órdenes deja de deducirse del texto del puesto.**
+  Hasta ahora se comparaba contra cadenas como `AUXILIAR DE MANTENIMIENTO`. Con
+  el puesto administrado por RRHH, un cambio de nombre allá habría dejado de
+  aplicar la regla sin mostrar ningún error, enrutando órdenes mal en silencio.
+  Ahora es un atributo explícito y configurable (SPEC-030 y SPEC-043).
+- El módulo "Catálogo de personal" pasa a llamarse "Consulta del personal y
+  configuración operativa". Las altas, bajas y correcciones se hacen en RRHH;
+  dar de baja a alguien ahí lo deja fuera de las cinco aplicaciones a la vez.
+- El campo `estatus` llega de la suite en mayúsculas. La conversión a las
+  minúsculas que usa el resto del código se hace en un solo punto, al armar
+  `DB.personal`, para no tener que tocar las once comparaciones repartidas.
+
+### Eliminado
+- **Las cuatro contraseñas compartidas** que estaban escritas en el código de un
+  repositorio público: `solicitud`, `mantenimiento`, `administrador` e
+  `IMPREDIMEX`. Cualquiera podía entrar con el papel que quisiera escribiendo la
+  nómina de otra persona.
+- **La lista de 119 personas escrita en el código**, con sus nombres, puestos y
+  departamentos.
+- **Los seis PIN de 4 dígitos que estaban en claro**, dos de los cuales eran el
+  propio número de nómina de la persona (1332 y 2047).
+- **El campo `turno` de la ficha de personal.** No se leía desde que existe el
+  rol de turnos de la SPEC-016: quien determina si alguien está en turno es el
+  calendario, día por día. Seguía ahí invitando a configurarlo.
+- El nodo `personal` de la Realtime Database.
+
+### Corregido
+- `renderAdmPerfil()` escribía en un elemento `adm-perfil-content` que no existe
+  en el HTML, así que lanzaba un error en cada entrada de administrador desde la
+  v4. Pasaba desapercibido porque nadie lo atrapaba. Ahora no truena, aunque la
+  pantalla de Perfil del administrador **sigue sin dibujarse**: queda pendiente.
+
+### Pendiente
+- **SPEC-036:** el PIN de 4 dígitos como candado local del dispositivo, sobre una
+  sesión ya autenticada. Está especificado pero no implementado; por ahora todos
+  entran con nómina y clave.
+- **SPEC-044:** configurar App Check y publicar las reglas de la base, en ese
+  orden. Hoy la base sigue abierta a quien conozca el proyecto.
+- Reemplazar los iconos por los de la suite, con el engrane.
+- Revisar `HANDOVER.md` y `README.md`, que mencionan las contraseñas eliminadas.
+
+---
+
 ## [1.22.1] — 2026-09-06
 
 ### Corregido

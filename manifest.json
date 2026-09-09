@@ -6,10 +6,13 @@
   "scope": "/Mantenimiento-Impredimex/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1B3A6B",
-  "theme_color": "#1B3A6B",
+  "background_color": "#003580",
+  "theme_color": "#003580",
   "lang": "es-MX",
-  "categories": ["productivity", "business"],
+  "categories": [
+    "productivity",
+    "business"
+  ],
   "icons": [
     {
       "src": "icon-192.png",
