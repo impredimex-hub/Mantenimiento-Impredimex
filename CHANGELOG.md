@@ -6,6 +6,27 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.4.0] — 2026-09-17
+
+### Agregado
+
+- **Se entra con la sesión de la suite** (SPEC-049). Al llegar desde el portal o
+  desde otra aplicación, ya no se vuelve a pedir la clave, como en Recursos
+  Humanos y EPP.
+
+### Notas
+
+Esto solo es posible desde que la aplicación vive en el mismo dominio que el
+resto de la suite: la sesión de Firebase se comparte entre páginas del mismo
+origen, y mientras el repositorio estuvo en la cuenta personal no había sesión
+que adoptar.
+
+Las comprobaciones de acceso no cambian. Quien no tenga registro activo o no
+tenga concedida esta aplicación ve el motivo y se queda en la pantalla de
+acceso, sin que se cierre su sesión en las demás aplicaciones.
+
+---
+
 ## [2.3.0] — 2026-09-17
 
 ### Cambiado

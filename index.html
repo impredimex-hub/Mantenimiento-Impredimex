@@ -6802,11 +6802,44 @@ initFirebase();
 // volver a pedirla a la suite. Y si la sesión de la suite ya no existe, la
 // pantalla restaurada no vale: se cierra todo y se pide la clave otra vez.
 initSuite();
+// Evita que dos disparos seguidos de onAuthStateChanged abran la sesión dos
+// veces: `abrirSesion` es asíncrona y el segundo llegaría antes de que el
+// primero haya puesto `currentUser`.
+var _entrandoConSesionDeSuite = false;
+
 suiteAuth.onAuthStateChanged(function(user){
   if(user){
-    if(currentUser) cargarPersonalDeSuite().then(_renderDebounced).catch(function(e){
-      console.warn('No se pudo cargar el personal:', e);
-    });
+    if(currentUser){
+      cargarPersonalDeSuite().then(_renderDebounced).catch(function(e){
+        console.warn('No se pudo cargar el personal:', e);
+      });
+      return;
+    }
+
+    // Ya hay sesión de la suite pero esta app todavía no la ha adoptado:
+    // pasa al llegar desde el portal o desde otra aplicación. Se entra sin
+    // volver a pedir la clave, como hacen EPP y Recursos Humanos.
+    //
+    // Esto solo es posible desde que la aplicación vive en el mismo dominio
+    // que el resto de la suite; mientras estuvo en otra cuenta, la sesión no
+    // se compartía y no había nada que adoptar.
+    if(_entrandoConSesionDeSuite) return;
+    _entrandoConSesionDeSuite = true;
+
+    abrirSesion(user).catch(function(err){
+      // Los rechazos legítimos —sin registro, dado de baja, sin acceso a esta
+      // app— dejan la pantalla de acceso a la vista con su motivo, en lugar de
+      // entrar a medias. No se cierra la sesión de la suite: las demás
+      // aplicaciones siguen siendo válidas para esa persona.
+      if(err && err.esDeAcceso){
+        // Se usa el mismo aviso que el acceso manual, que es el que existe en
+        // esta pantalla.
+        appAlert(err.message);
+      } else {
+        console.warn('No se pudo entrar con la sesión de la suite:', err);
+      }
+    }).finally(function(){ _entrandoConSesionDeSuite = false; });
+
   } else if(currentUser){
     logout();
   }
