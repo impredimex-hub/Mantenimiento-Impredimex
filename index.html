@@ -1774,6 +1774,25 @@ function showFCMToast(title,body){
   document.body.appendChild(el);
   setTimeout(function(){el.style.opacity='0';el.style.transition='opacity .5s';setTimeout(function(){el.remove();},500);},4000);
 }
+/**
+ * Dirección donde vive la aplicación, deducida en tiempo de ejecución.
+ *
+ * Estaba escrita a mano apuntando a la cuenta personal, así que mover el
+ * repositorio a la organización obligaba a editar código. Deducirla de
+ * `location` hace que funcione en cualquier cuenta o dominio sin cambios, y
+ * evita que un traslado futuro deje los avisos abriendo una página que ya no
+ * existe.
+ */
+function urlDeLaApp(){
+  // `pathname` en GitHub Pages es /<repositorio>/…; se conserva solo la
+  // primera carpeta, que es la raíz del sitio.
+  var base = location.pathname.split('/').filter(Boolean)[0];
+  // Un segmento con punto es un archivo, no una carpeta: pasa si algún día la
+  // app vive en la raíz de un dominio propio y se abre como /index.html.
+  if(base && base.indexOf('.') >= 0) base = '';
+  return location.origin + (base ? '/' + base + '/' : '/');
+}
+
 function notifyPush(toNominas,title,body,tag){
   if(!Array.isArray(toNominas)) toNominas=[toNominas];
   // In-app toast para el usuario actual si es destinatario
@@ -1787,7 +1806,7 @@ function notifyPush(toNominas,title,body,tag){
       nominas: toNominas.map(function(n){return String(n);}),
       title: title,
       message: body,
-      url: 'https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/'
+      url: urlDeLaApp()
     })
   }).then(function(r){ return r.json(); })
     .then(function(d){ console.log('Push enviado:', d); })
@@ -2105,7 +2124,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 // ── SPEC-028: reemplazo de los diálogos nativos (alert/confirm/prompt) ────
 // Los diálogos nativos del navegador muestran un prefijo con el dominio del
-// sitio ("victormorenogarcia05-ux.github.io dice"), que el navegador agrega
+// sitio ("impredimex-hub.github.io dice"), que el navegador agrega
 // por seguridad y que ninguna app puede quitar. La única forma de eliminarlo
 // es dejar de usar esas funciones y mostrar ventanas propias en su lugar.
 function _appDialogShow(opts){

@@ -6,6 +6,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.3.0] — 2026-09-17
+
+### Cambiado
+
+- **La dirección de la aplicación ya no está escrita a mano** (SPEC-048). Se
+  deduce de dónde está corriendo, así que el traslado del repositorio a la
+  organización no deja los avisos push abriendo una página inexistente, y un
+  cambio futuro de cuenta o de dominio no vuelve a exigir tocar código.
+
+### Notas
+
+El nombre del repositorio no cambia, así que la ruta `/Mantenimiento-Impredimex/`
+sigue siendo válida. `manifest.json` y el trabajador de servicio de OneSignal no
+se tocaron.
+
+---
+
 ## [2.2.0] — 2026-09-17
 
 ### Quitado

@@ -1828,3 +1828,33 @@ guardados se archivan.
 siguiente guardado `flushDB` lo **borraría de la base**, no solo de la pantalla.
 Sería una pérdida de datos silenciosa. El archivado explícito evita esa trampa;
 usar `limitToLast` exigiría antes rehacer la lógica de borrado de `flushDB`.
+
+---
+
+## SPEC-048 — La dirección del sitio se deduce, no se escribe
+
+**Problema.** La dirección de la aplicación estaba escrita a mano apuntando a
+la cuenta personal desde la que se publicaba. Al trasladar el repositorio a la
+organización, los avisos push habrían seguido abriendo una página que ya no
+existe, y nadie se habría enterado hasta que alguien tocara una notificación.
+
+**Decisión.** `urlDeLaApp()` la deduce de `location` en tiempo de ejecución.
+Funciona en cualquier cuenta o dominio sin tocar código, y un traslado futuro ya
+no exige recordarlo.
+
+- **Se conserva solo la primera carpeta de la ruta**, que en GitHub Pages es el
+  nombre del repositorio.
+- **Un segmento con punto se trata como archivo, no como carpeta**, por si algún
+  día la app vive en la raíz de un dominio propio y se abre como `/index.html`.
+
+**Lo que no cambió y por qué.** El nombre del repositorio sigue siendo
+`Mantenimiento-Impredimex`, así que la ruta `/Mantenimiento-Impredimex/`
+continúa siendo válida después del traslado. Eso deja intactos `manifest.json`
+—su `start_url` y su `scope`— y el registro del trabajador de servicio de
+OneSignal. Solo cambia el dominio, no la ruta.
+
+**Dependencia personal que sigue abierta.** El envío de push pasa por un
+trabajador de Cloudflare en la cuenta personal
+(`mantoapp-push.victormorenogarcia05.workers.dev`). No estorba para el traslado
+del repositorio, pero es el último punto de la aplicación que no vive en la
+organización.
