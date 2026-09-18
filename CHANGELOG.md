@@ -6,6 +6,59 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.2.0] — 2026-09-17
+
+### Quitado
+
+- **Los diez avisos internos dirigidos al supervisor** (SPEC-047). Nunca hubo
+  pantalla donde verlos: se escribían en la base, se descargaban a cada teléfono
+  en cada reconexión y nadie los leía. El supervisor sigue enterándose por el
+  push de OneSignal, que no toca esta base.
+- La llamada al indicador `sup-notif-dot`, que apuntaba a un elemento que no
+  existe en la pantalla.
+
+### Agregado
+
+- **Archivado automático de notificaciones.** Las del supervisor se archivan
+  todas; las del solicitante y el técnico, pasados 15 días. Se mueven a
+  `manto_db_archivo/notifs` por tandas de 200.
+
+### Notas
+
+Este era el consumo más grande de la aplicación: el perfilador de Firebase lo
+midió en 74% de toda la descarga, 291 KB por cada conexión.
+
+El gasto no lo provocaba crear avisos —esos viajan de uno en uno— sino
+conectarse: un dispositivo que se engancha recibe todos los que existan.
+
+---
+
+## [2.1.0] — 2026-09-17
+
+### Corregido
+
+- **Los tiempos de comedor consumían ancho de banda al cuadrado** (SPEC-046).
+  Estaban clasificados como catálogo, así que cada comida marcada reescribía el
+  arreglo completo y todos los dispositivos conectados lo volvían a descargar
+  entero. Ahora viajan elemento por elemento, como las órdenes de trabajo: al
+  marcar una comida solo se transmite ese registro.
+
+### Agregado
+
+- **Archivado automático de comidas de más de 30 días.** No se borran: se mueven
+  a `manto_db_archivo/comidas`, donde siguen consultables pero dejan de
+  sincronizarse con los dispositivos. Lo ejecuta un administrador al entrar.
+
+### Notas
+
+Los datos guardados con el formato anterior se migran solos la primera vez que
+un administrador abra la aplicación. No hay que hacer nada a mano.
+
+Ante una fecha ilegible el registro se conserva: perder un dato pesa más que
+sincronizar uno de más.
+
+---
+
 ## [2.0.0] — 2026-09-08
 
 Integración con la suite Impredimex. Es un cambio mayor: la forma de entrar a la

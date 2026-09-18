@@ -1356,8 +1356,29 @@ var _migrar = {};
 // `personal` ya no está aquí: la lista de personas viene de la suite y esta
 // app no la escribe. En su lugar se sincroniza `operativo`, que guarda lo que
 // sí decide Mantenimiento de cada quien: turno y tipos de orden (SPEC-043).
-var CATALOGOS_FB  = ['operativo','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos','comidas'];
-var COLECCIONES_FB = ['ots','notifs'];
+// Los catálogos se escriben y se leen completos, así que aquí solo va lo que
+// cambia rara vez y no crece: personal, máquinas, naves, turnos.
+var CATALOGOS_FB  = ['operativo','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos'];
+
+// Estas viajan elemento por elemento: al cambiar una, solo se transmite ese
+// registro, no la colección entera.
+//
+// `comidas` estaba en los catálogos y no debía: es una bitácora que crece
+// para siempre. Cada vez que un técnico marcaba su comida se reescribía el
+// arreglo completo y los dispositivos conectados lo volvían a descargar
+// entero, así que el costo de marcar una comida era el peso acumulado de
+// todas las anteriores multiplicado por cada aparato encendido.
+var COLECCIONES_FB = ['ots','notifs','comidas'];
+
+// Días que los registros de comedor permanecen en la colección viva. Solo se
+// consultan los del turno en curso —si alguien está en su comida ahora y si ya
+// la tomó en este bloque—, así que lo anterior es peso muerto que se
+// sincroniza en cada reconexión. No se borra: se mueve al archivo histórico.
+var DIAS_COMIDAS_VIVAS = 30;
+
+// Días que un aviso permanece en la colección viva. Los del supervisor se
+// archivan siempre, sin esperar este plazo: no hay pantalla donde verlos.
+var DIAS_NOTIFS_VIVAS = 15;
 
 function _js(v){ try{ return JSON.stringify(v===undefined?null:v); }catch(e){ return ''; } }
 
@@ -1457,6 +1478,109 @@ function _quitarHijo(col, key){
 
 // Migración única: datos guardados como arreglo (claves 0,1,2…) pasan a
 // estar indexados por id, que es lo que permite escribir y recibir por elemento.
+/**
+ * Saca del sincronizado los registros de comedor que ya no se consultan.
+ *
+ * La app solo pregunta dos cosas: si alguien está en su comida ahora mismo y
+ * si ya la tomó dentro del bloque de turno vigente. Nada mira más atrás. Todo
+ * lo anterior se sigue descargando en cada reconexión sin que nadie lo use.
+ *
+ * No se borra: se mueve a `manto_db_archivo/comidas`, donde queda consultable
+ * desde la consola de Firebase pero deja de viajar a los dispositivos. El
+ * movimiento es una sola escritura atómica, así que no puede quedar un
+ * registro borrado del vivo y ausente del archivo.
+ *
+ * Solo lo corre un administrador. Es idempotente y no haría daño si lo
+ * ejecutaran varios a la vez, pero con ocho aparatos conectados sería repetir
+ * ocho veces el mismo trabajo.
+ */
+function archivarComidasViejas(){
+  if(!(db && _fbConnected)) return;
+  if(!currentUser || currentUser.role !== 'admin') return;
+
+  var corte = Date.now() - DIAS_COMIDAS_VIVAS * 24 * 60 * 60 * 1000;
+  var viejas = (DB.comidas || []).filter(function(c){
+    if(!c || !c.id) return false;
+    // Se mide por el fin de la comida: mientras la ventana siga abierta el
+    // registro está en uso, aunque haya empezado antes del corte.
+    var t = Date.parse(c.fin || c.inicio || '');
+    return t && t < corte;
+  });
+  if(!viejas.length) return;
+
+  var upd = {};
+  viejas.forEach(function(c){
+    upd['manto_db_archivo/comidas/' + c.id] = c;
+    upd['manto_db/comidas/' + c.id] = null;
+  });
+
+  db.ref().update(upd).then(function(){
+    // Se limpia la copia local para que flushDB no intente reescribirlas.
+    viejas.forEach(function(c){ delete _snap['comidas/' + c.id]; });
+    console.log('Comidas archivadas: ' + viejas.length);
+  }).catch(function(e){
+    console.warn('No se pudieron archivar las comidas viejas:', e.message);
+  });
+}
+
+/**
+ * Saca del sincronizado las notificaciones que ya no le sirven a nadie.
+ *
+ * Son el gasto más grande de la aplicación: al conectarse, un dispositivo
+ * recibe TODAS las que existan, una por una, porque acaba de llegar y no tiene
+ * ninguna. El costo no lo provoca crear un aviso —eso viaja solo—, sino
+ * conectarse, y en planta cada teléfono se reconecta decenas de veces al día.
+ *
+ * Se archivan dos grupos:
+ *
+ * 1. Todas las dirigidas al supervisor, sin importar su edad. Nunca hubo
+ *    pantalla donde verlas: se escribían, se descargaban a cada aparato en
+ *    cada reconexión y nadie las leía jamás. El supervisor se entera por el
+ *    push de OneSignal, que no toca esta base. Ya no se generan.
+ * 2. Las del solicitante y el técnico con más de `DIAS_NOTIFS_VIVAS` días.
+ *    Esas sí se ven y se marcan como leídas, pero pasado ese plazo el aviso ya
+ *    cumplió y el dato vive igual en la orden de trabajo.
+ *
+ * No se borran: se mueven a `manto_db_archivo/notifs`.
+ *
+ * Se manda por tandas porque lo acumulado puede ser de miles de registros y
+ * una sola escritura con todos sería enorme. Cada tanda es atómica, así que un
+ * corte a media limpieza deja tandas completas, nunca un registro a medias.
+ */
+function archivarNotificacionesViejas(){
+  if(!(db && _fbConnected)) return;
+  if(!currentUser || currentUser.role !== 'admin') return;
+
+  var corte = Date.now() - DIAS_NOTIFS_VIVAS * 24 * 60 * 60 * 1000;
+  var sobran = (DB.notifs || []).filter(function(n){
+    if(!n || !n.id) return false;
+    if(n.para === 'supervisor') return true;
+    var t = Date.parse(n.fecha || '');
+    // Sin fecha legible se conserva: perder un dato pesa más que
+    // sincronizar uno de más.
+    return !!(t && t < corte);
+  });
+  if(!sobran.length) return;
+
+  var TANDA = 200, tandas = [];
+  for(var i = 0; i < sobran.length; i += TANDA) tandas.push(sobran.slice(i, i + TANDA));
+
+  (function siguiente(k){
+    if(k >= tandas.length){ console.log('Notificaciones archivadas: ' + sobran.length); return; }
+    var upd = {};
+    tandas[k].forEach(function(n){
+      upd['manto_db_archivo/notifs/' + n.id] = n;
+      upd['manto_db/notifs/' + n.id] = null;
+    });
+    db.ref().update(upd).then(function(){
+      tandas[k].forEach(function(n){ delete _snap['notifs/' + n.id]; });
+      siguiente(k + 1);
+    }).catch(function(e){
+      console.warn('No se pudieron archivar las notificaciones:', e.message);
+    });
+  })(0);
+}
+
 function _migrarColeccion(col){
   var obj = {};
   (DB[col]||[]).forEach(function(it){ if(it && it.id) obj[it.id] = it; });
@@ -1557,8 +1681,13 @@ function initFirebase(){
         }
         // Migración de datos guardados con índice numérico
         setTimeout(function(){
-          if(_migrar.ots){    _migrarColeccion('ots');    _migrar.ots = false; }
-          if(_migrar.notifs){ _migrarColeccion('notifs'); _migrar.notifs = false; }
+          if(_migrar.ots){     _migrarColeccion('ots');     _migrar.ots = false; }
+          if(_migrar.notifs){  _migrarColeccion('notifs');  _migrar.notifs = false; }
+          // Las comidas guardadas como catálogo llegan con llave numérica
+          // (0, 1, 2…); se reescriben indexadas por su id, igual que las OT.
+          if(_migrar.comidas){ _migrarColeccion('comidas'); _migrar.comidas = false; }
+          archivarComidasViejas();
+          archivarNotificacionesViejas();
         }, 2500);
       }, function(err){
         setSyncState('offline', 'Error: ' + err.message);
@@ -1912,6 +2041,15 @@ function abrirSesion(user){
       if(lb) lb.style.display = 'flex';
 
       saveFCMToken();
+
+      // También se intenta al entrar, no solo al arrancar la app: sin sesión
+      // guardada, los listeners de Firebase se levantan antes del login y en
+      // ese momento no se sabe todavía quién entró ni con qué papel, así que
+      // el archivado se habría saltado esa sesión entera. Es idempotente, de
+      // modo que llamarlo dos veces no hace daño.
+      try { archivarComidasViejas(); } catch(e){ console.warn(e); }
+      try { archivarNotificacionesViejas(); } catch(e){ console.warn(e); }
+
       var pf = document.getElementById('login-pass');
       if(pf) pf.value = '';
 
@@ -2294,19 +2432,10 @@ function crearOT(){
     espera:     null
   };
   DB.ots.push(ot);
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({
-    id:     'n'+Date.now(),
-    para:   'supervisor',
-    texto:  'Nueva OT '+ot.folio+': '+ot.desc.substring(0,60)+' — '+ot.equipo,
-    fecha:  new Date().toISOString(),
-    leida:  false
-  });
   saveDB();
   document.getElementById('nueva-desc').value = '';
   showScreen('sol-lista');
   renderSolOTs('todas');
-  updateNotifDot('sup-notif-dot','supervisor');
   var _esUrg=esPrioridadUrgente(ot);
   notifyPush(getNominasByTipoServicio(ot.tipo),(_esUrg?'URGENTE':'Nueva OT')+' #'+ot.folio,ot.desc.substring(0,60)+' - '+(ot.equipo||'')+' NAVE '+ot.nave,'nueva-'+ot.folio); // SPEC-011
   // SPEC-020: si todos los técnicos en turno están ocupados, avisar al solicitante
@@ -2344,10 +2473,6 @@ function confirmarPrimerContacto(id){
   ot.contactosPorTecnico[tecPendiente.nomina] = ahora;
 
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' — '+tecPendiente.nombre+' confirmado en máquina.',
-    fecha:ahora, leida:false});
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(), para:'tecnico',
     texto:'OT '+ot.folio+' — el solicitante confirmó tu presencia. Ya puedes registrar actividades.',
     fecha:ahora, leida:false});
@@ -2369,12 +2494,6 @@ function cerrarOT(id){
   DB.notifs.push({
     id:'n'+Date.now(), para:'tecnico',
     texto:'OT '+ot.folio+' fue cerrada y validada por el solicitante.',
-    fecha:new Date().toISOString(), leida:false
-  });
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({
-    id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' cerrada y validada por '+currentUser.nombre+'.',
     fecha:new Date().toISOString(), leida:false
   });
   saveDB();
@@ -2416,12 +2535,6 @@ function confirmarRechazo(){
   DB.notifs.push({
     id:'n'+Date.now(), para:'tecnico',
     texto:'El solicitante rechazó el cierre de '+ot.folio+': '+motivoCompleto,
-    fecha:new Date().toISOString(), leida:false
-  });
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({
-    id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' rechazada por '+currentUser.nombre+': '+motivoCompleto,
     fecha:new Date().toISOString(), leida:false
   });
   // SPEC-011: push del rechazo enrutado por tipo de servicio
@@ -2820,10 +2933,6 @@ function tomarOTConTipo(id){
   // Save tipo de problema permanently
   ot.tipoProblema = tipo;
 
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' tomada por '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') — Tipo: '+tipo,
-    fecha:new Date().toISOString(), leida:false});
   saveDB();
   currentOTId = id;
   appAlert('✓ OT '+ot.folio+' tomada. Tipo de problema registrado: '+tipo);
@@ -3253,12 +3362,6 @@ async function confirmarPausarYTomar(idDestino){
     texto: quedanActivos
       ? currentUser.nombre+' se retiró de la OT para atender la '+destino.folio+'. Otro técnico continúa.'
       : 'Orden pausada — el técnico pasó a atender la OT '+destino.folio+'.'});
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto: quedanActivos
-      ? 'OT '+actual.folio+': '+currentUser.nombre+' se retiró para atender la OT '+destino.folio+'. Otro técnico continúa la orden.'
-      : 'OT '+actual.folio+' pausada por '+currentUser.nombre+' para atender la OT '+destino.folio+'.',
-    fecha:ahora, leida:false});
   // Al solicitante solo se le avisa si la orden realmente quedó sin atender
   if(!quedanActivos && actual.nomina){
     notifyPush([actual.nomina], 'OT en pausa',
@@ -3329,10 +3432,6 @@ function tomarOT(id, desdePausa){
   ot.status  = 'proceso';
   if(!ot.fechaTomada) ot.fechaTomada = new Date().toISOString();
 
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' — '+currentUser.nombre+' (Nóm. '+currentUser.nomina+', '+turnoActual()+') se unió a la atención.',
-    fecha:new Date().toISOString(), leida:false});
   var _solNom = ot.nomina;
   if(_solNom) notifyPush([_solNom],'Tecnico asignado',currentUser.nombre+' tomo tu OT '+ot.folio,'tomada-'+ot.folio);
   saveDB();
@@ -3591,8 +3690,6 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
       +(esErrorOp ? ' El técnico indicó que fue un ERROR OPERATIVO: '+descErrorOp : '');
     if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:msgSol,fecha:new Date().toISOString(),leida:false});
-    if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' concluida por '+currentUser.nombre+(esErrorOp?' — Error operativo: '+descErrorOp:'')+'. Pendiente validación.',fecha:new Date().toISOString(),leida:false});
   var _solNom2 = ot.nomina;
   if(_solNom2) notifyPush([_solNom2],'OT concluida','Tu OT '+ot.folio+' esta lista para validar','concluida-'+ot.folio);
   }
@@ -3696,10 +3793,6 @@ async function pausarFinSemana(){
   if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
   ot.comentarios.push({autor:currentUser.nombre, fecha:ahora.toISOString(),
     texto:currentUser.nombre+' pausó la OT hasta el lunes por fin de semana.'});
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(), para:'supervisor',
-    texto:'OT '+ot.folio+' pausada por '+currentUser.nombre+' hasta el lunes (fin de semana).',
-    fecha:ahora.toISOString(), leida:false});
 
   saveDB();
   actualizarFabFinSemana();
@@ -3731,8 +3824,6 @@ function ponerEnEspera(){
   ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:'OT en espera: '+motivo+' — '+comentario+'. Fecha est. '+fmtDate(fechaEst)});
   if(!Array.isArray(DB.notifs)) DB.notifs = [];
   DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' está en espera: '+motivo+'. '+comentario+'. Fecha estimada: '+fmtDate(fechaEst),fecha:new Date().toISOString(),leida:false});
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(),para:'supervisor',texto:'OT '+ot.folio+' puesta en espera por '+currentUser.nombre+': '+motivo+'.',fecha:new Date().toISOString(),leida:false});
   var _solNom3 = ot.nomina;
   if(_solNom3) notifyPush([_solNom3],'OT suspendida','Tu OT '+ot.folio+' esta en espera: '+motivo,'espera-'+ot.folio);
   saveDB();
