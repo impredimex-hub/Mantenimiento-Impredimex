@@ -1744,3 +1744,87 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 *Documento actualizado el 13 de agosto de 2026 — versión 2.7 (agrega SPEC-022).*
 *A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
+
+---
+
+## SPEC-046 — Los tiempos de comedor dejan de ser catálogo
+
+**Problema.** `comidas` estaba en `CATALOGOS_FB`, el grupo que se escribe y se
+lee completo. Pero no es un catálogo: es una bitácora que crece con cada comida
+marcada y nunca se limpia. Cada registro nuevo reescribía el arreglo entero y
+todos los dispositivos conectados lo volvían a descargar completo, de modo que
+el costo de marcar una comida era el peso acumulado de todas las anteriores
+multiplicado por cada aparato encendido. Crecía al cuadrado.
+
+**Decisión.** `comidas` pasa a `COLECCIONES_FB` y viaja elemento por elemento,
+igual que las órdenes de trabajo y las notificaciones. Al marcar una comida solo
+se transmite ese registro.
+
+- **Los datos guardados con el formato viejo se migran solos.** Llegan con llave
+  numérica (0, 1, 2…), lo que activa la misma bandera que ya usaban las OT, y se
+  reescriben indexados por su `id`. No hace falta tocar nada a mano.
+- **Los registros de más de 30 días se archivan**, no se borran: se mueven a
+  `manto_db_archivo/comidas`, donde siguen consultables desde la consola de
+  Firebase pero dejan de viajar a los dispositivos en cada reconexión. La app
+  solo consulta si alguien está en su comida ahora y si ya la tomó en el bloque
+  de turno vigente; nada mira más atrás.
+- **El corte se mide por el fin de la comida**, no por su inicio: mientras la
+  ventana siga abierta el registro está en uso, aunque haya empezado antes.
+- **Una fecha ilegible o ausente conserva el registro.** Ante la duda no se
+  archiva: perder un dato pesa más que sincronizar uno de más.
+- **El movimiento es una sola escritura atómica**, así que no puede quedar un
+  registro borrado del nodo vivo y ausente del archivo.
+- **Solo lo ejecuta un administrador.** Es idempotente y no haría daño si
+  coincidieran varios, pero con ocho aparatos conectados sería repetir ocho
+  veces el mismo trabajo.
+- **Se intenta al arrancar y también al iniciar sesión.** Sin sesión guardada,
+  los listeners se levantan antes del login y en ese momento no se sabe todavía
+  quién entró ni con qué papel.
+
+**Pendiente conocido.** Las notificaciones tampoco se limpian nunca. Viajan por
+elemento, así que no tienen el defecto cuadrático, pero siguen acumulándose y
+se descargan enteras en cada arranque.
+
+---
+
+## SPEC-047 — Las notificaciones del supervisor se eliminan
+
+**Hallazgo.** El perfilador de Firebase mostró que `manto_db/notifs` era el 74%
+de toda la descarga del proyecto: 12.26 MB en media hora, contra 3.78 MB de las
+órdenes de trabajo y 118 KB de las comidas. Cada conexión bajaba 291 KB solo de
+avisos, sobre una base que entera pesaba 460 KB.
+
+Al revisar por qué, apareció la causa de fondo: **diez de los diecisiete avisos
+que generaba el sistema iban dirigidos al supervisor, y el supervisor nunca tuvo
+pantalla donde verlos.** Existía una llamada a `updateNotifDot('sup-notif-dot',
+…)`, pero ese elemento no está en el documento: nadie lo dibujó nunca. Sin
+pantalla que los mostrara, tampoco había nada que los marcara como leídos, así
+que se acumulaban desde el primer día.
+
+**Decisión.** El supervisor se entera por el push de OneSignal, que es un
+servicio aparte y no consume esta base. Los diez avisos dirigidos a él se
+eliminan del código, junto con la llamada al indicador inexistente. Los ya
+guardados se archivan.
+
+- **El costo no lo provocaba crear avisos.** La app escucha por elemento, así
+  que un aviso nuevo viaja solo. El gasto ocurre **al conectarse**: un
+  dispositivo que se engancha recibe todas las notificaciones existentes, una
+  por una, porque acaba de llegar y no tiene ninguna. En planta, cada teléfono
+  se reconecta decenas de veces al día.
+- **Retención de las que sí se ven.** Las del solicitante y el técnico se
+  archivan pasados `DIAS_NOTIFS_VIVAS` días (15). Esas sí tienen pantalla y sí
+  se marcan como leídas, pero cumplido el plazo el dato vive igual en la orden.
+- **Sin fecha legible se conserva.** Perder un dato pesa más que sincronizar
+  uno de más.
+- **Se archiva por tandas de 200.** Lo acumulado puede ser de miles de
+  registros y una sola escritura con todos sería enorme. Cada tanda es atómica:
+  un corte a media limpieza deja tandas completas, nunca un registro a medias.
+
+**Por qué no se usó `limitToLast` en el listener.** Parecía la solución obvia
+—limitar a los últimos N y olvidarse—, pero es peligrosa con este código.
+`flushDB` borra de Firebase todo hijo que esté en `_snap` y ya no esté en
+`DB[col]`. Con `limitToLast`, al entrar un aviso nuevo Firebase dispara
+`child_removed` del más viejo, `_quitarHijo` lo saca del arreglo local y en el
+siguiente guardado `flushDB` lo **borraría de la base**, no solo de la pantalla.
+Sería una pérdida de datos silenciosa. El archivado explícito evita esa trampa;
+usar `limitToLast` exigiría antes rehacer la lógica de borrado de `flushDB`.
