@@ -1858,3 +1858,37 @@ trabajador de Cloudflare en la cuenta personal
 (`mantoapp-push.victormorenogarcia05.workers.dev`). No estorba para el traslado
 del repositorio, pero es el último punto de la aplicación que no vive en la
 organización.
+
+---
+
+## SPEC-049 — Se entra con la sesión de la suite
+
+**Problema.** Al llegar desde el portal, o desde otra aplicación de la suite,
+Mantenimiento volvía a pedir la clave aunque la persona ya estuviera dentro.
+Recursos Humanos y EPP no lo hacen.
+
+La causa era que solo miraba su propia sesión guardada (`restoreSession`, en
+`sessionStorage`, que es de esta app y de esta pestaña). El manejador de
+`onAuthStateChanged` sí detectaba la sesión de la suite, pero únicamente
+recargaba el personal **si esta app ya tenía sesión propia**; con `currentUser`
+vacío no hacía nada y la pantalla de acceso se quedaba puesta.
+
+**Por qué no se podía antes.** La sesión de Firebase se comparte entre páginas
+del mismo origen. Mientras el repositorio vivió en la cuenta personal, la app
+corría en otro dominio y no había sesión que adoptar. Esto es posible **desde**
+el traslado a la organización, no antes.
+
+**Decisión.** Si hay sesión de la suite y esta app no la ha adoptado, se entra
+con ella llamando a `abrirSesion(user)`, la misma función del acceso manual. No
+se duplica la comprobación de permisos: sigue siendo la de siempre —registro
+activo, acceso a esta app, papel asignado.
+
+- **Una bandera impide entrar dos veces.** `abrirSesion` es asíncrona y un
+  segundo disparo de `onAuthStateChanged` llegaría antes de que el primero
+  haya puesto `currentUser`.
+- **Un rechazo legítimo deja la pantalla de acceso a la vista con su motivo**
+  —sin registro, dado de baja, sin acceso a esta app— en lugar de entrar a
+  medias.
+- **No se cierra la sesión de la suite al rechazar.** Que alguien no tenga
+  acceso a Mantenimiento no lo saca de las demás aplicaciones; hacerlo lo
+  expulsaría del portal por abrir la app equivocada.
