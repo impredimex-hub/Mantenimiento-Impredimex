@@ -1989,3 +1989,38 @@ terminaba de leer la ficha del padrón: entre medio segundo y un segundo y medio
 - **Sin sesión y sin nada guardado, la app no hacía nada**, porque la
   contraseña ya estaba a la vista. Ahora quita la marca en ese caso; si no, la
   tendría tapada 8 segundos.
+
+---
+
+## SPEC-052 — La pantalla de administrador existe desde el arranque
+
+### Por qué
+
+Al volver a la app en la misma ventana —por ejemplo, del portal a
+Mantenimiento—, el administrador quedaba ante una pantalla en blanco, sin
+encabezado y sin ningún error en la consola. Los demás papeles no.
+
+### Causa
+
+`restoreSession()` recupera la sesión guardada en `sessionStorage` y corre
+**mientras el navegador todavía está leyendo el archivo**. Las pantallas del
+solicitante, el técnico y el supervisor están escritas antes del código, pero
+la del administrador —con sus seis ventanas emergentes— estaba al final,
+después de él. En ese instante todavía no existía.
+
+`showPage()` escondía la pantalla de entrada, no encontraba la de
+administrador y fallaba. El fallo lo atrapaba un `catch` que no avisaba nada.
+Como `currentUser` ya estaba puesto, el vigilante de Firebase creía que la
+sesión estaba abierta y no dibujaba ninguna pantalla.
+
+Era un defecto antiguo: solo se manifiesta al regresar a la app en la misma
+ventana, con una sesión de administrador guardada.
+
+### Reglas
+
+- **Toda pantalla y ventana emergente va antes del código.** Nada de marcado
+  después del último `</script>`: cualquier código que corra al cargar
+  podría no encontrarlo.
+- **`restoreSession()` ya no falla en silencio.** Si algo sale mal, lo registra
+  en la consola, deja `currentUser` en vacío y vuelve a la pantalla de entrada,
+  para que el vigilante de Firebase abra la sesión por su lado.

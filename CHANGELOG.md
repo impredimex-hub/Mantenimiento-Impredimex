@@ -6,6 +6,27 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.6.1] — 2026-09-22
+
+### Corregido
+
+- **El administrador quedaba ante una pantalla en blanco al volver a la app**
+  en la misma ventana (SPEC-052). Su pantalla estaba al final del archivo,
+  después del código, y la restauración de sesión corre antes de que el
+  navegador llegue ahí. Se movió junto a las de los demás papeles.
+- **La restauración de sesión ya no falla en silencio.** Registra el error y
+  regresa a la pantalla de entrada, en lugar de dejar la app a medias.
+
+### Notas
+
+- Era un defecto antiguo, no del cambio de la versión 2.6.0: solo aparece al
+  regresar a la app en la misma ventana con sesión de administrador.
+- Se reprodujo en un navegador simulado con el archivo anterior —pantalla en
+  blanco y consola sin errores, igual que en el equipo— y se comprobó que el
+  arreglo lo resuelve.
+
+---
+
 ## [2.6.0] — 2026-09-21
 
 ### Corregido
