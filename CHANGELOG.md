@@ -6,6 +6,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.6.0] — 2026-09-21
+
+### Corregido
+
+- **Al llegar desde el portal ya no se ve la pantalla de contraseña de paso**
+  (SPEC-051). Si hay sesión aparece la marca IMPREDIMEX; si no, la contraseña
+  al instante.
+
+---
+
 ## [2.5.0] — 2026-09-20
 
 ### Agregado
