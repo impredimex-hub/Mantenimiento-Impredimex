@@ -1449,6 +1449,528 @@ input[type=range].green{accent-color:var(--green)}
   </div>
 </div>
 
+<!-- La pantalla de administrador y sus ventanas van antes del código, igual
+     que las de los demás papeles. Estuvieron al final del archivo, y
+     restoreSession() —que corre mientras el navegador todavía está leyendo
+     el archivo— no las encontraba: al volver a la app en la misma ventana, el
+     administrador quedaba ante una pantalla en blanco. -->
+<!-- ==================== APP ADMINISTRADOR ==================== -->
+<div id="page-admin" class="page">
+
+  <!-- SCREEN: Hub / selector de módulo -->
+  <div id="adm-hub" class="screen active">
+    <div id="adm-hub-user" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)"></div>
+    <div class="scroll-content">
+      <div style="padding:16px 14px 8px;font-size:13px;font-weight:500;color:var(--text)">Módulos disponibles</div>
+
+      <!-- Catálogo de personal -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Administración</div>
+        <div class="card" onclick="switchAdmModule('personal')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo de personal</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Consulta del personal y configuración operativa</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- SPEC-038: Indicadores de mantenimiento -->
+      <div style="margin:0 12px 10px">
+        <div class="card" onclick="switchAdmModule('kpis')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Indicadores de mantenimiento</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">MTBF, MTTR, disponibilidad y cumplimiento</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Solicitante -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista solicitante</div>
+        <div class="card" onclick="switchAdmModule('solicitante')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--blue);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Órdenes de trabajo</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Solicitudes, seguimiento y cierre</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Técnico -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista técnico de mantenimiento</div>
+        <div class="card" onclick="switchAdmModule('tecnico')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Ejecución de mantenimiento</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Actividades, refacciones y esperas</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Supervisor -->
+      <div style="margin:0 12px 10px">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista supervisor / jefe de mantenimiento</div>
+        <div class="card" onclick="switchAdmModule('supervisor')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--purple);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Panel de supervisión</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Dashboard, técnicos, asignaciones y alertas</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="card" onclick="showScreen('adm-ots-screen');renderAdmOTs()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:#FAEEDA;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--amber);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Gestión de OT</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Modificar y eliminar órdenes de trabajo</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="card" onclick="showScreen('adm-catalogos-screen');renderAdmCatalogos()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h.01M12 16h.01M8 12h.01M8 16h.01M16 12h.01"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo Tipo de Servicio y Nave</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de tipos y naves</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Catálogo personal -->
+  <!-- SPEC-038: Indicadores de mantenimiento -->
+  <div id="adm-kpis" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="flex:1"><div class="topbar-title">Indicadores de mantenimiento</div></div>
+    </div>
+    <div class="scroll-content">
+      <div style="padding:12px 16px 4px">
+        <div class="field-lbl" style="margin-bottom:4px">Periodo</div>
+        <select class="field-select" id="kpi-periodo" onchange="renderKPIs()">
+          <option value="30d">Últimos 30 días</option>
+          <option value="mes">Este mes</option>
+          <option value="mesant">Mes anterior</option>
+          <option value="todo">Todo el histórico</option>
+        </select>
+      </div>
+      <div style="padding:8px 16px 4px">
+        <div class="field-lbl" style="margin-bottom:4px">Técnico</div>
+        <select class="field-select" id="kpi-tecnico" onchange="renderKPIs()">
+          <option value="">Todos — vista general</option>
+        </select>
+      </div>
+      <div id="adm-kpis-content"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <div id="adm-personal" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="flex:1">
+        <div class="topbar-title">Catálogo de personal</div>
+      </div>
+      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showScreen('adm-estadisticas');renderEstadisticas()" aria-label="Resumen">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </button>
+    </div>
+    <div class="search-box">
+      <input class="search-input" type="search" id="adm-search" placeholder="Buscar por nombre, nómina o puesto..." oninput="renderPersonal()">
+      <select id="adm-filter-dept" style="padding:8px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text)" onchange="renderPersonal()">
+        <option value="">Todos los depto.</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;padding:8px 12px 4px;border-bottom:1px solid var(--border)">
+      <button class="badge badge-activo" style="cursor:pointer" onclick="setStatusFilter('activo')">Activos</button>
+      <button class="badge badge-baja" style="cursor:pointer" onclick="setStatusFilter('baja')">Bajas</button>
+      <button class="badge" style="background:var(--gray-light);color:var(--gray-dark);cursor:pointer" onclick="setStatusFilter('todos')">Todos</button>
+      <span id="adm-count" style="margin-left:auto;font-size:12px;color:var(--text2);align-self:center"></span>
+    </div>
+    <div class="scroll-content">
+      <div id="adm-personal-list"></div>
+      <div class="spacer"></div>
+    </div>
+    <button class="fab fab-orange" onclick="abrirFormPersonal(null)" aria-label="Alta de personal">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <nav class="adm-tabbar">
+      <button class="adm-tab active" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Personal
+      </button>
+      <button class="adm-tab" onclick="showScreen('adm-estadisticas');renderEstadisticas()">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Resumen
+      </button>
+      <button class="adm-tab" onclick="showScreen('adm-hub')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Inicio
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCREEN: Detalle / edición de persona -->
+  <div id="adm-detalle-persona" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title" id="adm-det-titulo">Detalle</div>
+    </div>
+    <div class="scroll-content" id="adm-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: Catálogo Tipo de Servicio y Nave -->
+  <div id="adm-catalogos-screen" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Tipos de Servicio y Naves</div>
+    </div>
+    <div class="scroll-content">
+      <!-- Tipos de Servicio -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px">
+        Tipos de Servicio
+        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('tipo',null)" style="font-size:11px;padding:4px 10px">+ Nuevo</button>
+      </div>
+      <div id="adm-cat-tipos"></div>
+      <!-- Naves -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Naves
+        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('nave',null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-naves"></div>
+      <!-- Máquinas -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Máquinas
+        <button class="btn btn-sm btn-orange" onclick="abrirFormMaquina(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-maquinas"></div>
+      <!-- Infraestructura -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Infraestructura
+        <button class="btn btn-sm btn-orange" onclick="abrirFormInfra(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div id="adm-cat-infra"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Gestión de OT -->
+  <div id="adm-ots-screen" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub')">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Gestión de OT</div>
+    </div>
+    <div class="search-filters">
+      <div class="sf-search-row">
+        <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="sf-input" type="search" id="adm-f-folio" placeholder="Buscar por # de orden..." oninput="renderAdmOTs()">
+      </div>
+      <div class="sf-grid">
+        <div class="sf-cell"><span class="sf-label">Fecha</span>
+          <input class="sf-input" type="date" id="adm-f-fecha" onchange="renderAdmOTs()"></div>
+        <div class="sf-cell"><span class="sf-label">Prioridad</span>
+          <select class="sf-select" id="adm-f-prioridad" onchange="renderAdmOTs()">
+            <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
+          </select></div>
+        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Tipo de servicio</span>
+          <select class="sf-select" id="adm-f-tipo" onchange="renderAdmOTs()">
+            <option value="">Todos</option>
+            <option value="MTTO-MAQ-PROD">Maquinaria</option>
+            <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
+            <option value="MTTO-SEGURIDAD">Seguridad</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="scroll-content">
+      <div class="list-pad" id="adm-ots-list"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Formulario alta / modificación -->
+  <div id="adm-form-persona" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title" id="adm-form-titulo">Alta de personal</div>
+    </div>
+    <div class="scroll-content">
+      <div class="section-head">Datos del empleado</div>
+      <div style="padding:10px 16px;font-size:12px;color:var(--text3);line-height:1.5">
+        El nombre, el puesto, el departamento y el estatus los administra Recursos Humanos
+        y aquí solo se muestran. El papel en la app se asigna en la suite. Desde esta
+        pantalla se configura el turno y qué tipos de orden atiende cada quien.
+      </div>
+      <div class="field-row"><div class="field-lbl">Nómina <span style="color:var(--red)">*</span></div><input class="field-input" type="number" id="frm-nomina" placeholder="Ej. 2430" min="1"></div>
+      <div class="field-row"><div class="field-lbl">Nombre completo <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-nombre" placeholder="Apellido Paterno Materno Nombre(s)"></div>
+      <div class="field-row"><div class="field-lbl">Puesto <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-puesto" placeholder="Ej. Técnico de Mantenimiento"></div>
+      <div class="field-row">
+        <div class="field-lbl">Departamento <span style="color:var(--red)">*</span></div>
+        <select class="field-select" id="frm-depto">
+          <option value="">— Selecciona —</option>
+          <option>ACONDICIONADO</option><option>ADMINISTRACIÓN</option><option>CALIDAD</option>
+          <option>DIGITAL</option><option>FLEXOGRAFÍA</option><option>LOGÍSTICA</option>
+          <option>MANTENIMIENTO</option><option>OPERACIONES</option><option>PREPRENSA</option>
+          <option>RECURSOS HUMANOS</option><option>ROTOGRABADO</option><option>TINTAS</option><option>VENTAS</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Rol en la app</div>
+        <select class="field-select" id="frm-rol">
+          <option value="solicitante">Solicitante (producción)</option>
+          <option value="tecnico">Técnico de mantenimiento</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Administrador</option>
+          <option value="ninguno">Sin acceso a la app</option>
+        </select>
+      </div>
+      <div class="field-row" id="frm-row-ot">
+        <div class="field-lbl">Tipos de orden que atiende</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
+          <input type="checkbox" id="frm-ot-maq" value="MTTO-MAQ-PROD"> Máquinas de producción
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
+          <input type="checkbox" id="frm-ot-inf" value="MTTO-INFRAESTRUCTURA"> Infraestructura
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
+          <input type="checkbox" id="frm-ot-seg" value="MTTO-SEGURIDAD"> Seguridad
+        </label>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">
+          Sin nada marcado, esta persona no se considera disponible para tomar órdenes,
+          aunque aparezca en el rol de turnos. Es lo que corresponde al Jefe y al Analista.
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Estatus</div>
+        <select class="field-select" id="frm-estatus"><option value="activo">Activo</option><option value="baja">Baja</option></select>
+      </div>
+      <div class="field-row"><div class="field-lbl">Observaciones</div><textarea class="field-textarea" id="frm-obs" placeholder="Notas adicionales, motivo de baja, etc..."></textarea></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-orange btn-block" onclick="guardarPersona()">Guardar</button>
+        <button class="btn btn-outline btn-block" onclick="showScreen('adm-personal');renderPersonal()">Cancelar</button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Estadísticas -->
+  <div id="adm-estadisticas" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Resumen de personal</div>
+    </div>
+    <div class="scroll-content" id="adm-stats-content"></div>
+  </div>
+
+</div>
+
+<!-- MODAL CONFIRMAR BAJA -->
+<div class="modal-overlay" id="modal-baja">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Confirmar baja</div>
+    <div class="alert alert-red" style="margin:0 16px 12px">
+      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div id="modal-baja-texto">¿Confirmas la baja de este empleado?</div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Motivo de baja (opcional)</div>
+      <textarea class="field-textarea" id="baja-motivo" placeholder="Renuncia voluntaria, término de contrato, etc..."></textarea>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-baja')" style="flex:1">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarBaja()" style="flex:2">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL EDITAR OT (Admin) -->
+<div class="modal-overlay" id="modal-adm-edit-ot">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Modificar OT</div>
+    <input type="hidden" id="adm-edit-ot-id">
+    <div class="field-row">
+      <div class="field-lbl">Descripción</div>
+      <textarea class="field-textarea" id="adm-edit-ot-desc" style="min-height:60px"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="adm-edit-ot-status">
+        <option value="abierto">Abierta</option>
+        <option value="proceso">En proceso</option>
+        <option value="espera">En espera</option>
+        <option value="validar">Pendiente validación</option>
+        <option value="cerrado">Cerrada</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Técnico asignado</div>
+      <input class="field-input" type="text" id="adm-edit-ot-tecnico" placeholder="Nombre del técnico">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Prioridad</div>
+      <select class="field-select" id="adm-edit-ot-prioridad">
+        <option value="normal">Normal</option>
+        <option value="urgente">Urgente</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-adm-edit-ot')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="admGuardarEditOT()" style="flex:2">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MÁQUINAS -->
+<div class="modal-overlay" id="modal-maquina-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-maq-titulo">Nueva máquina</div>
+    <input type="hidden" id="maq-form-id">
+    <div class="field-row">
+      <div class="field-lbl">Nombre de la máquina <span style="color:var(--red)">*</span></div>
+      <input class="field-input" type="text" id="maq-form-nombre" placeholder="Ej. FL1, REV3...">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Descripción / nota</div>
+      <input class="field-input" type="text" id="maq-form-desc" placeholder="Ej. Indicar qué aire requiere atención">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Naves donde aplica</div>
+      <div id="maq-form-naves" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="maq-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-maquina-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarMaquina()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INFRAESTRUCTURA -->
+<div class="modal-overlay" id="modal-infra-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-infra-titulo">Nueva área de infraestructura</div>
+    <input type="hidden" id="infra-form-id">
+    <div class="field-row">
+      <div class="field-lbl">Nombre del área <span style="color:var(--red)">*</span></div>
+      <input class="field-input" type="text" id="infra-form-nombre" placeholder="Ej. COMEDOR, BAÑOS HOMBRES...">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Nave <span style="color:var(--red)">*</span></div>
+      <select class="field-select" id="infra-form-nave">
+        <option value="">— Selecciona —</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="infra-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-infra-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarInfra()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CATÁLOGO TIPO / NAVE -->
+<div class="modal-overlay" id="modal-cat-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-cat-titulo">Nuevo tipo de servicio</div>
+    <input type="hidden" id="cat-form-tipo">
+    <input type="hidden" id="cat-form-id">
+    <div class="field-row">
+      <div class="field-lbl" id="cat-form-label">Nombre</div>
+      <input class="field-input" type="text" id="cat-form-nombre" placeholder="Ej. MTTO-MAQ-PROD">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="cat-form-activo">
+        <option value="1">Activo</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-cat-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarCatalogo()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
+<!-- MODAL ERROR OPERATIVO -->
+<div class="modal-overlay" id="modal-error-operativo">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Marcar OT como concluida</div>
+    <div class="alert alert-warn" style="margin:0 16px 12px">
+      <div class="alert-icon">⚠</div>
+      <div>Antes de concluir, indica si la falla fue por un <strong>error operativo</strong>.</div>
+    </div>
+    <div class="field-row" style="flex-direction:row;gap:10px;padding:0 16px 8px">
+      <button class="btn btn-danger" style="flex:1" onclick="mostrarDescEO()">Sí, fue error operativo</button>
+      <button class="btn btn-outline" style="flex:1" onclick="confirmarErrorOperativo(false)">No fue error operativo</button>
+    </div>
+    <!-- Descripción del error operativo (oculta por defecto) -->
+    <div id="eo-si" style="display:none;padding:0 16px">
+      <div class="field-lbl" style="margin-bottom:6px">¿Por qué fue un error operativo?</div>
+      <textarea class="field-textarea" id="eo-desc" placeholder="Describe qué acción del operador provocó la falla..." style="min-height:80px"></textarea>
+      <button class="btn btn-danger btn-block" style="margin-top:8px;margin-bottom:16px" onclick="confirmarErrorOperativo(true)">Confirmar — fue error operativo</button>
+    </div>
+    <div style="padding:0 16px 16px">
+      <button class="btn btn-outline btn-block" onclick="closeModal('modal-error-operativo')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ==================== DATA STORE ====================
 const USERS = {
@@ -2025,7 +2547,15 @@ function restoreSession(){
     else if(saved.role==='tecnico'){ showPage('page-tecnico'); initTecnico(); }
     else { showPage('page-supervisor'); initSupervisor(); }
     return true;
-  } catch(e){ return false; }
+  } catch(e){
+    // Antes este catch callaba: un fallo aquí dejaba la pantalla en blanco sin
+    // ningún aviso. Ahora se registra y se deshace lo que se alcanzó a hacer,
+    // para que el vigilante de Firebase pueda abrir la sesión por su lado.
+    console.error('No se pudo restaurar la sesión guardada:', e);
+    currentUser = null;
+    try { showPage('page-login'); } catch(_){}
+    return false;
+  }
 }
 let currentOTId = null;
 let currentFilter = 'todas';
@@ -7723,522 +8253,5 @@ function renderAdmPerfil(){
 }
 
 </script>
-
-<!-- ==================== APP ADMINISTRADOR ==================== -->
-<div id="page-admin" class="page">
-
-  <!-- SCREEN: Hub / selector de módulo -->
-  <div id="adm-hub" class="screen active">
-    <div id="adm-hub-user" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)"></div>
-    <div class="scroll-content">
-      <div style="padding:16px 14px 8px;font-size:13px;font-weight:500;color:var(--text)">Módulos disponibles</div>
-
-      <!-- Catálogo de personal -->
-      <div style="margin:0 12px 10px">
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Administración</div>
-        <div class="card" onclick="switchAdmModule('personal')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
-          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo de personal</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Consulta del personal y configuración operativa</div>
-          </div>
-          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-
-      <!-- SPEC-038: Indicadores de mantenimiento -->
-      <div style="margin:0 12px 10px">
-        <div class="card" onclick="switchAdmModule('kpis')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
-          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500;color:var(--text)">Indicadores de mantenimiento</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">MTBF, MTTR, disponibilidad y cumplimiento</div>
-          </div>
-          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-
-      <!-- Solicitante -->
-      <div style="margin:0 12px 10px">
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista solicitante</div>
-        <div class="card" onclick="switchAdmModule('solicitante')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
-          <div style="width:42px;height:42px;border-radius:10px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg style="width:22px;height:22px;stroke:var(--blue);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500;color:var(--text)">Órdenes de trabajo</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Solicitudes, seguimiento y cierre</div>
-          </div>
-          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-
-      <!-- Técnico -->
-      <div style="margin:0 12px 10px">
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista técnico de mantenimiento</div>
-        <div class="card" onclick="switchAdmModule('tecnico')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
-          <div style="width:42px;height:42px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500;color:var(--text)">Ejecución de mantenimiento</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Actividades, refacciones y esperas</div>
-          </div>
-          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-
-      <!-- Supervisor -->
-      <div style="margin:0 12px 10px">
-        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Vista supervisor / jefe de mantenimiento</div>
-        <div class="card" onclick="switchAdmModule('supervisor')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
-          <div style="width:42px;height:42px;border-radius:10px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg style="width:22px;height:22px;stroke:var(--purple);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500;color:var(--text)">Panel de supervisión</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Dashboard, técnicos, asignaciones y alertas</div>
-          </div>
-          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="card" onclick="showScreen('adm-ots-screen');renderAdmOTs()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
-          <div style="width:42px;height:42px;border-radius:10px;background:#FAEEDA;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg style="width:22px;height:22px;stroke:var(--amber);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500;color:var(--text)">Gestión de OT</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Modificar y eliminar órdenes de trabajo</div>
-          </div>
-          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="card" onclick="showScreen('adm-catalogos-screen');renderAdmCatalogos()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
-          <div style="width:42px;height:42px;border-radius:10px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg style="width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h.01M12 16h.01M8 12h.01M8 16h.01M16 12h.01"/></svg>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500;color:var(--text)">Catálogo Tipo de Servicio y Nave</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">Alta, baja y modificación de tipos y naves</div>
-          </div>
-          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-
-      <div class="spacer"></div>
-    </div>
-  </div>
-
-  <!-- SCREEN: Catálogo personal -->
-  <!-- SPEC-038: Indicadores de mantenimiento -->
-  <div id="adm-kpis" class="screen">
-    <div class="topbar topbar-orange">
-      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
-        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div style="flex:1"><div class="topbar-title">Indicadores de mantenimiento</div></div>
-    </div>
-    <div class="scroll-content">
-      <div style="padding:12px 16px 4px">
-        <div class="field-lbl" style="margin-bottom:4px">Periodo</div>
-        <select class="field-select" id="kpi-periodo" onchange="renderKPIs()">
-          <option value="30d">Últimos 30 días</option>
-          <option value="mes">Este mes</option>
-          <option value="mesant">Mes anterior</option>
-          <option value="todo">Todo el histórico</option>
-        </select>
-      </div>
-      <div style="padding:8px 16px 4px">
-        <div class="field-lbl" style="margin-bottom:4px">Técnico</div>
-        <select class="field-select" id="kpi-tecnico" onchange="renderKPIs()">
-          <option value="">Todos — vista general</option>
-        </select>
-      </div>
-      <div id="adm-kpis-content"></div>
-      <div class="spacer"></div>
-    </div>
-  </div>
-
-  <div id="adm-personal" class="screen">
-    <div class="topbar topbar-orange">
-      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
-        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div style="flex:1">
-        <div class="topbar-title">Catálogo de personal</div>
-      </div>
-      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="showScreen('adm-estadisticas');renderEstadisticas()" aria-label="Resumen">
-        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      </button>
-    </div>
-    <div class="search-box">
-      <input class="search-input" type="search" id="adm-search" placeholder="Buscar por nombre, nómina o puesto..." oninput="renderPersonal()">
-      <select id="adm-filter-dept" style="padding:8px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text)" onchange="renderPersonal()">
-        <option value="">Todos los depto.</option>
-      </select>
-    </div>
-    <div style="display:flex;gap:6px;padding:8px 12px 4px;border-bottom:1px solid var(--border)">
-      <button class="badge badge-activo" style="cursor:pointer" onclick="setStatusFilter('activo')">Activos</button>
-      <button class="badge badge-baja" style="cursor:pointer" onclick="setStatusFilter('baja')">Bajas</button>
-      <button class="badge" style="background:var(--gray-light);color:var(--gray-dark);cursor:pointer" onclick="setStatusFilter('todos')">Todos</button>
-      <span id="adm-count" style="margin-left:auto;font-size:12px;color:var(--text2);align-self:center"></span>
-    </div>
-    <div class="scroll-content">
-      <div id="adm-personal-list"></div>
-      <div class="spacer"></div>
-    </div>
-    <button class="fab fab-orange" onclick="abrirFormPersonal(null)" aria-label="Alta de personal">
-      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-    <nav class="adm-tabbar">
-      <button class="adm-tab active" onclick="showScreen('adm-personal');renderPersonal()">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-        Personal
-      </button>
-      <button class="adm-tab" onclick="showScreen('adm-estadisticas');renderEstadisticas()">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        Resumen
-      </button>
-      <button class="adm-tab" onclick="showScreen('adm-hub')">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-        Inicio
-      </button>
-    </nav>
-  </div>
-
-  <!-- SCREEN: Detalle / edición de persona -->
-  <div id="adm-detalle-persona" class="screen">
-    <div class="topbar topbar-orange">
-      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
-        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="topbar-title" id="adm-det-titulo">Detalle</div>
-    </div>
-    <div class="scroll-content" id="adm-detalle-content"></div>
-  </div>
-
-  <!-- SCREEN: Catálogo Tipo de Servicio y Nave -->
-  <div id="adm-catalogos-screen" class="screen">
-    <div class="topbar topbar-orange">
-      <button class="topbar-back" onclick="showScreen('adm-hub')" aria-label="Volver">
-        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="topbar-title">Tipos de Servicio y Naves</div>
-    </div>
-    <div class="scroll-content">
-      <!-- Tipos de Servicio -->
-      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px">
-        Tipos de Servicio
-        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('tipo',null)" style="font-size:11px;padding:4px 10px">+ Nuevo</button>
-      </div>
-      <div id="adm-cat-tipos"></div>
-      <!-- Naves -->
-      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
-        Naves
-        <button class="btn btn-sm btn-orange" onclick="abrirFormCatalogo('nave',null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
-      </div>
-      <div id="adm-cat-naves"></div>
-      <!-- Máquinas -->
-      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
-        Máquinas
-        <button class="btn btn-sm btn-orange" onclick="abrirFormMaquina(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
-      </div>
-      <div id="adm-cat-maquinas"></div>
-      <!-- Infraestructura -->
-      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
-        Infraestructura
-        <button class="btn btn-sm btn-orange" onclick="abrirFormInfra(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
-      </div>
-      <div id="adm-cat-infra"></div>
-      <div class="spacer"></div>
-    </div>
-  </div>
-
-  <!-- SCREEN: Gestión de OT -->
-  <div id="adm-ots-screen" class="screen">
-    <div class="topbar topbar-orange">
-      <button class="topbar-back" onclick="showScreen('adm-hub')">
-        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="topbar-title">Gestión de OT</div>
-    </div>
-    <div class="search-filters">
-      <div class="sf-search-row">
-        <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="sf-input" type="search" id="adm-f-folio" placeholder="Buscar por # de orden..." oninput="renderAdmOTs()">
-      </div>
-      <div class="sf-grid">
-        <div class="sf-cell"><span class="sf-label">Fecha</span>
-          <input class="sf-input" type="date" id="adm-f-fecha" onchange="renderAdmOTs()"></div>
-        <div class="sf-cell"><span class="sf-label">Prioridad</span>
-          <select class="sf-select" id="adm-f-prioridad" onchange="renderAdmOTs()">
-            <option value="">Todas</option><option value="urgente">Urgente</option><option value="normal">Normal</option>
-          </select></div>
-        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Tipo de servicio</span>
-          <select class="sf-select" id="adm-f-tipo" onchange="renderAdmOTs()">
-            <option value="">Todos</option>
-            <option value="MTTO-MAQ-PROD">Maquinaria</option>
-            <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
-            <option value="MTTO-SEGURIDAD">Seguridad</option>
-          </select></div>
-      </div>
-    </div>
-    <div class="scroll-content">
-      <div class="list-pad" id="adm-ots-list"></div>
-      <div class="spacer"></div>
-    </div>
-  </div>
-
-  <!-- SCREEN: Formulario alta / modificación -->
-  <div id="adm-form-persona" class="screen">
-    <div class="topbar topbar-orange">
-      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
-        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="topbar-title" id="adm-form-titulo">Alta de personal</div>
-    </div>
-    <div class="scroll-content">
-      <div class="section-head">Datos del empleado</div>
-      <div style="padding:10px 16px;font-size:12px;color:var(--text3);line-height:1.5">
-        El nombre, el puesto, el departamento y el estatus los administra Recursos Humanos
-        y aquí solo se muestran. El papel en la app se asigna en la suite. Desde esta
-        pantalla se configura el turno y qué tipos de orden atiende cada quien.
-      </div>
-      <div class="field-row"><div class="field-lbl">Nómina <span style="color:var(--red)">*</span></div><input class="field-input" type="number" id="frm-nomina" placeholder="Ej. 2430" min="1"></div>
-      <div class="field-row"><div class="field-lbl">Nombre completo <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-nombre" placeholder="Apellido Paterno Materno Nombre(s)"></div>
-      <div class="field-row"><div class="field-lbl">Puesto <span style="color:var(--red)">*</span></div><input class="field-input" type="text" id="frm-puesto" placeholder="Ej. Técnico de Mantenimiento"></div>
-      <div class="field-row">
-        <div class="field-lbl">Departamento <span style="color:var(--red)">*</span></div>
-        <select class="field-select" id="frm-depto">
-          <option value="">— Selecciona —</option>
-          <option>ACONDICIONADO</option><option>ADMINISTRACIÓN</option><option>CALIDAD</option>
-          <option>DIGITAL</option><option>FLEXOGRAFÍA</option><option>LOGÍSTICA</option>
-          <option>MANTENIMIENTO</option><option>OPERACIONES</option><option>PREPRENSA</option>
-          <option>RECURSOS HUMANOS</option><option>ROTOGRABADO</option><option>TINTAS</option><option>VENTAS</option>
-        </select>
-      </div>
-      <div class="field-row">
-        <div class="field-lbl">Rol en la app</div>
-        <select class="field-select" id="frm-rol">
-          <option value="solicitante">Solicitante (producción)</option>
-          <option value="tecnico">Técnico de mantenimiento</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="admin">Administrador</option>
-          <option value="ninguno">Sin acceso a la app</option>
-        </select>
-      </div>
-      <div class="field-row" id="frm-row-ot">
-        <div class="field-lbl">Tipos de orden que atiende</div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
-          <input type="checkbox" id="frm-ot-maq" value="MTTO-MAQ-PROD"> Máquinas de producción
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
-          <input type="checkbox" id="frm-ot-inf" value="MTTO-INFRAESTRUCTURA"> Infraestructura
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
-          <input type="checkbox" id="frm-ot-seg" value="MTTO-SEGURIDAD"> Seguridad
-        </label>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">
-          Sin nada marcado, esta persona no se considera disponible para tomar órdenes,
-          aunque aparezca en el rol de turnos. Es lo que corresponde al Jefe y al Analista.
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field-lbl">Estatus</div>
-        <select class="field-select" id="frm-estatus"><option value="activo">Activo</option><option value="baja">Baja</option></select>
-      </div>
-      <div class="field-row"><div class="field-lbl">Observaciones</div><textarea class="field-textarea" id="frm-obs" placeholder="Notas adicionales, motivo de baja, etc..."></textarea></div>
-      <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-orange btn-block" onclick="guardarPersona()">Guardar</button>
-        <button class="btn btn-outline btn-block" onclick="showScreen('adm-personal');renderPersonal()">Cancelar</button>
-      </div>
-      <div class="spacer"></div>
-    </div>
-  </div>
-
-  <!-- SCREEN: Estadísticas -->
-  <div id="adm-estadisticas" class="screen">
-    <div class="topbar topbar-orange">
-      <button class="topbar-back" onclick="showScreen('adm-personal');renderPersonal()">
-        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="topbar-title">Resumen de personal</div>
-    </div>
-    <div class="scroll-content" id="adm-stats-content"></div>
-  </div>
-
-</div>
-
-<!-- MODAL CONFIRMAR BAJA -->
-<div class="modal-overlay" id="modal-baja">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Confirmar baja</div>
-    <div class="alert alert-red" style="margin:0 16px 12px">
-      <div class="alert-icon"><svg style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-      <div id="modal-baja-texto">¿Confirmas la baja de este empleado?</div>
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Motivo de baja (opcional)</div>
-      <textarea class="field-textarea" id="baja-motivo" placeholder="Renuncia voluntaria, término de contrato, etc..."></textarea>
-    </div>
-    <div style="padding:16px;display:flex;gap:8px">
-      <button class="btn btn-outline" onclick="closeModal('modal-baja')" style="flex:1">Cancelar</button>
-      <button class="btn btn-danger" onclick="confirmarBaja()" style="flex:2">Dar de baja</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- MODAL EDITAR OT (Admin) -->
-<div class="modal-overlay" id="modal-adm-edit-ot">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Modificar OT</div>
-    <input type="hidden" id="adm-edit-ot-id">
-    <div class="field-row">
-      <div class="field-lbl">Descripción</div>
-      <textarea class="field-textarea" id="adm-edit-ot-desc" style="min-height:60px"></textarea>
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Estatus</div>
-      <select class="field-select" id="adm-edit-ot-status">
-        <option value="abierto">Abierta</option>
-        <option value="proceso">En proceso</option>
-        <option value="espera">En espera</option>
-        <option value="validar">Pendiente validación</option>
-        <option value="cerrado">Cerrada</option>
-      </select>
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Técnico asignado</div>
-      <input class="field-input" type="text" id="adm-edit-ot-tecnico" placeholder="Nombre del técnico">
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Prioridad</div>
-      <select class="field-select" id="adm-edit-ot-prioridad">
-        <option value="normal">Normal</option>
-        <option value="urgente">Urgente</option>
-      </select>
-    </div>
-    <div style="padding:16px;display:flex;gap:8px">
-      <button class="btn btn-outline" onclick="closeModal('modal-adm-edit-ot')" style="flex:1">Cancelar</button>
-      <button class="btn btn-orange" onclick="admGuardarEditOT()" style="flex:2">Guardar cambios</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL MÁQUINAS -->
-<div class="modal-overlay" id="modal-maquina-form">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-maq-titulo">Nueva máquina</div>
-    <input type="hidden" id="maq-form-id">
-    <div class="field-row">
-      <div class="field-lbl">Nombre de la máquina <span style="color:var(--red)">*</span></div>
-      <input class="field-input" type="text" id="maq-form-nombre" placeholder="Ej. FL1, REV3...">
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Descripción / nota</div>
-      <input class="field-input" type="text" id="maq-form-desc" placeholder="Ej. Indicar qué aire requiere atención">
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Naves donde aplica</div>
-      <div id="maq-form-naves" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Estatus</div>
-      <select class="field-select" id="maq-form-activo">
-        <option value="1">Activo</option>
-        <option value="0">Baja</option>
-      </select>
-    </div>
-    <div style="padding:16px;display:flex;gap:8px">
-      <button class="btn btn-outline" onclick="closeModal('modal-maquina-form')" style="flex:1">Cancelar</button>
-      <button class="btn btn-orange" onclick="guardarMaquina()" style="flex:2">Guardar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL INFRAESTRUCTURA -->
-<div class="modal-overlay" id="modal-infra-form">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-infra-titulo">Nueva área de infraestructura</div>
-    <input type="hidden" id="infra-form-id">
-    <div class="field-row">
-      <div class="field-lbl">Nombre del área <span style="color:var(--red)">*</span></div>
-      <input class="field-input" type="text" id="infra-form-nombre" placeholder="Ej. COMEDOR, BAÑOS HOMBRES...">
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Nave <span style="color:var(--red)">*</span></div>
-      <select class="field-select" id="infra-form-nave">
-        <option value="">— Selecciona —</option>
-      </select>
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Estatus</div>
-      <select class="field-select" id="infra-form-activo">
-        <option value="1">Activo</option>
-        <option value="0">Baja</option>
-      </select>
-    </div>
-    <div style="padding:16px;display:flex;gap:8px">
-      <button class="btn btn-outline" onclick="closeModal('modal-infra-form')" style="flex:1">Cancelar</button>
-      <button class="btn btn-orange" onclick="guardarInfra()" style="flex:2">Guardar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL CATÁLOGO TIPO / NAVE -->
-<div class="modal-overlay" id="modal-cat-form">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-cat-titulo">Nuevo tipo de servicio</div>
-    <input type="hidden" id="cat-form-tipo">
-    <input type="hidden" id="cat-form-id">
-    <div class="field-row">
-      <div class="field-lbl" id="cat-form-label">Nombre</div>
-      <input class="field-input" type="text" id="cat-form-nombre" placeholder="Ej. MTTO-MAQ-PROD">
-    </div>
-    <div class="field-row">
-      <div class="field-lbl">Estatus</div>
-      <select class="field-select" id="cat-form-activo">
-        <option value="1">Activo</option>
-        <option value="0">Baja</option>
-      </select>
-    </div>
-    <div style="padding:16px;display:flex;gap:8px">
-      <button class="btn btn-outline" onclick="closeModal('modal-cat-form')" style="flex:1">Cancelar</button>
-      <button class="btn btn-orange" onclick="guardarCatalogo()" style="flex:2">Guardar</button>
-    </div>
-  </div>
-</div>
-<!-- MODAL ERROR OPERATIVO -->
-<div class="modal-overlay" id="modal-error-operativo">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Marcar OT como concluida</div>
-    <div class="alert alert-warn" style="margin:0 16px 12px">
-      <div class="alert-icon">⚠</div>
-      <div>Antes de concluir, indica si la falla fue por un <strong>error operativo</strong>.</div>
-    </div>
-    <div class="field-row" style="flex-direction:row;gap:10px;padding:0 16px 8px">
-      <button class="btn btn-danger" style="flex:1" onclick="mostrarDescEO()">Sí, fue error operativo</button>
-      <button class="btn btn-outline" style="flex:1" onclick="confirmarErrorOperativo(false)">No fue error operativo</button>
-    </div>
-    <!-- Descripción del error operativo (oculta por defecto) -->
-    <div id="eo-si" style="display:none;padding:0 16px">
-      <div class="field-lbl" style="margin-bottom:6px">¿Por qué fue un error operativo?</div>
-      <textarea class="field-textarea" id="eo-desc" placeholder="Describe qué acción del operador provocó la falla..." style="min-height:80px"></textarea>
-      <button class="btn btn-danger btn-block" style="margin-top:8px;margin-bottom:16px" onclick="confirmarErrorOperativo(true)">Confirmar — fue error operativo</button>
-    </div>
-    <div style="padding:0 16px 16px">
-      <button class="btn btn-outline btn-block" onclick="closeModal('modal-error-operativo')">Cancelar</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
