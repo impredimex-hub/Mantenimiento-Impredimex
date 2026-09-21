@@ -2024,3 +2024,28 @@ ventana, con una sesión de administrador guardada.
 - **`restoreSession()` ya no falla en silencio.** Si algo sale mal, lo registra
   en la consola, deja `currentUser` en vacío y vuelve a la pantalla de entrada,
   para que el vigilante de Firebase abra la sesión por su lado.
+
+---
+
+## SPEC-053 — Se retira la pantalla azul de bienvenida
+
+### Por qué
+
+Mantenimiento tenía una pantalla azul con «IMPREDIMEX» y la frase «Sumamos más
+cuando sumamos todos». Aparecía en cada apertura y no se quitaba hasta que el
+navegador terminaba de descargar todo —Firebase, las notificaciones, las
+fuentes— y luego esperaba un segundo y medio más a propósito: en el teléfono,
+tres o cuatro segundos.
+
+Con el arranque sin parpadeo (SPEC-051) convivían dos pantallas de marca:
+primero la blanca, mientras se confirma la sesión, y al quitarse aparecía la
+azul debajo, que seguía esperando su turno. Se percibía como una pantalla
+inicial de más.
+
+### Qué cambia
+
+- **Se retiró la pantalla azul y su código.** La marca al abrir es ahora la
+  misma blanca de las demás apps de la suite.
+- **La frase no se conserva en ningún lado**, por decisión expresa: se prefirió
+  que Mantenimiento abra igual que las otras cinco.
+- Sin sesión, la contraseña aparece al instante, sin la espera de antes.
