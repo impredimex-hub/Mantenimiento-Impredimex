@@ -57,6 +57,11 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<!-- Jost, solo para el logotipo del encabezado. Si no carga, el respaldo del
+     sistema conserva el mismo peso y espaciado: cambia la letra, no el acomodo. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;600&display=swap">
 <title>IMPREDIMEX — Órdenes de Trabajo</title>
 <!-- PWA: manifest e iconos -->
 <link rel="manifest" href="manifest.json">
@@ -86,6 +91,79 @@ button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit;font-size:14px}
 /* ===== LAYOUT ===== */
 .page{display:none;flex-direction:column;height:100vh;overflow:hidden}
+/* Con el encabezado de la suite arriba, cada página mide lo que sobra. El
+   encabezado tiene alto fijo justo para que esta cuenta sea exacta. */
+body.con-hdr .page{height:calc(100vh - 56px)}
+
+/* ── Encabezado estándar de la suite (SPEC-035 de RRHH) ──────────────────
+   Uno solo, arriba de todas las pantallas; se oculta en la de entrada. Las
+   pestañas de abajo siguen siendo la navegación. Queda fijo sin necesidad de
+   position:sticky porque el documento no se desplaza: cada pantalla tiene su
+   propio desplazamiento debajo de él. */
+.suite-hdr{
+  display:flex; align-items:center; gap:10px; position:relative; z-index:45;
+  height:56px; box-sizing:border-box; padding:6px 12px;
+  background:#ffffff; border-bottom:0.5px solid rgba(0,32,96,.08);
+  box-shadow:0 2px 8px rgba(0,32,96,.05);
+}
+/* Las dos orillas crecen igual, así lo de en medio queda centrado. */
+.hdr-orilla{ flex:1 1 0; display:flex; align-items:center; gap:2px; min-width:0; }
+.hdr-marca{
+  font-family:'Jost',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-weight:600; color:#002060; letter-spacing:.20em; line-height:1.15; font-size:15px;
+}
+.hdr-app{
+  font-family:'Jost',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-weight:400; color:#5A6A80; letter-spacing:.26em; line-height:1.3;
+  margin-top:4px; font-size:9px; text-transform:uppercase; white-space:nowrap;
+}
+.hdr-identidad{ display:none; min-width:0; text-align:center; flex:0 1 auto; }
+.hdr-nombre{ font-size:13px; font-weight:700; color:#002060; line-height:1.3;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hdr-puesto{ font-size:11.5px; color:#8A9AB0; line-height:1.3;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@media (min-width:760px){
+  .hdr-marca{ font-size:22px; }
+  .hdr-app{ font-size:10.5px; margin-top:5px; }
+  .hdr-identidad{ display:block; }
+}
+/* El círculo se ve de 32 px pero responde en 44: con guantes, 32 se falla. */
+.hdr-boton{ width:44px; height:44px; background:transparent; border:none; padding:0;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  text-decoration:none; flex-shrink:0; }
+.hdr-boton > span{ width:32px; height:32px; border-radius:50%;
+  border:1px solid rgba(0,32,96,.15); color:#003580; display:flex;
+  align-items:center; justify-content:center; transition:background .15s ease; }
+.hdr-boton:hover > span{ background:#E8EEF8; }
+.hdr-avatar{ position:relative; width:34px; height:34px; display:block; }
+.hdr-nomina{ background:#003580; color:#fff; width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11.5px; }
+/* Estado de conexión a Firebase, sobre la nómina. */
+.hdr-punto{ position:absolute; right:-1px; bottom:-1px; width:10px; height:10px;
+  border-radius:50%; border:2px solid #fff; display:block; background:#D6A32A; }
+.hdr-punto.connected{ background:#0F7A55; }
+.hdr-punto.offline{ background:#C8102E; }
+.hdr-punto.syncing{ animation:hdrPulso 1s infinite; }
+@keyframes hdrPulso{ 0%,100%{opacity:1} 50%{opacity:.4} }
+/* Panel de la sesión */
+.hdr-panel{ position:absolute; right:12px; top:100%; margin-top:4px; z-index:41;
+  width:250px; background:#fff; border-radius:14px; text-align:left;
+  box-shadow:0 2px 8px rgba(0,32,96,.10), 0 12px 32px rgba(0,32,96,.14); padding:14px 15px; }
+.hdr-panel-nombre{ font-size:13px; font-weight:700; color:#002060; line-height:1.35; }
+.hdr-panel-puesto{ font-size:11.5px; color:#5A6A80; line-height:1.4; margin-top:2px; }
+.hdr-panel-meta{ display:flex; align-items:center; flex-wrap:wrap; gap:6px;
+  margin-top:8px; font-size:11px; color:#5A6A80; }
+.hdr-panel-sep{ height:1px; background:rgba(0,32,96,.10); margin:12px 0; }
+.hdr-panel-item{ display:flex; align-items:center; gap:9px; min-height:44px; width:100%;
+  background:transparent; border:none; padding:0; font-family:inherit; font-size:12.5px;
+  font-weight:600; text-align:left; cursor:pointer; color:#003580; text-decoration:none; }
+.hdr-panel-item.salir{ color:#9B0E24; }
+.hdr-capa{ position:fixed; inset:0; z-index:40; }
+
+/* Botón redondo de acción, igual que Excel y PDF en las demás apps. */
+.mt-redondo{ width:32px; height:32px; border-radius:50%; border:none; color:#fff; padding:0;
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.mt-redondo-excel{ background:#0F7A55; }
 .page.active{display:flex}
 /* ===== LOGIN ===== */
 #page-login{align-items:center;justify-content:center;background:#fff}
@@ -581,17 +659,62 @@ input[type=range].green{accent-color:var(--green)}
   </div>
 </div>
 
+<!-- ==================== ENCABEZADO DE LA SUITE ====================
+     Uno solo para todos los papeles. Se muestra al entrar y se oculta en la
+     pantalla de entrada; lo controla showPage(). -->
+<div id="suite-hdr" class="suite-hdr" style="display:none">
+  <div class="hdr-orilla">
+    <div>
+      <div class="hdr-marca">IMPREDIMEX</div>
+      <div class="hdr-app">Mantenimiento</div>
+    </div>
+  </div>
+
+  <div class="hdr-identidad">
+    <div class="hdr-nombre" id="hdr-nombre">&nbsp;</div>
+    <div class="hdr-puesto" id="hdr-puesto">&nbsp;</div>
+  </div>
+
+  <div class="hdr-orilla" style="justify-content:flex-end">
+    <a href="https://impredimex-hub.github.io/" class="hdr-boton" title="Volver al portal" aria-label="Volver al portal">
+      <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg></span>
+    </a>
+    <button type="button" id="hdr-avatar-btn" onclick="togglePanelSesion()" aria-label="Tu sesión" aria-expanded="false"
+            style="width:44px;height:44px;background:transparent;border:none;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+      <span class="hdr-avatar">
+        <span class="hdr-nomina" id="hdr-nomina"></span>
+        <span class="hdr-punto syncing" id="hdr-punto" title="Conectando…"></span>
+      </span>
+    </button>
+  </div>
+
+  <div class="hdr-capa" id="hdr-capa" style="display:none" onclick="togglePanelSesion()"></div>
+  <div class="hdr-panel" id="hdr-panel" style="display:none">
+    <div class="hdr-panel-nombre" id="panel-nombre"></div>
+    <div class="hdr-panel-puesto" id="panel-puesto"></div>
+    <div class="hdr-panel-meta">
+      <span class="hdr-punto syncing" id="panel-punto" style="position:static;border:none;width:7px;height:7px"></span>
+      <span id="panel-conexion">Conectando…</span>
+      <span style="color:rgba(0,32,96,.18)">|</span>
+      <span id="panel-papel"></span>
+    </div>
+    <div class="hdr-panel-meta" id="panel-turno" style="display:none"></div>
+    <div class="hdr-panel-sep"></div>
+    <a href="https://impredimex-hub.github.io/" class="hdr-panel-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+      Ir al portal
+    </a>
+    <button type="button" class="hdr-panel-item salir" onclick="togglePanelSesion();logout()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+      Cerrar sesión
+    </button>
+  </div>
+</div>
+
 <!-- ==================== APP SOLICITANTE ==================== -->
 <div id="page-solicitante" class="page">
   <!-- SCREEN: Lista OT -->
   <div id="sol-lista" class="screen active">
-    <div class="topbar topbar-blue">
-      <div style="flex:1">
-        <div style="font-size:11px;opacity:.75" id="sol-greeting">Hola</div>
-        <div class="topbar-title">Mis solicitudes</div>
-      </div>
-
-    </div>
     <div class="search-filters" id="sol-search-filters">
       <div class="sf-search-row">
         <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -722,7 +845,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Notificaciones -->
   <div id="sol-notifs" class="screen">
-    <div class="topbar topbar-blue"><div class="topbar-title">Notificaciones</div></div>
     <div class="scroll-content" id="sol-notifs-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sol-lista')">
@@ -742,7 +864,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Perfil -->
   <div id="sol-perfil" class="screen">
-    <div class="topbar topbar-blue"><div class="topbar-title">Mi perfil</div></div>
     <div class="scroll-content" id="sol-perfil-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sol-lista')">
@@ -765,13 +886,6 @@ input[type=range].green{accent-color:var(--green)}
 <div id="page-tecnico" class="page">
   <!-- SCREEN: Lista OT técnico -->
   <div id="tec-lista" class="screen active">
-    <div class="topbar topbar-green">
-      <div style="flex:1">
-        <div style="font-size:11px;opacity:.75" id="tec-greeting">Técnico</div>
-        <div class="topbar-title">Mis órdenes</div>
-      </div>
-
-    </div>
     <div class="search-filters">
       <div class="sf-search-row">
         <svg style="width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -922,7 +1036,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Historial técnico -->
   <div id="tec-historial" class="screen">
-    <div class="topbar topbar-green"><div class="topbar-title">Historial</div></div>
     <div class="scroll-content">
       <div class="list-pad" id="tec-historial-list"></div>
     </div>
@@ -944,7 +1057,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Perfil técnico -->
   <div id="tec-perfil" class="screen">
-    <div class="topbar topbar-green"><div class="topbar-title">Mi perfil</div></div>
     <div class="scroll-content" id="tec-perfil-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('tec-lista')">
@@ -967,14 +1079,14 @@ input[type=range].green{accent-color:var(--green)}
 <div id="page-supervisor" class="page">
   <!-- SCREEN: Todas las OT -->
   <div id="sup-ots" class="screen active">
-    <div class="topbar topbar-purple">
-      <div class="topbar-title">Todas las OT</div>
-      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15);width:auto;padding:0 10px;border-radius:8px;font-size:12px;font-weight:500;gap:5px;display:flex;align-items:center" onclick="exportarExcelOTs()" title="Exportar a Excel">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-        Excel
-      </button>
-    </div>
     <div class="scroll-content">
+      <!-- Excel, redondo como en las demás apps. Antes vivía en la barra de
+           título con el icono en blanco sobre fondo blanco: no se veía. -->
+      <div style="display:flex;justify-content:flex-end;padding:10px 16px 0">
+        <button type="button" class="mt-redondo mt-redondo-excel" onclick="exportarExcelOTs()" title="Exportar a Excel" aria-label="Exportar a Excel">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        </button>
+      </div>
       <div class="kpi-grid" id="sup-kpis"></div>
     <div class="search-filters">
       <div class="sf-search-row">
@@ -1045,7 +1157,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Técnicos -->
   <div id="sup-tecnicos" class="screen">
-    <div class="topbar topbar-purple"><div class="topbar-title">Técnicos</div></div>
     <div class="scroll-content" id="sup-tecnicos-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
@@ -1074,7 +1185,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Turnos (lista de roles) -->
   <div id="sup-turnos" class="screen">
-    <div class="topbar topbar-purple"><div class="topbar-title">Turnos</div></div>
     <div class="scroll-content" id="sup-turnos-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
@@ -1113,7 +1223,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Preventivo (lista de programas) -->
   <div id="sup-preventivo" class="screen">
-    <div class="topbar topbar-purple"><div class="topbar-title">Preventivo</div></div>
     <div class="scroll-content" id="sup-preventivo-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
@@ -1166,7 +1275,6 @@ input[type=range].green{accent-color:var(--green)}
 
   <!-- SCREEN: Perfil supervisor -->
   <div id="sup-perfil" class="screen">
-    <div class="topbar topbar-purple"><div class="topbar-title">Mi perfil</div></div>
     <div class="scroll-content" id="sup-perfil-content"></div>
     <nav class="tabbar">
       <button class="tabbar-item" onclick="showScreen('sup-ots');renderSupOTs()">
@@ -1605,6 +1713,15 @@ function reloadDB(){
 
 // ── setSyncState: indicador visual de conexión ────────────────────
 function setSyncState(state, msg){
+  // El mismo estado, reflejado en el punto sobre la nómina y en el panel. Va
+  // antes del regreso anticipado de abajo, para que nunca se lo salte.
+  ['hdr-punto','panel-punto'].forEach(function(idEl){
+    var p = document.getElementById(idEl);
+    if(p) p.className = 'hdr-punto ' + state;
+  });
+  var hp = document.getElementById('hdr-punto'); if(hp) hp.title = msg || '';
+  var pc = document.getElementById('panel-conexion'); if(pc) pc.textContent = msg || '';
+
   var dot = document.getElementById('fb-sync-dot');
   var lbl = document.getElementById('fb-sync-label');
   if(!dot) return;
@@ -2111,6 +2228,77 @@ function logout(){
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  actualizarEncabezadoSuite(id);
+}
+
+/**
+ * Encabezado de la suite (SPEC-035 de RRHH): uno solo para todos los papeles.
+ *
+ * En la pantalla de entrada no aparece; ahí sigue el indicador flotante de
+ * conexión, que es lo único que hace falta antes de identificarse. Al entrar
+ * se invierte: aparece el encabezado y el indicador flotante se esconde, porque
+ * quedaría encimado sobre los botones de la derecha.
+ */
+function actualizarEncabezadoSuite(id){
+  var hdr = document.getElementById('suite-hdr');
+  var flotante = document.querySelector('.fb-sync');
+  var enEntrada = (id === 'page-login');
+  if(hdr) hdr.style.display = enEntrada ? 'none' : 'flex';
+  if(flotante) flotante.style.display = enEntrada ? 'flex' : 'none';
+  document.body.classList.toggle('con-hdr', !enEntrada);
+  if(enEntrada){
+    var panel = document.getElementById('hdr-panel');
+    var capa  = document.getElementById('hdr-capa');
+    if(panel) panel.style.display = 'none';
+    if(capa)  capa.style.display  = 'none';
+  } else {
+    llenarEncabezado();
+  }
+}
+
+var ETIQUETA_PAPEL_MT = { admin:'Administrador', supervisor:'Supervisor', tecnico:'Técnico', solicitante:'Solicitante' };
+
+function llenarEncabezado(){
+  if(!currentUser) return;
+  var papel = ETIQUETA_PAPEL_MT[currentUser.role] || currentUser.role || '';
+  function pon(idEl, texto){ var el = document.getElementById(idEl); if(el) el.textContent = texto; }
+  pon('hdr-nombre',   currentUser.nombre || '');
+  pon('hdr-puesto',   currentUser.puesto || papel);
+  pon('hdr-nomina',   currentUser.nomina || '');
+  pon('panel-nombre', currentUser.nombre || '');
+  pon('panel-puesto', currentUser.puesto || papel);
+  pon('panel-papel',  'Nómina ' + (currentUser.nomina || '') + ' · ' + papel);
+  var nom = document.getElementById('hdr-nomina');
+  if(nom) nom.title = 'Nómina ' + currentUser.nomina + ' · ' + papel;
+
+  // El técnico veía su turno en la barra de «Mis órdenes». La barra se
+  // retiró; el turno se conserva aquí para no perderlo.
+  var t = document.getElementById('panel-turno');
+  if(t){
+    if(currentUser.role === 'tecnico'){
+      var etiqueta = '';
+      try { etiqueta = turnoLabel(); } catch(e){}
+      t.textContent = etiqueta;
+      t.style.display = etiqueta ? 'flex' : 'none';
+    } else {
+      t.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Abre y cierra el panel de la sesión. En el teléfono es el único lugar donde
+ * el nombre y el puesto caben completos.
+ */
+function togglePanelSesion(){
+  var panel = document.getElementById('hdr-panel');
+  var capa  = document.getElementById('hdr-capa');
+  var btn   = document.getElementById('hdr-avatar-btn');
+  if(!panel) return;
+  var abierto = panel.style.display === 'block';
+  panel.style.display = abierto ? 'none' : 'block';
+  if(capa) capa.style.display = abierto ? 'none' : 'block';
+  if(btn) btn.setAttribute('aria-expanded', abierto ? 'false' : 'true');
 }
 
 function showScreen(id){
@@ -2218,8 +2406,8 @@ function selectChip(el,group){
 // ==================== SOLICITANTE ====================
 function initSolicitante(){
   poblarSelectsNueva();
-  var primerNombre = currentUser.nombre.split(' ').slice(-1)[0];
-  document.getElementById('sol-greeting').textContent = 'Hola, ' + primerNombre;
+  // El saludo vivía en la barra de título, que se retiró: quién entró lo dice
+  // ahora el encabezado de la suite (lo llena showPage).
   document.getElementById('nueva-nomina-display').textContent = currentUser.nomina;
   document.getElementById('nueva-nombre-display').textContent = currentUser.nombre;
   updateNotifDot('sol-notif-dot','solicitante');
@@ -2781,7 +2969,7 @@ function showNotifs(role){
 
 // ==================== TÉCNICO ====================
 function initTecnico(){
-  document.getElementById('tec-greeting').textContent = currentUser.nombre + '  ·  ' + turnoLabel();
+  // Nombre y turno pasaron al encabezado de la suite (lo llena showPage).
   updateNotifDot('tec-notif-dot','tecnico');
   renderTecOTs('todas');
   renderTecHistorial();
@@ -6851,7 +7039,7 @@ let personalEditar = null;
 let personalBajaId = null;
 
 function initAdmin(){
-  document.getElementById('adm-greeting').textContent = currentUser.nombre;
+  // Quién entró lo dice ahora el encabezado de la suite (lo llena showPage).
   showScreen('adm-hub');
   if(!DB.personal) DB.personal = [];
   // Populate dept filter
@@ -7494,15 +7682,6 @@ function renderAdmPerfil(){
 
   <!-- SCREEN: Hub / selector de módulo -->
   <div id="adm-hub" class="screen active">
-    <div class="topbar topbar-orange">
-      <div style="flex:1">
-        <div style="font-size:11px;opacity:.75" id="adm-greeting">Administrador</div>
-        <div class="topbar-title">Panel de administración</div>
-      </div>
-      <button class="topbar-icon-btn" style="background:rgba(255,255,255,.15)" onclick="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
-        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-      </button>
-    </div>
     <div id="adm-hub-user" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)"></div>
     <div class="scroll-content">
       <div style="padding:16px 14px 8px;font-size:13px;font-weight:500;color:var(--text)">Módulos disponibles</div>

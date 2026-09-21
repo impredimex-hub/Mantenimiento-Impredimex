@@ -6,6 +6,42 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.5.0] — 2026-09-20
+
+### Agregado
+
+- **Encabezado estándar de la suite** (SPEC-050), el mismo de Recursos Humanos,
+  EPP, Calidad y Procesos. Uno solo arriba de todas las pantallas, para los
+  cuatro papeles; se oculta en la pantalla de entrada. Las pestañas de abajo
+  siguen siendo la navegación.
+- **Panel al tocar la nómina**, con nombre, puesto, conexión, papel y el turno
+  del técnico, más «Ir al portal» y «Cerrar sesión».
+- **Botón de portal.**
+
+### Quitado
+
+- **Las barras de título de las doce pantallas principales.** Repetían el nombre
+  de la pestaña marcada abajo.
+- **El indicador flotante de conexión** de la esquina superior, fuera de la
+  pantalla de entrada. Su punto pasó al círculo de la nómina.
+
+### Corregido
+
+- **El Excel de «Todas las OT» y el cerrar sesión del administrador eran
+  invisibles**: icono blanco sobre barra blanca. El Excel vuelve como botón
+  redondo verde; cerrar sesión, al panel.
+
+### Notas
+
+- Las barras de las subpantallas se conservan: llevan la flecha de regreso y el
+  número y estado de la OT.
+- El código que escribía los saludos de las barras retiradas se ajustó. Quitar
+  solo el elemento habría hecho fallar la app justo al entrar.
+- Se probó en un navegador simulado: entrada, técnico con su turno, supervisor
+  sin puesto, cambios de conexión de Firebase, panel y salida.
+
+---
+
 ## [2.4.0] — 2026-09-17
 
 ### Agregado

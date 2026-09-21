@@ -1892,3 +1892,64 @@ activo, acceso a esta app, papel asignado.
 - **No se cierra la sesión de la suite al rechazar.** Que alguien no tenga
   acceso a Mantenimiento no lo saca de las demás aplicaciones; hacerlo lo
   expulsaría del portal por abrir la app equivocada.
+
+---
+
+## SPEC-050 — Encabezado estándar de la suite
+
+### Alcance
+
+El encabezado es el mismo en las cinco aplicaciones de la suite. Está definido
+en la SPEC-035 del repositorio `rrhh-pwa`, que es la referencia. Esta app era la
+única distinta: no tenía barra de marca, sino una barra de título por pantalla,
+y por eso la aplicación del estándar aquí cambió más cosas que en las demás.
+
+### Qué hace
+
+- **Un solo encabezado arriba de todas las pantallas**, para los cuatro papeles.
+  Marca en Jost a la izquierda con «MANTENIMIENTO» debajo; botón de portal y
+  círculo de la nómina a la derecha; nombre y puesto centrados en pantalla ancha.
+- **Las pestañas de abajo siguen siendo la navegación.** No se tocaron.
+- **Se oculta en la pantalla de entrada** y aparece al identificarse. Lo decide
+  `showPage()`, así cubre también la sesión que sobrevive a F5 y el cambio de
+  papel del administrador.
+- **Queda fijo sin `position: sticky`.** El documento no se desplaza: cada
+  pantalla tiene su propio desplazamiento debajo del encabezado. Por eso mide
+  **56 px fijos**, y cada página se acorta exactamente eso
+  (`body.con-hdr .page`).
+- **El punto de conexión refleja la conexión real a Firebase**
+  (`.info/connected`), no solo si el teléfono tiene red: verde conectado, rojo
+  sin conexión, ámbar parpadeando mientras sincroniza. Es más preciso que en las
+  otras apps, que usan lo que reporta el teléfono.
+- **Panel al tocar la nómina**: nombre, puesto, conexión, nómina y papel, más
+  «Ir al portal» y «Cerrar sesión».
+
+### Qué se retiró
+
+- **Las barras de título de las doce pantallas principales**: Mis solicitudes,
+  Notificaciones y Mi perfil del solicitante; Mis órdenes, Historial y Mi perfil
+  del técnico; Todas las OT, Técnicos, Turnos, Preventivo y Mi perfil del
+  supervisor; y el Panel de administración. Solo repetían el nombre de la
+  pestaña que ya está marcada abajo.
+- **Los tres saludos** que vivían en esas barras («Hola, …», el nombre del
+  técnico, el del administrador). El código que los escribía se ajustó: si se
+  hubiera quitado solo el elemento, la app habría fallado justo al entrar.
+- **El indicador flotante de conexión** con su mini botón de salida, de la
+  esquina superior derecha. Sigue en la pantalla de entrada; después se esconde,
+  porque quedaría encimado sobre los botones del encabezado.
+
+### Qué se conservó
+
+- **Las barras de las subpantallas**: nueva solicitud, detalle de OT, registrar
+  actividad, poner en espera, rol de turnos, programa preventivo y las de
+  administración. Llevan la flecha de regreso y datos propios como el número y
+  el estado de la OT; sin ellas no habría forma de volver.
+- **El turno del técnico.** Se mostraba en la barra de «Mis órdenes»; ahora va
+  en el panel de la sesión.
+
+### Defectos corregidos de paso
+
+- **El botón de Excel de «Todas las OT» y el de cerrar sesión del administrador
+  eran invisibles.** Tenían el icono en blanco sobre la barra, que había pasado a
+  blanca. El Excel vuelve como botón redondo verde, igual que en las demás apps;
+  cerrar sesión, al panel.
