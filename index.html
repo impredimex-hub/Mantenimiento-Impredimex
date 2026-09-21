@@ -2,6 +2,44 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script>
+/* Arranque sin parpadeo. Las páginas de la suite viven en el mismo dominio y
+   comparten esta nota: si hay sesión abierta, se cubre la pantalla con la
+   marca mientras Firebase la confirma, en lugar de mostrar un instante la
+   pantalla de contraseña. Corre antes de dibujar nada.
+   La nota se escribe al abrir sesión y se borra al cerrarla o si Firebase
+   dice que ya no hay sesión. Si miente, la marca dura un momento y aparece
+   la contraseña, que es lo correcto. */
+(function(){
+  try{
+    if(localStorage.getItem('impredimex:sesion') === '1'){
+      var h = document.documentElement;
+      h.classList.add('con-sesion');
+      // Red de seguridad: si en 8 s no terminó de abrir, se quita la marca y
+      // queda a la vista lo que haya debajo. Nadie se queda sin salida.
+      setTimeout(function(){ h.classList.remove('con-sesion'); }, 8000);
+    }
+  }catch(e){}
+})();
+function arranqueListo(haySesion){
+  try{
+    if(haySesion) localStorage.setItem('impredimex:sesion','1');
+    else localStorage.removeItem('impredimex:sesion');
+  }catch(e){}
+  document.documentElement.classList.remove('con-sesion');
+}
+</script>
+<style>
+/* La marca se dibuja sobre la raíz, así no hace falta tocar el contenido de
+   la página: cubre todo mientras dura la clase y desaparece al quitarla. */
+html.con-sesion::after{
+  content:'IMPREDIMEX'; position:fixed; inset:0; z-index:2147483647;
+  display:flex; align-items:center; justify-content:center; background:#ffffff;
+  font-family:'Jost',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-weight:600; font-size:22px; letter-spacing:.20em; color:#002060;
+}
+</style>
+
 <!-- ╔══════════════════════════════════════════════════════════╗
      ║  FIREBASE CONFIG — impredimex-mantoapp                  ║
      ╚══════════════════════════════════════════════════════════╝ -->
@@ -2246,6 +2284,9 @@ function actualizarEncabezadoSuite(id){
   if(hdr) hdr.style.display = enEntrada ? 'none' : 'flex';
   if(flotante) flotante.style.display = enEntrada ? 'flex' : 'none';
   document.body.classList.toggle('con-hdr', !enEntrada);
+  // Arranque sin parpadeo (SPEC-051): pasar a una página de papel es sesión
+  // confirmada; volver a la de entrada es que ya no hay.
+  arranqueListo(!enEntrada);
   if(enEntrada){
     var panel = document.getElementById('hdr-panel');
     var capa  = document.getElementById('hdr-capa');
@@ -7015,6 +7056,8 @@ suiteAuth.onAuthStateChanged(function(user){
     _entrandoConSesionDeSuite = true;
 
     abrirSesion(user).catch(function(err){
+      // La marca se quita antes, o taparía el aviso con el motivo.
+      arranqueListo(false);
       // Los rechazos legítimos —sin registro, dado de baja, sin acceso a esta
       // app— dejan la pantalla de acceso a la vista con su motivo, en lugar de
       // entrar a medias. No se cierra la sesión de la suite: las demás
@@ -7030,6 +7073,10 @@ suiteAuth.onAuthStateChanged(function(user){
 
   } else if(currentUser){
     logout();
+  } else {
+    // Sin sesión y sin nada guardado: la contraseña ya está a la vista, pero
+    // hay que quitar la marca del arranque, que la estaría tapando.
+    arranqueListo(false);
   }
 });
     setTimeout(function(){if(typeof Notification!=='undefined'&&Notification.permission==='default'){Notification.requestPermission().then(function(p){if(p==='granted')saveFCMToken();});}else if(typeof Notification!=='undefined'&&Notification.permission==='granted'){saveFCMToken();}},2500);

@@ -1953,3 +1953,39 @@ y por eso la aplicación del estándar aquí cambió más cosas que en las demá
   eran invisibles.** Tenían el icono en blanco sobre la barra, que había pasado a
   blanca. El Excel vuelve como botón redondo verde, igual que en las demás apps;
   cerrar sesión, al panel.
+
+---
+
+## SPEC-051 — Abrir sin mostrar la contraseña de paso
+
+### Por qué
+
+Al pasar del portal a una app, o de una app al portal, se veía un instante la
+pantalla de contraseña aunque ya hubiera sesión. Cada página arrancaba con la
+contraseña a la vista y solo la escondía cuando Firebase confirmaba la sesión y
+terminaba de leer la ficha del padrón: entre medio segundo y un segundo y medio.
+
+### Cómo funciona
+
+- **Las seis páginas de la suite comparten una nota** en el almacenamiento del
+  navegador (`impredimex:sesion`), porque viven en el mismo dominio. Se escribe
+  al abrir sesión y se borra al cerrarla, o cuando Firebase dice que no la hay.
+- **Un bloque en la cabecera de `index.html` la lee antes de dibujar nada.** Si
+  hay sesión, cubre la pantalla con la marca IMPREDIMEX mientras la app termina
+  de abrir. Si no la hay, la contraseña aparece al instante.
+- **Si la nota miente** —la sesión expiró—, la marca dura un momento y aparece
+  la contraseña, que es lo correcto.
+- **Red de seguridad:** si en 8 segundos la app no terminó de abrir, la marca se
+  quita sola. Nadie se queda viendo la marca sin salida.
+- **Al mostrar un error de acceso la marca se quita siempre**, o taparía el
+  mensaje con el motivo.
+- La marca se dibuja con `html::after`, sin tocar el contenido de la página.
+
+### Particular de esta app
+
+- **El aviso sale de `showPage()`**: pasar a una página de papel es sesión
+  confirmada; volver a la de entrada es que ya no hay. Así cubre también la
+  sesión guardada que sobrevive a F5 y el cambio de papel del administrador.
+- **Sin sesión y sin nada guardado, la app no hacía nada**, porque la
+  contraseña ya estaba a la vista. Ahora quita la marca en ese caso; si no, la
+  tendría tapada 8 segundos.
