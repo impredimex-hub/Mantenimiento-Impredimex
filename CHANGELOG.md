@@ -6,6 +6,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.6.2] — 2026-09-22
+
+### Quitado
+
+- **La pantalla azul de bienvenida** con la frase «Sumamos más cuando sumamos
+  todos» (SPEC-053). Aparecía en cada apertura y esperaba a que terminara de
+  descargarse todo más un segundo y medio; con la marca blanca nueva, se veían
+  dos pantallas de marca seguidas. Ahora Mantenimiento abre igual que las otras
+  cinco apps.
+
+---
+
 ## [2.6.1] — 2026-09-22
 
 ### Corregido
