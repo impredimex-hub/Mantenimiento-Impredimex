@@ -7537,7 +7537,8 @@ function initCatalogos(){
     saveDB();
   }
 }
-restoreSession(); // SPEC-024: si hay sesión guardada, entra directo sin pasar por login
+// restoreSession() se mudó al final de este bloque (SPEC-054): necesita que
+// todas las variables de abajo ya existan.
 initFirebase();
 
 // La lista de personas vive en memoria, así que al recargar la página hay que
@@ -8235,6 +8236,14 @@ function renderAdmPerfil(){
     +'<div class="spacer"></div>';
 }
 
+
+// SPEC-024 / SPEC-054: si hay sesión guardada, se entra directo sin pasar por
+// la pantalla de contraseña. Va AL FINAL a propósito: la pantalla del
+// administrador usa variables declaradas con `let` más arriba (como
+// admStatusFilter), y JavaScript no permite leerlas antes de su línea. Cuando
+// esta llamada estaba a media página fallaba ahí, y el administrador veía un
+// instante la pantalla de contraseña antes de entrar.
+restoreSession();
 </script>
 </body>
 </html>

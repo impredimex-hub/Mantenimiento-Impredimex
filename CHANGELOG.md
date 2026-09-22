@@ -6,6 +6,22 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.6.3] — 2026-09-22
+
+### Corregido
+
+- **El administrador veía un instante la pantalla de contraseña al llegar desde
+  la suite** (SPEC-054). La restauración de sesión corría antes de que
+  existieran unas variables de su pantalla y fallaba. Ahora es la última
+  instrucción del código.
+
+### Notas
+
+- Se probó con el código real completo: con el orden anterior se reprodujo el
+  error; con el nuevo, los cuatro papeles entran directo.
+
+---
+
 ## [2.6.2] — 2026-09-22
 
 ### Quitado

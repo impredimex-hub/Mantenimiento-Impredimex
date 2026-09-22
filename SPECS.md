@@ -2049,3 +2049,40 @@ inicial de más.
 - **La frase no se conserva en ningún lado**, por decisión expresa: se prefirió
   que Mantenimiento abra igual que las otras cinco.
 - Sin sesión, la contraseña aparece al instante, sin la espera de antes.
+
+---
+
+## SPEC-054 — La sesión guardada se restaura al final del código
+
+### Por qué
+
+Al llegar desde la suite, el administrador veía un instante la pantalla de
+contraseña antes de entrar. Los otros papeles no.
+
+### Causa
+
+`restoreSession()` corría a media página, y la pantalla del administrador
+necesita variables declaradas con `let` más abajo (`admStatusFilter`,
+`personalEditar`, `personalBajaId`). JavaScript no permite leer una variable
+`let` antes de su línea: `initAdmin()` → `renderPersonal()` fallaba con
+*Cannot access 'admStatusFilter' before initialization*.
+
+Desde la SPEC-052 ese fallo ya no dejaba la pantalla en blanco: regresaba a la
+de contraseña y Firebase abría la sesión por su lado un momento después. Ese
+regreso era el parpadeo.
+
+### Regla
+
+- **`restoreSession()` es la última instrucción del bloque de código.** Así
+  todas las variables y funciones ya existen cuando se dibuja cualquier
+  pantalla.
+- Lo que corre entre su lugar anterior y el final —`initFirebase()`,
+  `initSuite()` y el vigilante de la suite— solo registra avisos que llegan
+  después, así que no depende de que la sesión ya se haya restaurado.
+
+### Verificación
+
+Se corrió el código real completo en un navegador simulado, con Firebase y las
+notificaciones sustituidos por imitaciones. Con el orden anterior se reprodujo
+el error y la caída a la contraseña; con el nuevo, los cuatro papeles entran
+directo a su pantalla.
