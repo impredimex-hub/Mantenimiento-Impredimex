@@ -1554,26 +1554,31 @@ input[type=range].green{accent-color:var(--green)}
       <div style="flex:1"><div class="topbar-title">Indicadores de mantenimiento</div></div>
     </div>
     <div class="scroll-content">
-      <div style="padding:12px 16px 4px">
-        <div class="field-lbl" style="margin-bottom:4px">Periodo</div>
-        <select class="field-select" id="kpi-periodo" onchange="renderKPIs()">
-          <option value="30d">Últimos 30 días</option>
-          <option value="mes">Este mes</option>
-          <option value="mesant">Mes anterior</option>
-          <option value="todo">Todo el histórico</option>
-        </select>
-      </div>
-      <div style="padding:8px 16px 4px">
-        <div class="field-lbl" style="margin-bottom:4px">Técnico</div>
-        <select class="field-select" id="kpi-tecnico" onchange="renderKPIs()">
-          <option value="">Todos — vista general</option>
-        </select>
-      </div>
-      <div style="padding:8px 16px 4px">
-        <div class="field-lbl" style="margin-bottom:4px">Máquina</div>
-        <select class="field-select" id="kpi-maquina" onchange="renderKPIs()">
-          <option value="">Todas las máquinas</option>
-        </select>
+      <!-- Los tres filtros en un renglón (SPEC-056). Se reparten el ancho por
+           igual y, cuando no caben, bajan en lugar de encogerse hasta no
+           poder leerse. -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px 16px 4px">
+        <div style="flex:1 1 180px;min-width:0">
+          <div class="field-lbl" style="margin-bottom:4px">Periodo</div>
+          <select class="field-select" id="kpi-periodo" onchange="renderKPIs()">
+            <option value="30d">Últimos 30 días</option>
+            <option value="mes">Este mes</option>
+            <option value="mesant">Mes anterior</option>
+            <option value="todo">Todo el histórico</option>
+          </select>
+        </div>
+        <div style="flex:1 1 180px;min-width:0">
+          <div class="field-lbl" style="margin-bottom:4px">Técnico</div>
+          <select class="field-select" id="kpi-tecnico" onchange="renderKPIs()">
+            <option value="">Todos — vista general</option>
+          </select>
+        </div>
+        <div style="flex:1 1 180px;min-width:0">
+          <div class="field-lbl" style="margin-bottom:4px">Máquina</div>
+          <select class="field-select" id="kpi-maquina" onchange="renderKPIs()">
+            <option value="">Todas las máquinas</option>
+          </select>
+        </div>
       </div>
       <div id="adm-kpis-content"></div>
       <div class="spacer"></div>
@@ -7906,6 +7911,108 @@ function mostrarDetalleKPI(tipo, reabrir){
 }
 
 /**
+ * Botones redondos de exportar, con el mismo trazo que en Recursos Humanos
+ * (SPEC-056): el círculo se ve de 32 px y la zona que responde al dedo mide
+ * 44, que es lo mínimo para atinarle con guantes.
+ */
+function _kpiBotonesExportar(){
+  var base = 'width:44px;height:44px;background:transparent;border:none;padding:0;'
+    + 'display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0';
+  var circulo = 'width:32px;height:32px;border-radius:50%;color:#fff;display:flex;'
+    + 'align-items:center;justify-content:center';
+  var hoja = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>'
+    + '<line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>';
+  return '<div style="display:flex;align-items:center;gap:2px">'
+    + '<button type="button" onclick="_kpiExportarExcel()" title="Exportar a Excel" aria-label="Exportar a Excel" style="'+base+'">'
+    +   '<span style="'+circulo+';background:#0F7A55">'+hoja+'</span></button>'
+    + '<button type="button" onclick="_kpiExportarPDF()" title="Exportar a PDF" aria-label="Exportar a PDF" style="'+base+'">'
+    +   '<span style="'+circulo+';background:#C8102E">'+hoja+'</span></button>'
+    + '</div>';
+}
+
+/** Las filas tal como se ven: mismo orden y mismo texto que en pantalla. */
+function _kpiFilasVisibles(){
+  var d = _kpiTablaActual;
+  if(!d) return null;
+  var orden = _kpiOrden[d.tipo];
+  var filas = d.filas.slice();
+  if(orden && d.cols[orden.col]){
+    var col = d.cols[orden.col];
+    filas.sort(function(a,b){ return _kpiComparar(a,b,col) * orden.dir; });
+  }
+  // Se exporta lo que se lee, no el HTML: se quitan etiquetas y los saltos de
+  // línea pasan a un espacio, para que una celda no traiga marcado adentro.
+  var limpio = function(html){
+    return String(html).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  };
+  return {
+    titulo: d.titulo,
+    encabezados: d.cols.map(function(c){ return c.t; }),
+    filas: filas.map(function(f){ return d.cols.map(function(c){ return limpio(c.html(f)); }); })
+  };
+}
+
+/** Nombre de archivo con el indicador y la fecha. */
+function _kpiNombreArchivo(){
+  var d = new Date();
+  var dos = function(n){ return String(n).padStart(2,'0'); };
+  return 'Indicadores_' + (_kpiTablaActual ? _kpiTablaActual.tipo : 'detalle') + '_'
+    + d.getFullYear() + dos(d.getMonth()+1) + dos(d.getDate());
+}
+
+function _kpiExportarExcel(){
+  var v = _kpiFilasVisibles();
+  if(!v || !v.filas.length){ appAlert('No hay filas que exportar.'); return; }
+  if(typeof XLSX === 'undefined'){ appAlert('No se pudo cargar la herramienta de Excel. Revisa tu conexión.'); return; }
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet([[v.titulo], [_kpiPieFiltros()], []].concat([v.encabezados]).concat(v.filas));
+  ws['!cols'] = v.encabezados.map(function(){ return {wch:20}; });
+  XLSX.utils.book_append_sheet(wb, ws, 'Detalle');
+  XLSX.writeFile(wb, _kpiNombreArchivo() + '.xlsx');
+}
+
+/**
+ * El PDF sale por la ventana de impresión del navegador, que es de donde se
+ * guarda como PDF. Así no hace falta traer otra librería solo para esto.
+ */
+function _kpiExportarPDF(){
+  var v = _kpiFilasVisibles();
+  if(!v || !v.filas.length){ appAlert('No hay filas que exportar.'); return; }
+  var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  var html = '<h1>' + esc(v.titulo) + '</h1>'
+    + '<div class="sub">' + esc(_kpiPieFiltros()) + '</div>'
+    + '<table><thead><tr>' + v.encabezados.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('') + '</tr></thead><tbody>'
+    + v.filas.map(function(f){ return '<tr>' + f.map(function(c){ return '<td>'+esc(c)+'</td>'; }).join('') + '</tr>'; }).join('')
+    + '</tbody></table>';
+  var css = '@page{size:A4 landscape;margin:12mm}'
+    + 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1a1a1a}'
+    + 'h1{font-size:13pt;color:#003580;margin:0 0 2mm}'
+    + '.sub{font-size:8pt;color:#666;margin-bottom:5mm}'
+    + 'table{width:100%;border-collapse:collapse;font-size:8pt}'
+    + 'th{background:#003580;color:#fff;text-align:left;padding:2mm;font-size:8pt}'
+    + 'td{border-bottom:.4pt solid #ccc;padding:1.6mm}'
+    + 'tr:nth-child(even) td{background:#f4f7fb}';
+  var win = window.open('', '_blank');
+  if(!win){
+    appAlert('El navegador bloque\u00f3 la ventana de impresi\u00f3n.\n\nPermite las ventanas emergentes para este sitio y vuelve a intentarlo.');
+    return;
+  }
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>'
+    + esc(_kpiNombreArchivo()) + '</title><style>' + css + '</style></head><body>' + html + '</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); }, 350);
+}
+
+/** Qué filtros estaban puestos, para que el archivo se explique solo. */
+function _kpiPieFiltros(){
+  var v = function(id){ var e = document.getElementById(id); return e ? (e.options[e.selectedIndex]||{}).text : ''; };
+  return 'Periodo: ' + v('kpi-periodo') + '  ·  Técnico: ' + v('kpi-tecnico')
+    + '  ·  Máquina: ' + v('kpi-maquina') + '  ·  Generado: ' + new Date().toLocaleString('es-MX');
+}
+
+/**
  * Orden de cada tabla de detalle (SPEC-055): `{ mtbf: {col: 3, dir: -1} }`.
  * Se recuerda por indicador, así que volver a abrir una tabla la muestra como
  * se dejó.
@@ -7953,7 +8060,10 @@ function _kpiPintarTabla(){
   }).join('');
 
   area.innerHTML = '<div class="kpi-detalle-box">'
-    + '<div class="kpi-detalle-t">' + d.titulo + '</div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
+    +   '<div class="kpi-detalle-t">' + d.titulo + '</div>'
+    +   (cuerpo ? _kpiBotonesExportar() : '')
+    + '</div>'
     + (cuerpo
         ? '<div class="kpi-detalle-scroll"><table class="kpi-detalle-tbl"><thead><tr>' + ths + '</tr></thead><tbody>' + cuerpo + '</tbody></table></div>'
         : '<div class="kpi-detalle-vacio">' + (d.vacio || 'Sin registros para este periodo.') + '</div>')
@@ -8006,7 +8116,9 @@ function _kpiTablaDetalle(tipo){
       {t:'Equipo', tipo:'texto', valor:texto('equipo'), html:function(f){ return f.equipo; }},
       {t:'Solicitante', tipo:'texto', valor:texto('solicitante'), html:function(f){ return f.solicitante||'—'; }},
       {t:'Alta', tipo:'fecha', valor:texto('fechaAlta'), html:function(f){ return fmt(f.fechaAlta); }},
-      {t:'Cierre', tipo:'fecha', valor:texto('fechaCierre'), html:function(f){ return fmt(f.fechaCierre); }}
+      {t:'Cierre', tipo:'fecha', valor:texto('fechaCierre'), html:function(f){ return fmt(f.fechaCierre); }},
+      {t:'Tiempo total', tipo:'num', valor:texto('totalMs'), html:function(f){ return _kpiFmtHoras(f.totalMs); }},
+      {t:'Técnicos', tipo:'texto', valor:texto('tecnicos'), html:function(f){ return f.tecnicos || '—'; }}
     ]};
   }
   if(tipo==='reduccion'){
@@ -8120,7 +8232,13 @@ function renderKPIs(){
     });
   }
   _kpiDetalles.correctivas = cerradasPeriodo.map(function(o){
-    return {folio:o.folio, equipo:o.equipo, solicitante:o.solicitante, fechaAlta:o.fechaAlta, fechaCierre:o.fechaCierre};
+    // Tiempo total de la orden: de alta a cierre, sin descontar esperas. Es
+    // distinto del de MTTR, que sí las descuenta (SPEC-056).
+    var totalMs = Math.max(0, new Date(o.fechaCierre).getTime() - new Date(o.fechaAlta).getTime());
+    var tecs = (o.tecnicos||[]).map(function(x){ return toTitleCase(x && x.nombre ? x.nombre : ''); })
+      .filter(Boolean).join(', ');
+    return {folio:o.folio, equipo:o.equipo, solicitante:o.solicitante,
+      fechaAlta:o.fechaAlta, fechaCierre:o.fechaCierre, totalMs:totalMs, tecnicos:tecs};
   });
 
   // ── MTTR: promedio de (duración total - esperas) de las cerradas en el periodo ──
