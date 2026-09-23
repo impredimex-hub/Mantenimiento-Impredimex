@@ -1569,6 +1569,12 @@ input[type=range].green{accent-color:var(--green)}
           <option value="">Todos — vista general</option>
         </select>
       </div>
+      <div style="padding:8px 16px 4px">
+        <div class="field-lbl" style="margin-bottom:4px">Máquina</div>
+        <select class="field-select" id="kpi-maquina" onchange="renderKPIs()">
+          <option value="">Todas las máquinas</option>
+        </select>
+      </div>
       <div id="adm-kpis-content"></div>
       <div class="spacer"></div>
     </div>
@@ -5805,6 +5811,7 @@ function switchAdmModule(mod){
   if(mod === 'kpis'){
     showScreen('adm-kpis');
     poblarSelectTecnicoKPI();
+    poblarSelectMaquinaKPI();
     renderKPIs();
     return;
   }
@@ -7893,80 +7900,147 @@ function mostrarDetalleKPI(tipo, reabrir){
   _kpiTarjetaActiva = tipo;
   var card = document.getElementById('kpi-card-'+tipo);
   if(card) card.classList.add('kpi-card-activa');
-  area.innerHTML = _kpiTablaDetalle(tipo);
+  _kpiTablaActual = _kpiTablaDetalle(tipo);
+  if(!_kpiOrden[tipo]) _kpiOrden[tipo] = _KPI_ORDEN_INICIAL[tipo];
+  _kpiPintarTabla();
 }
 
-function _kpiTablaWrap(titulo, encabezados, filasHTML, vacio){
-  return '<div class="kpi-detalle-box">'
-    + '<div class="kpi-detalle-t">'+titulo+'</div>'
-    + (filasHTML
-        ? '<div class="kpi-detalle-scroll"><table class="kpi-detalle-tbl"><thead><tr>'+encabezados+'</tr></thead><tbody>'+filasHTML+'</tbody></table></div>'
-        : '<div class="kpi-detalle-vacio">'+(vacio||'Sin registros para este periodo.')+'</div>')
+/**
+ * Orden de cada tabla de detalle (SPEC-055): `{ mtbf: {col: 3, dir: -1} }`.
+ * Se recuerda por indicador, así que volver a abrir una tabla la muestra como
+ * se dejó.
+ */
+var _kpiOrden = {};
+/** La tabla que está a la vista, para poder reordenarla sin recalcular nada. */
+var _kpiTablaActual = null;
+
+/**
+ * Las columnas declaran **de qué tipo es su dato**, no solo su texto.
+ *
+ * Ordenar por el texto de la celda pondría «45 min» antes que «3 h», y
+ * «10/01» antes que «2/12». Por eso cada columna trae `valor`, que es lo que
+ * de verdad se compara, y `html`, que es lo que se ve.
+ */
+function _kpiComparar(a, b, col){
+  var va = col.valor(a), vb = col.valor(b);
+  if(col.tipo === 'num')   return (Number(va)||0) - (Number(vb)||0);
+  if(col.tipo === 'fecha') return (new Date(va).getTime()||0) - (new Date(vb).getTime()||0);
+  return String(va==null?'':va).localeCompare(String(vb==null?'':vb), 'es', {numeric:true});
+}
+
+function _kpiPintarTabla(){
+  var area = document.getElementById('kpi-detalle');
+  var d = _kpiTablaActual;
+  if(!area || !d) return;
+
+  var orden = _kpiOrden[d.tipo];
+  var filas = d.filas.slice();
+  if(orden && d.cols[orden.col]){
+    var col = d.cols[orden.col];
+    filas.sort(function(a,b){ return _kpiComparar(a,b,col) * orden.dir; });
+  }
+
+  var ths = d.cols.map(function(c, i){
+    var activa = orden && orden.col === i;
+    var flecha = activa ? (orden.dir === 1 ? ' ▲' : ' ▼') : '';
+    return '<th onclick="_kpiOrdenarPor(' + i + ')" title="Ordenar por ' + c.t + '"'
+      + ' style="cursor:pointer;white-space:nowrap' + (activa ? ';color:var(--blue-dark)' : '') + '">'
+      + c.t + flecha + '</th>';
+  }).join('');
+
+  var cuerpo = filas.map(function(f){
+    return '<tr>' + d.cols.map(function(c){ return '<td>' + c.html(f) + '</td>'; }).join('') + '</tr>';
+  }).join('');
+
+  area.innerHTML = '<div class="kpi-detalle-box">'
+    + '<div class="kpi-detalle-t">' + d.titulo + '</div>'
+    + (cuerpo
+        ? '<div class="kpi-detalle-scroll"><table class="kpi-detalle-tbl"><thead><tr>' + ths + '</tr></thead><tbody>' + cuerpo + '</tbody></table></div>'
+        : '<div class="kpi-detalle-vacio">' + (d.vacio || 'Sin registros para este periodo.') + '</div>')
     + '</div>';
 }
 
+/** Un clic ordena de menor a mayor; el siguiente, al revés. */
+function _kpiOrdenarPor(i){
+  if(!_kpiTablaActual) return;
+  var t = _kpiTablaActual.tipo;
+  var actual = _kpiOrden[t];
+  _kpiOrden[t] = (actual && actual.col === i) ? {col:i, dir: actual.dir * -1} : {col:i, dir:1};
+  _kpiPintarTabla();
+}
+
 function _kpiTablaDetalle(tipo){
+  var D = _kpiDetalles;
+  var texto = function(campo){ return function(f){ return f[campo]; }; };
+
   if(tipo==='mtbf'){
-    var filas1 = _kpiDetalles.mtbf.map(function(g){
-      return '<tr><td>'+g.equipo+'</td>'
-        + '<td>'+g.folioAnterior+'<br><span class="kpi-td-s">cerró '+fmt(g.cierreAnterior)+'</span></td>'
-        + '<td>'+g.folioActual+'<br><span class="kpi-td-s">inició '+fmt(g.altaActual)+'</span></td>'
-        + '<td>'+_kpiFmtHoras(g.gapMs)+'</td></tr>';
-    }).join('');
-    return _kpiTablaWrap('MTBF — intervalos entre fallas por equipo',
-      '<th>Equipo</th><th>Falla anterior</th><th>Falla siguiente</th><th>Intervalo</th>', filas1);
+    return {tipo:tipo, titulo:'MTBF — intervalos entre fallas por equipo', filas:D.mtbf, cols:[
+      {t:'Equipo', tipo:'texto', valor:texto('equipo'), html:function(f){ return f.equipo; }},
+      {t:'Falla anterior', tipo:'fecha', valor:texto('cierreAnterior'), html:function(f){ return f.folioAnterior+'<br><span class="kpi-td-s">cerró '+fmt(f.cierreAnterior)+'</span>'; }},
+      {t:'Falla siguiente', tipo:'fecha', valor:texto('altaActual'), html:function(f){ return f.folioActual+'<br><span class="kpi-td-s">inició '+fmt(f.altaActual)+'</span>'; }},
+      {t:'Intervalo', tipo:'num', valor:texto('gapMs'), html:function(f){ return _kpiFmtHoras(f.gapMs); }}
+    ]};
   }
   if(tipo==='mttr'){
-    var filas2 = _kpiDetalles.mttr.map(function(o){
-      return '<tr><td>'+o.folio+'</td><td>'+o.equipo+'</td>'
-        + '<td>'+fmt(o.fechaAlta)+'</td><td>'+fmt(o.fechaCierre)+'</td>'
-        + '<td>'+_kpiFmtHoras(o.esperaMs)+'</td><td><b>'+_kpiFmtHoras(o.netoMs)+'</b></td></tr>';
-    }).join('');
-    return _kpiTablaWrap('MTTR — OT cerradas en el periodo',
-      '<th>Folio</th><th>Equipo</th><th>Alta</th><th>Cierre</th><th>En espera</th><th>Tiempo neto</th>', filas2);
+    return {tipo:tipo, titulo:'MTTR — OT cerradas en el periodo', filas:D.mttr, cols:[
+      {t:'Folio', tipo:'texto', valor:texto('folio'), html:function(f){ return f.folio; }},
+      {t:'Equipo', tipo:'texto', valor:texto('equipo'), html:function(f){ return f.equipo; }},
+      {t:'Alta', tipo:'fecha', valor:texto('fechaAlta'), html:function(f){ return fmt(f.fechaAlta); }},
+      {t:'Cierre', tipo:'fecha', valor:texto('fechaCierre'), html:function(f){ return fmt(f.fechaCierre); }},
+      {t:'En espera', tipo:'num', valor:texto('esperaMs'), html:function(f){ return _kpiFmtHoras(f.esperaMs); }},
+      {t:'Tiempo neto', tipo:'num', valor:texto('netoMs'), html:function(f){ return '<b>'+_kpiFmtHoras(f.netoMs)+'</b>'; }}
+    ]};
   }
   if(tipo==='disp'){
-    var filas3 = _kpiDetalles.disp.map(function(o){
-      return '<tr><td>'+o.folio+'</td><td>'+o.equipo+'</td>'
-        + '<td>'+fmt(o.fechaAlta)+'</td><td>'+fmt(o.finReal)+'</td>'
-        + '<td>'+_kpiFmtHoras(o.horasMs)+'</td></tr>';
-    }).join('');
-    return _kpiTablaWrap('Disponibilidad — indisponibilidad contabilizada en el periodo',
-      '<th>Folio</th><th>Equipo</th><th>Alta</th><th>Fin real</th><th>Indisponible</th>', filas3);
+    return {tipo:tipo, titulo:'Disponibilidad — indisponibilidad contabilizada en el periodo', filas:D.disp, cols:[
+      {t:'Folio', tipo:'texto', valor:texto('folio'), html:function(f){ return f.folio; }},
+      {t:'Equipo', tipo:'texto', valor:texto('equipo'), html:function(f){ return f.equipo; }},
+      {t:'Alta', tipo:'fecha', valor:texto('fechaAlta'), html:function(f){ return fmt(f.fechaAlta); }},
+      {t:'Fin real', tipo:'fecha', valor:texto('finReal'), html:function(f){ return fmt(f.finReal); }},
+      {t:'Indisponible', tipo:'num', valor:texto('horasMs'), html:function(f){ return _kpiFmtHoras(f.horasMs); }}
+    ]};
   }
   if(tipo==='correctivas'){
-    var filas4 = _kpiDetalles.correctivas.map(function(o){
-      return '<tr><td>'+o.folio+'</td><td>'+o.equipo+'</td><td>'+(o.solicitante||'—')+'</td>'
-        + '<td>'+fmt(o.fechaAlta)+'</td><td>'+fmt(o.fechaCierre)+'</td></tr>';
-    }).join('');
-    return _kpiTablaWrap('OT correctivas cerradas en el periodo',
-      '<th>Folio</th><th>Equipo</th><th>Solicitante</th><th>Alta</th><th>Cierre</th>', filas4);
+    return {tipo:tipo, titulo:'OT correctivas cerradas en el periodo', filas:D.correctivas, cols:[
+      {t:'Folio', tipo:'texto', valor:texto('folio'), html:function(f){ return f.folio; }},
+      {t:'Equipo', tipo:'texto', valor:texto('equipo'), html:function(f){ return f.equipo; }},
+      {t:'Solicitante', tipo:'texto', valor:texto('solicitante'), html:function(f){ return f.solicitante||'—'; }},
+      {t:'Alta', tipo:'fecha', valor:texto('fechaAlta'), html:function(f){ return fmt(f.fechaAlta); }},
+      {t:'Cierre', tipo:'fecha', valor:texto('fechaCierre'), html:function(f){ return fmt(f.fechaCierre); }}
+    ]};
   }
   if(tipo==='reduccion'){
-    var conjuntas = _kpiDetalles.reduccion.actual.map(function(o){ return {o:o, tag:'Actual'}; })
-      .concat(_kpiDetalles.reduccion.previo.map(function(o){ return {o:o, tag:'Anterior'}; }));
-    conjuntas.sort(function(a,b){ return new Date(b.o.fechaCierre)-new Date(a.o.fechaCierre); });
-    var filas5 = conjuntas.map(function(x){
-      return '<tr><td><span class="kpi-tag-'+(x.tag==='Actual'?'act':'ant')+'">'+x.tag+'</span></td>'
-        + '<td>'+x.o.folio+'</td><td>'+x.o.equipo+'</td><td>'+fmt(x.o.fechaCierre)+'</td></tr>';
-    }).join('');
-    return _kpiTablaWrap('Correctivas del periodo actual vs. el anterior',
-      '<th>Periodo</th><th>Folio</th><th>Equipo</th><th>Cierre</th>', filas5);
+    var conjuntas = D.reduccion.actual.map(function(o){ return {o:o, tag:'Actual'}; })
+      .concat(D.reduccion.previo.map(function(o){ return {o:o, tag:'Anterior'}; }));
+    return {tipo:tipo, titulo:'Correctivas del periodo actual vs. el anterior', filas:conjuntas, cols:[
+      {t:'Periodo', tipo:'texto', valor:function(f){ return f.tag; }, html:function(f){ return '<span class="kpi-tag-'+(f.tag==='Actual'?'act':'ant')+'">'+f.tag+'</span>'; }},
+      {t:'Folio', tipo:'texto', valor:function(f){ return f.o.folio; }, html:function(f){ return f.o.folio; }},
+      {t:'Equipo', tipo:'texto', valor:function(f){ return f.o.equipo; }, html:function(f){ return f.o.equipo; }},
+      {t:'Cierre', tipo:'fecha', valor:function(f){ return f.o.fechaCierre; }, html:function(f){ return fmt(f.o.fechaCierre); }}
+    ]};
   }
   if(tipo==='cumplimiento'){
-    var filas6 = _kpiDetalles.cumplimiento
-      .slice()
-      .sort(function(a,b){ return a.fecha.localeCompare(b.fecha) || a.turno-b.turno; })
-      .map(function(c){
-        return '<tr><td>'+fmtDate(c.fecha)+'</td><td>T'+c.turno+'</td><td>'+c.maquina+'</td>'
-          + '<td>'+(c.completado ? '<span class="kpi-tag-act">✓ Realizado</span>' : '<span class="kpi-tag-ant">Pendiente</span>')+'</td>'
-          + '<td>'+(c.por||'—')+'</td></tr>';
-      }).join('');
-    return _kpiTablaWrap('Cumplimiento del programa preventivo',
-      '<th>Fecha</th><th>Turno</th><th>Máquina</th><th>Estado</th><th>Marcado por</th>', filas6);
+    return {tipo:tipo, titulo:'Cumplimiento del programa preventivo', filas:D.cumplimiento, cols:[
+      {t:'Fecha', tipo:'fecha', valor:texto('fecha'), html:function(f){ return fmtDate(f.fecha); }},
+      {t:'Turno', tipo:'num', valor:texto('turno'), html:function(f){ return 'T'+f.turno; }},
+      {t:'Máquina', tipo:'texto', valor:texto('maquina'), html:function(f){ return f.maquina; }},
+      {t:'Estado', tipo:'texto', valor:function(f){ return f.completado ? 'Realizado' : 'Pendiente'; },
+       html:function(f){ return f.completado ? '<span class="kpi-tag-act">✓ Realizado</span>' : '<span class="kpi-tag-ant">Pendiente</span>'; }},
+      {t:'Marcado por', tipo:'texto', valor:texto('por'), html:function(f){ return f.por||'—'; }}
+    ]};
   }
-  return '';
+  return null;
 }
+
+/** Orden con que se abre cada tabla la primera vez. */
+var _KPI_ORDEN_INICIAL = {
+  mtbf:         {col:3, dir:-1},  // intervalos más largos primero
+  mttr:         {col:5, dir:-1},  // las reparaciones que más tardaron
+  disp:         {col:4, dir:-1},  // los paros más largos
+  correctivas:  {col:4, dir:-1},  // cierres más recientes
+  reduccion:    {col:3, dir:-1},
+  cumplimiento: {col:0, dir:1}
+};
 
 
 // SPEC-039: detalle de datos detrás de cada indicador, para desplegar en
@@ -7983,6 +8057,31 @@ function poblarSelectTecnicoKPI(){
   sel.innerHTML = '<option value="">Todos — vista general</option>'
     + tecs.map(function(p){ return '<option value="'+p.nomina+'">'+toTitleCase(p.nombre)+'</option>'; }).join('');
   sel.value = actual || '';
+}
+
+/**
+ * Llena el selector de máquina (SPEC-055).
+ *
+ * Las opciones salen de los equipos que de verdad aparecen en las OT de
+ * maquinaria, no del catálogo: así ninguna opción puede quedar sin coincidir
+ * con los datos por una diferencia de nombre.
+ */
+function poblarSelectMaquinaKPI(){
+  var sel = document.getElementById('kpi-maquina');
+  if(!sel) return;
+  var actual = sel.value;
+  var equipos = {};
+  (DB.ots||[]).forEach(function(o){
+    if(o && o.tipo==='MTTO-MAQ-PROD' && o.equipo) equipos[o.equipo] = true;
+  });
+  var lista = Object.keys(equipos).sort(function(a,b){ return a.localeCompare(b,'es',{numeric:true}); });
+  // Escape propio: un nombre con comillas rompería el atributo `value`.
+  var lim = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
+  sel.innerHTML = '<option value="">Todas las máquinas</option>'
+    + lista.map(function(e){ return '<option value="'+lim(e)+'">'+lim(e)+'</option>'; }).join('');
+  // Si la máquina elegida ya no aparece en los datos, se vuelve a «todas»
+  // en vez de dejar un filtro invisible que no cuadra con nada.
+  sel.value = lista.indexOf(actual) >= 0 ? actual : '';
 }
 
 function renderKPIs(){
@@ -8002,7 +8101,12 @@ function renderKPIs(){
   _kpiDetalles = {mtbf:[], mttr:[], disp:[], correctivas:[], reduccion:{actual:[],previo:[]}, cumplimiento:[]};
   _kpiTarjetaActiva = null; // el periodo o el técnico cambiaron: cerrar cualquier tabla abierta
 
-  var todasMaqOTs = (DB.ots||[]).filter(function(o){ return o && o.tipo==='MTTO-MAQ-PROD'; });
+  // Filtro por máquina (SPEC-055). A diferencia del de técnico, este sí aplica
+  // a los seis indicadores: todos son métricas de máquina o de su programa.
+  var maquinaSel = (document.getElementById('kpi-maquina')||{}).value || '';
+  var todasMaqOTs = (DB.ots||[]).filter(function(o){
+    return o && o.tipo==='MTTO-MAQ-PROD' && (!maquinaSel || o.equipo===maquinaSel);
+  });
 
   // ── Cerradas en el periodo (para MTTR y conteo) ──
   var cerradasPeriodo = todasMaqOTs.filter(function(o){
@@ -8068,7 +8172,8 @@ function renderKPIs(){
   // ── Disponibilidad: tiempo de indisponibilidad de MAQ-PROD dentro del periodo,
   //    contra el tiempo total posible (periodo × máquinas activas) ──
   // SPEC-040: métrica de planta, no de persona — no aplica con técnico filtrado.
-  var maquinasCount = maquinasActivas().length || 1;
+  // Con una máquina elegida, el tiempo total posible es el de esa sola máquina.
+  var maquinasCount = maquinaSel ? 1 : (maquinasActivas().length || 1);
   var disponibilidad = null;
   if(!tecnicoNomina){
     var horasPeriodo = (finMs - iniMs) / 3600000;
@@ -8122,6 +8227,8 @@ function renderKPIs(){
         Object.keys(pv.asignaciones[fechaISO]).forEach(function(turno){
           var maqId = pv.asignaciones[fechaISO][turno];
           if(!maqId) return;
+          // Con una máquina elegida, solo cuenta su programa (SPEC-055).
+          if(maquinaSel && maquinaNombre(maqId) !== maquinaSel) return;
           progTotal++;
           var marca = pv.completados && pv.completados[fechaISO] && pv.completados[fechaISO][turno];
           if(marca) progHechos++;

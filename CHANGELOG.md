@@ -6,6 +6,21 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.7.0] — 2026-09-23
+
+### Agregado
+
+- **Filtro por máquina en los indicadores** (SPEC-055), junto a periodo y
+  técnico. Aplica a los seis indicadores; con una máquina elegida, la
+  disponibilidad se calcula sobre esa sola máquina.
+- **Las tablas de detalle se ordenan al pulsar su encabezado**, de menor a
+  mayor y al revés, con flecha. Se ordena por el dato real: las duraciones por
+  tiempo y las fechas por fecha, no por el texto de la celda.
+- Cada tabla abre con el orden más útil: los intervalos más largos, las
+  reparaciones más tardadas, los paros más largos.
+
+---
+
 ## [2.6.3] — 2026-09-22
 
 ### Corregido
