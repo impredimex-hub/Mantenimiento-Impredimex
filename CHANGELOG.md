@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.7.1] — 2026-09-23
+
+### Cambiado
+
+- **Los tres filtros de indicadores van en un solo renglón** (SPEC-056). En
+  pantalla angosta bajan en lugar de encogerse.
+
+### Agregado
+
+- **Dos columnas en OT correctivas cerradas:** tiempo total de la orden —de
+  alta a cierre, sin descontar esperas— y los técnicos que intervinieron.
+- **Botones de Excel y PDF en cada tabla de detalle**, redondos y con el mismo
+  trazo que en Recursos Humanos. Exportan lo que se ve, en el orden que se ve,
+  y anotan los filtros usados. El PDF sale por la ventana de impresión, sin
+  agregar ninguna librería.
+
+---
+
 ## [2.7.0] — 2026-09-23
 
 ### Agregado

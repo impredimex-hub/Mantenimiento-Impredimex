@@ -2121,3 +2121,42 @@ mayor, el siguiente al revés, con una flecha que lo indica.
   correctivas por el cierre más reciente, y el preventivo por fecha.
 - **El orden se recuerda por indicador** mientras la pantalla esté abierta.
 - Reordenar **no recalcula nada**: se reordena lo que ya está en pantalla.
+
+---
+
+## SPEC-056 — Filtros en un renglón, y exportar el detalle
+
+### Filtros
+
+Periodo, técnico y máquina van en un solo renglón. Se reparten el ancho por
+igual y, cuando no caben —en un teléfono—, **bajan en lugar de encogerse** hasta
+no poder leerse.
+
+### Dos columnas más en OT correctivas cerradas
+
+- **Tiempo total:** de la alta al cierre, **sin descontar esperas**. Es a
+  propósito distinto del de MTTR, que sí las descuenta: uno dice cuánto estuvo
+  abierta la orden y el otro cuánto se trabajó en ella. Ver las dos juntas
+  muestra cuánto se fue en esperar.
+- **Técnicos:** quiénes intervinieron, separados por coma. Una raya si la orden
+  se cerró sin técnico asignado.
+
+Las dos ordenan como el resto (SPEC-055): el tiempo por duración real.
+
+### Exportar
+
+Cada tabla de detalle trae dos botones redondos junto a su título, **con el
+mismo trazo que en Recursos Humanos**: círculo de 32 px con zona de toque de 44,
+verde para Excel y rojo para PDF.
+
+- **Se exporta lo que se ve**: las mismas columnas y **el mismo orden** que haya
+  en pantalla en ese momento.
+- **Las celdas van como texto**, sin marcado: los saltos de línea pasan a un
+  espacio para que una celda no traiga etiquetas dentro.
+- **El archivo deja constancia de los filtros** —periodo, técnico, máquina y
+  cuándo se generó—, para que se explique solo fuera de la app.
+- **El PDF sale por la ventana de impresión del navegador**, que es de donde se
+  guarda como PDF. Así no hace falta traer otra librería solo para esto: la app
+  ya usa este camino para el programa preventivo. Si el navegador bloquea la
+  ventana emergente, se avisa.
+- **Sin filas no se exporta nada** y se dice.
