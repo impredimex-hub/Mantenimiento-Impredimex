@@ -2086,3 +2086,38 @@ Se corrió el código real completo en un navegador simulado, con Firebase y las
 notificaciones sustituidos por imitaciones. Con el orden anterior se reprodujo
 el error y la caída a la contraseña; con el nuevo, los cuatro papeles entran
 directo a su pantalla.
+
+---
+
+## SPEC-055 — Filtro por máquina y tablas ordenables en los indicadores
+
+### Filtro por máquina
+
+Se agrega un tercer filtro, junto a periodo y técnico.
+
+- **Aplica a los seis indicadores**, a diferencia del de técnico. Todos son
+  métricas de máquina o de su programa, así que todos tienen sentido acotados a
+  una: MTBF y MTTR de esa máquina, su disponibilidad, sus correctivas, su
+  comparación contra el periodo anterior y su programa preventivo.
+- **Con una máquina elegida, la disponibilidad se calcula sobre esa sola
+  máquina**, no sobre las 51. Si no, el número no significaría nada.
+- **Las opciones salen de los equipos que aparecen en las OT de maquinaria**, no
+  del catálogo. Así ninguna opción puede quedar sin coincidir con los datos por
+  una diferencia de nombre.
+- **Si la máquina elegida deja de aparecer en los datos, el filtro vuelve a
+  «todas»**, en vez de quedarse como un filtro invisible que no cuadra con nada.
+
+### Tablas ordenables
+
+Cada encabezado de las tablas de detalle ordena al pulsarlo: un clic de menor a
+mayor, el siguiente al revés, con una flecha que lo indica.
+
+- **Se ordena por el dato, no por el texto de la celda.** Cada columna declara
+  si es texto, número o fecha. Ordenar por texto pondría «45 min» antes que
+  «3 h», y «10/01» antes que «2/12».
+- **El texto ordena de forma natural**: «Prensa 2» antes que «Prensa 10».
+- **Cada tabla abre con el orden más útil**: MTBF por el intervalo más largo,
+  MTTR por la reparación más tardada, disponibilidad por el paro más largo,
+  correctivas por el cierre más reciente, y el preventivo por fecha.
+- **El orden se recuerda por indicador** mientras la pantalla esté abierta.
+- Reordenar **no recalcula nada**: se reordena lo que ya está en pantalla.
