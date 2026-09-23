@@ -770,10 +770,6 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item" onclick="showScreen('sol-notifs');renderNotifsSol()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Avisos
-      </button>
       <button class="tabbar-item" onclick="showScreen('sol-perfil')">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
         Perfil
@@ -865,23 +861,6 @@ input[type=range].green{accent-color:var(--green)}
   </div>
 
   <!-- SCREEN: Notificaciones -->
-  <div id="sol-notifs" class="screen">
-    <div class="scroll-content" id="sol-notifs-content"></div>
-    <nav class="tabbar">
-      <button class="tabbar-item" onclick="showScreen('sol-lista')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
-        Mis OT
-      </button>
-      <button class="tabbar-item active" onclick="showScreen('sol-notifs');renderNotifsSol()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Avisos
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sol-perfil')">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
-        Perfil
-      </button>
-    </nav>
-  </div>
 
   <!-- SCREEN: Perfil -->
   <div id="sol-perfil" class="screen">
@@ -890,10 +869,6 @@ input[type=range].green{accent-color:var(--green)}
       <button class="tabbar-item" onclick="showScreen('sol-lista')">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
-      </button>
-      <button class="tabbar-item" onclick="showScreen('sol-notifs');renderNotifsSol()">
-        <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-        Avisos
       </button>
       <button class="tabbar-item active" onclick="showScreen('sol-perfil')">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
@@ -947,7 +922,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item" onclick="showScreen('tec-historial');renderNotifsTec()">
+      <button class="tabbar-item" onclick="showScreen('tec-historial');renderTecHistorial()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
@@ -1065,7 +1040,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item active green" onclick="showScreen('tec-historial');renderNotifsTec()">
+      <button class="tabbar-item active green" onclick="showScreen('tec-historial');renderTecHistorial()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
@@ -1084,7 +1059,7 @@ input[type=range].green{accent-color:var(--green)}
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
         Mis OT
       </button>
-      <button class="tabbar-item" onclick="showScreen('tec-historial');renderNotifsTec()">
+      <button class="tabbar-item" onclick="showScreen('tec-historial');renderTecHistorial()">
         <div class="tb-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         Historial
       </button>
@@ -2030,7 +2005,11 @@ var CATALOGOS_FB  = ['operativo','tiposServicio','naves','maquinas','infraestruc
 // arreglo completo y los dispositivos conectados lo volvían a descargar
 // entero, así que el costo de marcar una comida era el peso acumulado de
 // todas las anteriores multiplicado por cada aparato encendido.
-var COLECCIONES_FB = ['ots','notifs','comidas'];
+// SPEC-057: `notifs` salió de aquí. Era la partida más grande del consumo:
+// cada dispositivo que se conectaba descargaba todos los avisos vivos, uno por
+// uno, decenas de veces al día. El aviso lo da el push de OneSignal, y el
+// estado se ve en la lista de OT.
+var COLECCIONES_FB = ['ots','comidas'];
 
 // Días que los registros de comedor permanecen en la colección viva. Solo se
 // consultan los del turno en curso —si alguien está en su comida ahora y si ya
@@ -2185,63 +2164,9 @@ function archivarComidasViejas(){
   });
 }
 
-/**
- * Saca del sincronizado las notificaciones que ya no le sirven a nadie.
- *
- * Son el gasto más grande de la aplicación: al conectarse, un dispositivo
- * recibe TODAS las que existan, una por una, porque acaba de llegar y no tiene
- * ninguna. El costo no lo provoca crear un aviso —eso viaja solo—, sino
- * conectarse, y en planta cada teléfono se reconecta decenas de veces al día.
- *
- * Se archivan dos grupos:
- *
- * 1. Todas las dirigidas al supervisor, sin importar su edad. Nunca hubo
- *    pantalla donde verlas: se escribían, se descargaban a cada aparato en
- *    cada reconexión y nadie las leía jamás. El supervisor se entera por el
- *    push de OneSignal, que no toca esta base. Ya no se generan.
- * 2. Las del solicitante y el técnico con más de `DIAS_NOTIFS_VIVAS` días.
- *    Esas sí se ven y se marcan como leídas, pero pasado ese plazo el aviso ya
- *    cumplió y el dato vive igual en la orden de trabajo.
- *
- * No se borran: se mueven a `manto_db_archivo/notifs`.
- *
- * Se manda por tandas porque lo acumulado puede ser de miles de registros y
- * una sola escritura con todos sería enorme. Cada tanda es atómica, así que un
- * corte a media limpieza deja tandas completas, nunca un registro a medias.
- */
-function archivarNotificacionesViejas(){
-  if(!(db && _fbConnected)) return;
-  if(!currentUser || currentUser.role !== 'admin') return;
-
-  var corte = Date.now() - DIAS_NOTIFS_VIVAS * 24 * 60 * 60 * 1000;
-  var sobran = (DB.notifs || []).filter(function(n){
-    if(!n || !n.id) return false;
-    if(n.para === 'supervisor') return true;
-    var t = Date.parse(n.fecha || '');
-    // Sin fecha legible se conserva: perder un dato pesa más que
-    // sincronizar uno de más.
-    return !!(t && t < corte);
-  });
-  if(!sobran.length) return;
-
-  var TANDA = 200, tandas = [];
-  for(var i = 0; i < sobran.length; i += TANDA) tandas.push(sobran.slice(i, i + TANDA));
-
-  (function siguiente(k){
-    if(k >= tandas.length){ console.log('Notificaciones archivadas: ' + sobran.length); return; }
-    var upd = {};
-    tandas[k].forEach(function(n){
-      upd['manto_db_archivo/notifs/' + n.id] = n;
-      upd['manto_db/notifs/' + n.id] = null;
-    });
-    db.ref().update(upd).then(function(){
-      tandas[k].forEach(function(n){ delete _snap['notifs/' + n.id]; });
-      siguiente(k + 1);
-    }).catch(function(e){
-      console.warn('No se pudieron archivar las notificaciones:', e.message);
-    });
-  })(0);
-}
+/* SPEC-057: el archivado de avisos se retiró junto con los avisos. Lo que
+   quedó en `manto_db/notifs` ya no lo descarga nadie, porque la app dejó de
+   escuchar esa colección; se puede borrar desde la consola de Firebase. */
 
 function _migrarColeccion(col){
   var obj = {};
@@ -2353,12 +2278,10 @@ function initFirebase(){
         // Migración de datos guardados con índice numérico
         setTimeout(function(){
           if(_migrar.ots){     _migrarColeccion('ots');     _migrar.ots = false; }
-          if(_migrar.notifs){  _migrarColeccion('notifs');  _migrar.notifs = false; }
           // Las comidas guardadas como catálogo llegan con llave numérica
           // (0, 1, 2…); se reescriben indexadas por su id, igual que las OT.
           if(_migrar.comidas){ _migrarColeccion('comidas'); _migrar.comidas = false; }
           archivarComidasViejas();
-          archivarNotificacionesViejas();
         }, 2500);
       }, function(err){
         setSyncState('offline', 'Error: ' + err.message);
@@ -2746,7 +2669,6 @@ function abrirSesion(user){
       // el archivado se habría saltado esa sesión entera. Es idempotente, de
       // modo que llamarlo dos veces no hace daño.
       try { archivarComidasViejas(); } catch(e){ console.warn(e); }
-      try { archivarNotificacionesViejas(); } catch(e){ console.warn(e); }
 
       var pf = document.getElementById('login-pass');
       if(pf) pf.value = '';
@@ -2961,8 +2883,6 @@ function statusBadge(s){
 function initials(name){return name.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();}
 function avatarColor(name){const colors=['av-blue','av-green','av-purple'];return colors[name.charCodeAt(0)%3];}
 
-function notifCount(role){return DB.notifs.filter(n=>n.para===role&&!n.leida).length;}
-
 function selectChip(el,group){
   el.closest('.chip-group').querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
   el.classList.add('selected');
@@ -2975,15 +2895,8 @@ function initSolicitante(){
   // ahora el encabezado de la suite (lo llena showPage).
   document.getElementById('nueva-nomina-display').textContent = currentUser.nomina;
   document.getElementById('nueva-nombre-display').textContent = currentUser.nombre;
-  updateNotifDot('sol-notif-dot','solicitante');
   renderSolOTs('todas');
   renderPerfilSol();
-  renderNotifsSol();
-}
-
-function updateNotifDot(id,role){
-  const dot=document.getElementById(id);
-  if(dot) dot.style.display=notifCount(role)>0?'block':'none';
 }
 
 function setStatusFilter(f, role){
@@ -3244,10 +3157,6 @@ function confirmarPrimerContacto(id){
   if(!ot.fechaPrimerContacto) ot.fechaPrimerContacto = ahora;
   ot.contactosPorTecnico[tecPendiente.nomina] = ahora;
 
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(), para:'tecnico',
-    texto:'OT '+ot.folio+' — el solicitante confirmó tu presencia. Ya puedes registrar actividades.',
-    fecha:ahora, leida:false});
   saveDB();
   verOTSol(id);
   renderSolOTs('todas');
@@ -3262,12 +3171,6 @@ function cerrarOT(id){
   if(!ot){ appAlert('OT no encontrada'); return; }
   ot.status = 'cerrado';
   ot.fechaCierre = new Date().toISOString();
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({
-    id:'n'+Date.now(), para:'tecnico',
-    texto:'OT '+ot.folio+' fue cerrada y validada por el solicitante.',
-    fecha:new Date().toISOString(), leida:false
-  });
   saveDB();
   appAlert('✓ OT cerrada correctamente. Gracias por validar.');
   showScreen('sol-lista');
@@ -3302,12 +3205,6 @@ function confirmarRechazo(){
     autor: currentUser.nombre,
     fecha: new Date().toISOString(),
     texto: 'Cierre rechazado por el solicitante: '+motivoCompleto
-  });
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({
-    id:'n'+Date.now(), para:'tecnico',
-    texto:'El solicitante rechazó el cierre de '+ot.folio+': '+motivoCompleto,
-    fecha:new Date().toISOString(), leida:false
   });
   // SPEC-011: push del rechazo enrutado por tipo de servicio
   notifyPush(getNominasByTipoServicio(ot.tipo),'Cierre rechazado #'+ot.folio,(ot.equipo||'')+' — '+motivoCompleto.substring(0,60),'rechazo-'+ot.folio);
@@ -3470,12 +3367,6 @@ function confirmarAsignacion(){
   if(!ot.tecnicos) ot.tecnicos = [];
   ot.tecnico = tecnico;
   if(ot.status==='abierto') ot.status = 'proceso';
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({
-    id:'n'+Date.now(), para:'tecnico',
-    texto:'Nueva OT '+ot.folio+' asignada: '+ot.desc.substring(0,60),
-    fecha:new Date().toISOString(), leida:false
-  });
   saveDB();
   closeModal('modal-asignar');
   renderDashboard();
@@ -3484,21 +3375,6 @@ function confirmarAsignacion(){
 }
 
 
-function renderNotifsSol(){
-  reloadDB();
-  const notifs=DB.notifs.filter(n=>n.para==='solicitante');
-  const el=document.getElementById('sol-notifs-content');
-  if(!notifs.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">Sin notificaciones</div></div>';return;}
-  el.innerHTML=notifs.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);}).map(function(n){
-    return '<div class="notif-item" style="'+(n.leida?'':'background:var(--blue-light)')+'">'
-      +'<div class="notif-dot2" style="background:'+(n.leida?'var(--border)':'var(--blue)')+'"></div>'
-      +'<div><div class="notif-text">'+n.texto+'</div><div class="notif-time">'+fmt(n.fecha)+'</div></div>'
-      +'</div>';
-  }).join('');
-  DB.notifs.filter(n=>n.para==='solicitante').forEach(n=>n.leida=true);
-  saveDB();
-  updateNotifDot('sol-notif-dot','solicitante');
-}
 
 function renderPerfilSol(){
   var bioReg2 = JSON.parse(localStorage.getItem('mantoBio')||'{}')[currentUser.nomina];
@@ -3525,17 +3401,20 @@ function renderPerfilSol(){
     +'</div>'
     +'<div class="spacer"></div>';
 }
+/**
+ * A dónde lleva tocar una notificación del sistema (SPEC-057). Ya no hay
+ * pantalla de avisos: cada quien va a su lista de OT, que es donde se ve el
+ * estado de todo.
+ */
 function showNotifs(role){
-  if(role==='solicitante'){showScreen('sol-notifs');renderNotifsSol();}
-  else if(role==='tecnico'){showScreen('tec-historial');renderNotifsTec();}
-  // SPEC-019: el módulo de Alertas se retiró; el supervisor ve el estado en las tarjetas de OT
-  else {showScreen('sup-ots');renderSupOTs();}
+  if(role==='solicitante'){ showScreen('sol-lista'); renderSolOTs('todas'); }
+  else if(role==='tecnico'){ showScreen('tec-lista'); renderTecOTs('todas'); }
+  else { showScreen('sup-ots'); renderSupOTs(); }
 }
 
 // ==================== TÉCNICO ====================
 function initTecnico(){
   // Nombre y turno pasaron al encabezado de la suite (lo llena showPage).
-  updateNotifDot('tec-notif-dot','tecnico');
   renderTecOTs('todas');
   renderTecHistorial();
   renderTecPerfil();
@@ -4460,8 +4339,6 @@ function guardarActividadFinal(concluir, esErrorOp, descErrorOp){
     ot.fechaCierreMantenimiento = new Date().toISOString();
     var msgSol = 'Tu OT '+ot.folio+' fue concluida y está lista para que valides el cierre.'
       +(esErrorOp ? ' El técnico indicó que fue un ERROR OPERATIVO: '+descErrorOp : '');
-    if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:msgSol,fecha:new Date().toISOString(),leida:false});
   var _solNom2 = ot.nomina;
   if(_solNom2) notifyPush([_solNom2],'OT concluida','Tu OT '+ot.folio+' esta lista para validar','concluida-'+ot.folio);
   }
@@ -4594,8 +4471,6 @@ function ponerEnEspera(){
   });
   if(!Array.isArray(ot.comentarios)) ot.comentarios = [];
   ot.comentarios.push({autor:currentUser.nombre,fecha:new Date().toISOString(),texto:'OT en espera: '+motivo+' — '+comentario+'. Fecha est. '+fmtDate(fechaEst)});
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(),para:'solicitante',texto:'Tu OT '+ot.folio+' está en espera: '+motivo+'. '+comentario+'. Fecha estimada: '+fmtDate(fechaEst),fecha:new Date().toISOString(),leida:false});
   var _solNom3 = ot.nomina;
   if(_solNom3) notifyPush([_solNom3],'OT suspendida','Tu OT '+ot.folio+' esta en espera: '+motivo,'espera-'+ot.folio);
   saveDB();
@@ -4641,21 +4516,6 @@ function renderTecHistorial(){
   }).join('');
 }
 
-function renderNotifsTec(){
-  reloadDB();
-  const notifs=DB.notifs.filter(n=>n.para==='tecnico');
-  const el=document.getElementById('tec-historial-list');
-  if(!notifs.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">Sin notificaciones</div></div>';return;}
-  el.innerHTML='<div class="section-head">Notificaciones</div>'+notifs.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);}).map(function(n){
-    return '<div class="notif-item" style="'+(n.leida?'':'background:var(--green-light)')+'">'
-      +'<div class="notif-dot2" style="background:'+(n.leida?'var(--border)':'var(--green)')+'"></div>'
-      +'<div><div class="notif-text">'+n.texto+'</div><div class="notif-time">'+fmt(n.fecha)+'</div></div>'
-      +'</div>';
-  }).join('');
-  DB.notifs.filter(n=>n.para==='tecnico').forEach(n=>n.leida=true);
-  saveDB();
-  updateNotifDot('tec-notif-dot','tecnico');
-}
 
 function renderTecPerfil(){
   const mis=DB.ots.filter(function(o){ return tecnicoEnOT(o,currentUser.nombre)||(o.tecnico&&o.tecnico.toLowerCase()===currentUser.nombre.toLowerCase()); });
@@ -5470,10 +5330,6 @@ function asignarOT(){
   var ot = DB.ots.find(function(o){ return o.id===currentOTId; });
   ot.tecnico = tecnico;
   if(ot.status==='abierto') ot.status = 'proceso';
-  if(!Array.isArray(DB.notifs)) DB.notifs = [];
-  DB.notifs.push({id:'n'+Date.now(), para:'tecnico',
-    texto:'Nueva OT '+ot.folio+' asignada por '+currentUser.nombre+': '+ot.desc.substring(0,60),
-    fecha:new Date().toISOString(), leida:false});
   saveDB();
   renderDashboard();
   verOTSup(currentOTId);

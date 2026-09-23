@@ -2160,3 +2160,54 @@ verde para Excel y rojo para PDF.
   ya usa este camino para el programa preventivo. Si el navegador bloquea la
   ventana emergente, se avisa.
 - **Sin filas no se exporta nada** y se dice.
+
+---
+
+## SPEC-057 — Se retiran los avisos dentro de la app
+
+### Por qué
+
+La colección de avisos era **la partida más grande del consumo de datos**: en la
+medición de septiembre, 12.26 MB de 16.6 MB en media hora, el 74 %. La causa no
+es crear avisos, es **conectarse**: la app se suscribía a esa colección al
+arrancar, sin importar el papel ni la pantalla, y cada dispositivo que se
+enganchaba descargaba todos los avisos vivos, uno por uno. En planta cada
+teléfono se reconecta decenas de veces al día.
+
+La SPEC-047 quitó los del supervisor, que nadie leía. Esto quita el resto.
+
+### Por qué se puede quitar sin perder nada
+
+- **El aviso lo da el push de OneSignal**, que no toca esta base.
+- **El estado se ve en la lista de OT.** El solicitante lo ve en «Mis OT» y el
+  técnico en la suya: el aviso no decía nada que la lista no diga.
+
+### Qué se retiró
+
+- **La pestaña «Avisos» del solicitante**, en sus tres pantallas, y la pantalla
+  correspondiente.
+- **Los siete puntos que generaban avisos** —cinco para el técnico, dos para el
+  solicitante—.
+- **La suscripción a `notifs`.** Es lo único que de verdad baja el consumo:
+  quitar solo la pestaña no habría cambiado nada, porque la suscripción corría
+  igual.
+- El archivado y la migración de esa colección, que ya no tienen qué hacer.
+
+### Defecto corregido de paso
+
+La pestaña **«Historial» del técnico mostraba notificaciones**, no su historial.
+Existían dos funciones que escribían en la misma pantalla y la pestaña llamaba a
+la equivocada. Ahora muestra sus órdenes cerradas, que es lo que anuncia.
+
+### Lo que queda en la base
+
+Lo ya guardado en `manto_db/notifs` se queda donde está. **No lo descarga
+nadie**, porque la app dejó de escuchar esa colección, así que no cuesta
+tráfico; solo ocupa almacenamiento y se puede borrar desde la consola de
+Firebase cuando se quiera.
+
+### Consecuencia aceptada
+
+El push es ahora el único aviso en el momento, y no deja registro: quien no lo
+vea no tiene dónde recuperarlo. No se pierde información —el estado sigue en la
+lista de OT—, pero sí el «te avisamos».

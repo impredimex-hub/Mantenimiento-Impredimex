@@ -6,6 +6,29 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.8.0] — 2026-09-23
+
+### Quitado
+
+- **Los avisos dentro de la app** (SPEC-057): la pestaña «Avisos» del
+  solicitante, su pantalla, los siete puntos que los generaban y —lo que de
+  verdad importa— **la suscripción a esa colección**, que era el 74 % del
+  consumo de datos. El aviso lo sigue dando el push de OneSignal y el estado se
+  ve en la lista de OT.
+
+### Corregido
+
+- **La pestaña «Historial» del técnico mostraba notificaciones** en lugar de sus
+  órdenes cerradas. Había dos funciones escribiendo en la misma pantalla y la
+  pestaña llamaba a la equivocada.
+
+### Notas
+
+Lo ya guardado en `manto_db/notifs` se queda donde está: no lo descarga nadie,
+así que no cuesta tráfico. Se puede borrar desde la consola de Firebase.
+
+---
+
 ## [2.7.1] — 2026-09-23
 
 ### Cambiado
