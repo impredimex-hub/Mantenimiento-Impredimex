@@ -1,20 +1,20 @@
-# SPECS.md — MantoApp Impredimex
+# SPECS.md — Recursos Humanos (rrhh-pwa)
 
 ## Especificaciones funcionales del sistema
 
-Este documento es la **fuente de verdad** del comportamiento de la aplicación. Cualquier cambio futuro debe partir de actualizar primero estas specs y luego implementar el código.
+Este documento es la **fuente de verdad** del comportamiento de la aplicación.
+Cualquier cambio futuro debe partir de actualizar primero estas specs y luego
+implementar el código.
 
-**Versión:** 5.0
-**Fecha:** 5 de septiembre de 2026
+**Versión objetivo:** 2.32
+**Fecha:** 18 de septiembre de 2026
 **Metodología:** Spec-Driven Development (SDD)
 
-> **Novedad de la v5.0 — integración con la suite Impredimex.** La identidad y la
-> lista de personal dejan de vivir en esta aplicación y pasan al proyecto
-> compartido `impredimex-suite`, igual que en EPP, Procesos y RRHH. Desaparecen
-> las cuatro contraseñas compartidas que estaban escritas en el código. Lo que sí
-> se queda aquí son los atributos operativos de Mantenimiento —turno y qué tipos
-> de orden atiende cada técnico—, porque son decisiones del área y no de Recursos
-> Humanos. Ver SPEC-042 a SPEC-045.
+> **Nota de origen.** La aplicación se construyó antes de que existiera la suite
+> y hasta hoy no tiene ningún control de acceso. Estas son sus primeras specs:
+> los módulos de incidencias, capacitación, cursos y vacantes se documentan aquí
+> a grandes rasgos, tal como están implementados, y se detallarán conforme se
+> toquen.
 
 ---
 
@@ -31,1932 +31,1722 @@ Cada spec sigue esta estructura:
 
 ---
 
-# SPEC-001 — Autenticación de usuario
+## Reglas transversales del proyecto
 
-**Estado:** implementado — reescrita por completo en la v5.0
+Estas reglas no pertenecen a una spec: valen para toda la aplicación y hay que
+respetarlas en cualquier cambio futuro. **Cada una nació de un problema
+concreto, y está escrita aquí para que nadie la reinvente ni la rompa sin
+saberlo.** Quien vaya a tocar el código —persona o asistente— debería leer esta
+sección antes que ninguna otra.
+
+### R1 — Los permisos se administran como dato, no como código
+
+Un permiso nuevo **se guarda como campo en el padrón `colaboradores`** y se
+edita desde una pantalla dentro de la aplicación. Nunca como lista de nóminas
+escrita en el código ni como archivo de configuración.
+
+El motivo: un archivo de configuración obligaría a editar y recompilar cada vez
+que alguien entra, sale o cambia de área, y ataría los permisos a nombres
+escritos a mano. En el padrón, `ADMIN` los cambia solo, sin que nadie toque el
+repositorio.
+
+Campos creados con este patrón: `departamentosTurnos` (SPEC-013),
+`reporteFaltasTodas` (SPEC-015), `capturaPromociones` (SPEC-016), `verGraficas`
+(SPEC-019).
+
+Reglas que acompañan al patrón:
+
+- **Un `ADMIN` lo puede todo sin traer la marca.** El campo sirve para conceder
+  a quien no es administrador, no para limitar al que sí lo es.
+- **Ausencia equivale a «no».** Nunca se concede un privilegio por omisión.
+- **Cuando la misma regla se consulta desde varias pantallas, se escribe una
+  sola vez.** `puedeVerGraficas` vive en `src/services/permisosPadron.ts` porque
+  las gráficas aparecen en tres pestañas: repetida tres veces, tarde o temprano
+  una se quedaría atrás y alguien vería en una pestaña lo que no puede ver en
+  otra.
+
+### R2 — Hay campos que no pueden viajar en `construirDocumento`
+
+`construirDocumento` es el camino de la importación de Excel. **Todo campo que
+pase por ahí se borra cuando llega un archivo que no trae esa columna.**
+
+Por eso se escriben por su propia función, o de forma condicional:
+
+| Campo | Quién lo escribe |
+|---|---|
+| `departamentosTurnos` | `asignarDepartamentosTurnos` |
+| `reporteFaltasTodas` | `asignarReporteFaltasTodas` |
+| `capturaPromociones` | `asignarCapturaPromociones` |
+| `verGraficas` | `asignarVerGraficas` |
+| `fechaNacimiento` | condicional, y `guardarFechasNacimiento` |
+| `fechaBaja` | `cambiarEstatus` y `fecharBaja` |
+| `estatus` | condicional, y `cambiarEstatus` |
+
+Un permiso nuevo va en esta tabla, no en `construirDocumento`.
+
+### R3 — Las fechas `AAAA-MM-DD` se parten a mano
+
+**Nunca `new Date(cadena)`.** Ese constructor interpreta la cadena como UTC, y
+en México (UTC−6) todo se corre un día hacia atrás: quien nació o entró un día 1
+cae en el mes anterior. El error no se ve hasta que alguien reclama que su
+cumpleaños no salió en la lista.
+
+Las utilidades están en `src/utils/fechas.ts`: `partesFecha`, `fechaLocal`,
+`diaYMes`, `edadQueCumple`, `hoyISO`.
+
+Corolario útil: como todas las fechas viajan en ese formato, **dos fechas se
+comparan como texto**. `'2026-03-01' < '2026-03-02'` es cierto, y no hace falta
+construir un `Date` solo para saber cuál es anterior.
+
+### R4 — Las gráficas se dibujan a mano en SVG, sin librerías
+
+Todo vive en `src/components/Graficas.tsx`. **No se agregan dependencias
+nuevas.** El proyecto se compila desde el navegador de un teléfono, sin forma de
+correr `npm` para regenerar `package-lock.json`, así que una dependencia nueva
+rompería la publicación sin dejar claro por qué.
+
+### R5 — Datos que existen en el padrón y esta aplicación no toca
+
+El documento de cada colaborador trae campos que pertenecen a la suite, no a
+RRHH: `apps`, `roles`, `creadoEn`. Se conservan intactos, y por eso
+`construirDocumento` lleva lista blanca explícita en lugar de propagar el objeto
+completo.
+
+Hay además un campo **`rol`** heredado de antes de la suite. **Está muerto:**
+ninguna de las cinco aplicaciones lo lee. Todas derivan el papel del usuario de
+`roles[<id de la app>]`. Se deja donde está porque borrarlo obligaría a tocar
+más de cien documentos sin ganar nada, pero **no debe usarse ni revivirse**.
+
+### R6 — Los candados son de interfaz
+
+El proyecto `rrhh-pwa` usa sesión anónima y sus reglas de Firestore no
+distinguen usuarios (SPEC-008). Todo permiso descrito en estas specs se sostiene
+en la pantalla, no en el servidor: quien tenga conocimientos técnicos puede leer
+los datos de todos modos. Hacerlo real exigiría cambiar la autenticación de ese
+proyecto. Es deuda conocida y aceptada, no un descuido.
+
+---
+
+# SPEC-001 — Acceso a la aplicación
+
+**Estado:** implementado
 
 ### Actor
-Persona con cuenta en la suite y acceso concedido a esta aplicación.
+Personal autorizado de Recursos Humanos.
 
 ### Precondiciones
 - La persona existe en la colección `colaboradores` del proyecto
-  **impredimex-suite**, con `estatus` en `ACTIVO`
-- Su campo `apps` incluye el valor `manto`
+  **impredimex-suite**
+- Su campo `estatus` es `ACTIVO`
+- Su campo `apps` incluye el valor `rrhh`
 - Tiene cuenta en Firebase Auth del proyecto suite, con identificador
   `<noNomina>@impredimex.local`
+- Conexión a internet
 
 ### Flujo principal
 1. Sistema muestra la pantalla de acceso con dos campos: número de nómina y clave
-2. Usuario escribe su nómina y su clave
-3. Sistema arma el identificador `<nómina>@impredimex.local` y llama a
-   `signInWithEmailAndPassword` contra Auth del proyecto suite
-4. Sistema lee el documento `colaboradores/<nómina>`
-5. Sistema valida que `estatus` sea `ACTIVO` y que `apps` incluya `manto`
-6. Sistema toma el papel de `roles.manto`
-7. Sistema lee los atributos operativos de esa nómina en su propio proyecto
-   (turno y tipos de orden que atiende), según la SPEC-043
-8. Sistema abre además una sesión anónima en el proyecto de Mantenimiento, para
-   poder leer y escribir su base (SPEC-044)
-9. Sistema etiqueta el dispositivo en OneSignal con `nomina`, `role` y `nombre`
-10. Sistema navega a la pantalla principal del papel correspondiente
+2. Usuario escribe su nómina y su clave de 6 dígitos
+3. Sistema arma el identificador `<nómina>@impredimex.local`
+4. Sistema invoca `signInWithEmailAndPassword` contra Auth del proyecto suite
+5. Sistema lee el documento `colaboradores/<nómina>`
+6. Sistema valida que `estatus` sea `ACTIVO` y que `apps` incluya `rrhh`
+7. Sistema toma el papel de `roles.rrhh`
+8. Sistema muestra la aplicación con los módulos que ese papel permite
 
 ### Postcondiciones
-- `currentUser` contiene nómina, nombre, puesto y departamento tomados de la
-  suite, y el papel tomado de `roles.manto`
+- Existe una sesión activa con nómina, nombre y papel
 - La sesión sobrevive al recargar y al cerrar el navegador
-- El dispositivo está etiquetado en OneSignal, con los tags previos limpiados
+- Salir es un acto explícito
 
 ### Reglas de negocio
-- **Nunca hay contraseñas ni PIN en el código.** Desaparecen las cuatro claves
-  compartidas de la v4 —`solicitud`, `mantenimiento`, `administrador` e
-  `IMPREDIMEX`—, que estaban escritas en un repositorio público y permitían que
-  cualquiera entrara con el papel que quisiera escribiendo la nómina de otro.
-- **El dominio `@impredimex.local` no existe de verdad.** Solo forma un
-  identificador único; Firebase no envía correos ni lo verifica.
+- **Nunca hay contraseñas ni PIN en el código.** El dominio
+  `@impredimex.local` no existe de verdad: solo forma un identificador único.
+  Firebase no envía correos ni lo verifica.
 - **Tener cuenta no da acceso.** Lo da estar en `apps`. Una persona con cuenta
-  para EPP no entra aquí salvo que se le agregue `manto`.
-- **Ausencia de papel equivale a `solicitante`**, el más bajo. Nunca se concede
+  para EPP no entra aquí salvo que se le agregue `rrhh`.
+- **Ausencia de papel equivale a `CONSULTA`**, el más bajo. Nunca se concede
   privilegio por omisión.
 - **Los cambios de papel surten efecto al siguiente inicio de sesión**, porque
   el papel se lee una vez al entrar.
-- **Una persona en `BAJA` no entra a ninguna aplicación de la suite.** Darla de
-  baja en RRHH la deja fuera de Mantenimiento, EPP y Procesos a la vez.
-- **No hay autoservicio de recuperación.** Un administrador restablece la clave
-  desde la consola de Firebase.
+- **No hay autoservicio de recuperación.** El administrador restablece la clave
+  desde la consola.
 
 ### Flujos alternativos
-- **Nómina o clave incorrecta:** mensaje genérico, sin distinguir cuál falló
+- **Nómina o clave incorrecta:** mensaje genérico, sin distinguir cuál de los
+  dos falló
 - **`estatus` es `BAJA`:** se rechaza el acceso y se cierra la sesión
-- **`apps` no incluye `manto`:** se rechaza el acceso y se cierra la sesión
-- **Sin conexión:** no se puede iniciar sesión, porque la identidad se verifica
-  contra la suite. Una sesión ya abierta sigue operando con los datos en caché y
-  sincroniza al recuperar la conexión
+- **`apps` no incluye `rrhh`:** se rechaza el acceso y se cierra la sesión
+- **Sin conexión:** se avisa que no se pudo verificar la identidad
 
 ---
 
-# SPEC-002 — Crear Orden de Trabajo
+# SPEC-002 — Papeles y permisos
 
-### Actor
-Usuario con rol **solicitante**.
+**Estado:** implementado
+**Nuevo en la v2**
 
-### Precondiciones
-- Usuario autenticado como solicitante
-- Catálogos cargados: tipos de servicio, naves, máquinas, infraestructura
-- Conexión a Firebase activa
+### Papeles
+`ADMIN`, `CAPTURA` y `CONSULTA`, tomados de `roles.rrhh` en la suite.
 
-### Flujo principal
-1. Usuario presiona el botón flotante "+" en la pantalla "Mis solicitudes"
-2. Sistema muestra formulario con los campos:
-   - **Descripción** (texto libre, obligatorio)
-   - **Prioridad** (Normal | Urgente | Máquina parada — obligatorio)
-   - **Tipo de servicio** (select dinámico desde catálogo)
-   - **Nave** (select dinámico — depende del tipo de servicio seleccionado)
-   - **Equipo o área** (select dinámico — depende de la nave)
-3. Si el tipo de servicio es **MTTO-SEGURIDAD**, el campo "Equipo" se reemplaza por 4 casillas de tipo de riesgo
-4. Usuario llena el formulario y presiona "Crear"
-5. Sistema valida que todos los campos obligatorios estén completos
-6. Sistema verifica si `DB.ots` está vacío y, si lo está, reinicia `folioSig` a 1
-7. Sistema genera un folio incremental con formato `#000001` (6 dígitos con ceros a la izquierda)
-8. Sistema incrementa `folioSig` en 1
-9. Sistema crea la OT con `status = "abierto"` y los datos del solicitante
-10. Sistema escribe la OT en Firebase
-11. Sistema dispara notificación push a todos los técnicos del depto MANTENIMIENTO
-12. Sistema cierra el formulario y regresa a "Mis solicitudes"
-13. La nueva OT aparece en la lista del solicitante y en la lista de técnicos disponibles
+### Matriz de permisos
 
-### Postcondiciones
-- Nueva OT creada con folio único e incremental
-- OT visible para el solicitante en "Mis solicitudes"
-- OT visible para todos los técnicos en "Mis órdenes" como disponible
-- Todos los técnicos activos del depto MANTENIMIENTO recibieron notificación push
+| Acción | ADMIN | CAPTURA | CONSULTA |
+|---|:--:|:--:|:--:|
+| Ver el directorio de personal | sí | sí | sí |
+| Alta o edición de un colaborador | sí | no | no |
+| Dar de baja o reactivar | sí | no | no |
+| Importar desde Excel | sí | no | no |
+| Eliminar un colaborador | sí | no | no |
+| Ver incidencias | sí | sí | sí |
+| Registrar incidencias | sí | sí | no |
+| Registrar capacitación y cursos | sí | sí | no |
+| Registrar vacantes | sí | sí | no |
+| Exportar a Excel y PDF | sí | sí | sí |
 
 ### Reglas de negocio
-- **No hay límite** de OTs abiertas por solicitante
-- **Folio único e incremental:** nunca se reutilizan folios
-- **Reinicio de folio:** si todas las OTs son eliminadas, el contador vuelve a 1
-- **Folio se mantiene** si solo se eliminan algunas OTs
-- Los selects son dependientes: el catálogo de equipos se filtra por nave seleccionada
-- El tipo de servicio MTTO-SEGURIDAD tiene comportamiento especial (4 casillas de riesgo en lugar de equipo)
+- **El padrón tiene la puerta más angosta.** `colaboradores` sostiene el inicio
+  de sesión de las cinco apps de la suite, así que solo `ADMIN` lo escribe.
+  `CAPTURA` alimenta los datos propios de RRHH pero no toca el padrón.
+- **`CONSULTA` sí exporta.** Es descarga bajo demanda y no modifica nada.
+- **`CONSULTA` ve las incidencias de toda la planta.** Decidido a conciencia:
+  las quince cuentas actuales entran con este papel y ven faltas
+  injustificadas, incidencias del reglamento e incapacidades de las 121
+  personas, con nombre, fechas y motivo. Como también pueden exportar,
+  cualquiera de ellas puede descargar ese historial completo a un Excel. Se
+  aceptó el riesgo: son empleados de confianza y la alternativa —ocultar el
+  módulo— dejaba sin uso una parte de la aplicación.
+- **`CAPTURA` queda definido pero sin usar todavía.** Existirá cuando se agregue
+  la sección donde estos quince capturen. Hoy nadie lo tiene asignado.
+- **Los módulos que el papel no permite escribir se muestran igual**, en modo
+  lectura. Ocultarlos haría creer que no existen.
+
+---
+
+# SPEC-003 — Directorio de personal
+
+**Estado:** implementado
+**Actor:** `ADMIN` para escribir; cualquier papel para leer
+
+### Precondiciones
+- Sesión iniciada
+
+### Flujo principal
+1. Sistema se suscribe a la colección `colaboradores` del proyecto
+   **impredimex-suite**
+2. Sistema muestra la lista ordenada numéricamente por nómina, con búsqueda y
+   paginación
+3. `ADMIN` puede dar de alta, editar, dar de baja o importar
+
+### Reglas de negocio
+- **Esta es la única lista de personal válida de toda la suite.** Ninguna otra
+  app la escribe, ni guarda su propia copia, ni tiene nombres en el código.
+- **RRHH es la única app que escribe aquí.** Es su responsabilidad y también su
+  riesgo: un error en este módulo se propaga a las cinco apps.
+- **`apps`, `roles` y `rol` no se tocan nunca.** No aparecen en los formularios
+  de RRHH y no se escriben. Toda escritura usa `merge` para no borrarlos. Esta
+  regla es la que impide que RRHH deje sin acceso a alguien sin darse cuenta.
+- **`nombreNormalizado` se recalcula al guardar.** Son las palabras de
+  `nombreCompleto` sin acentos, en mayúsculas y **ordenadas alfabéticamente**:
+  `MORENO GARCIA VICTOR` se guarda como `GARCIA MORENO VICTOR`. Ordenarlas hace
+  que la búsqueda no dependa del orden en que se escriba, así que «Víctor
+  Moreno» y «Moreno Víctor» encuentran a la misma persona. Calcularlo de otra
+  forma dejaría los registros nuevos en un formato y el resto de la colección en
+  otro, y las búsquedas de las demás apps fallarían a medias.
+- **Cada escritura deja `actualizadoEn` y `actualizadoPor`**, con la nómina de
+  quien la hizo. Hasta ahora no había forma de saber quién tocó el padrón.
+- **`departamento` pertenece a un catálogo cerrado de 13 valores.** Se comparan
+  como texto exacto en varias apps: un acento o una mayúscula distinta deja a un
+  trabajador sin equipo de protección asignado en EPP, y falla sin avisar.
+- **La antigüedad no se guarda.** Se calcula al vuelo desde `fechaIngreso`.
+  Guardarla significa que queda desactualizada cada mes.
 
 ### Flujos alternativos
-- **Campos incompletos:** Sistema muestra alerta indicando qué campos faltan
-- **Sin conexión:** Sistema permite crear la OT localmente; se sincroniza con Firebase al recuperar conexión
+- **La suite no responde:** la lista se muestra vacía con un aviso claro, no en
+  blanco sin explicación
 
 ---
 
-# SPEC-003 — Tomar Orden de Trabajo
+# SPEC-004 — Alta y edición de un colaborador
 
-### Actor
-Usuario con rol **técnico**.
-
-### Precondiciones
-- Técnico autenticado
-- OT existe en `DB.ots` con `status = "abierto"` o `status = "proceso"` (multi-técnico)
-- El técnico no ha tomado previamente esta OT
+**Estado:** implementado
+**Actor:** `ADMIN`
 
 ### Flujo principal
-1. Técnico ve la OT en su lista de "Mis órdenes" (sección de OTs disponibles)
-2. Técnico presiona el botón "Tomar OT"
-3. Sistema agrega al técnico actual al array `tecnicos` de la OT
-4. Sistema cambia el `status` de la OT a `"proceso"` (si era `"abierto"`)
-5. Sistema escribe el cambio en Firebase
-6. Sistema dispara notificación push al solicitante con mensaje "Técnico asignado"
-7. Sistema muestra al técnico la pantalla de espera de confirmación del solicitante
-8. El técnico NO puede iniciar actividades hasta que el solicitante confirme "Técnico en máquina"
-
-### Postcondiciones
-- Técnico agregado al array `tecnicos` de la OT
-- Status de la OT actualizado a `"proceso"`
-- Solicitante notificado vía push
-- OT marcada como "En espera de confirmación" para el técnico que la tomó
+1. Usuario llena nómina, nombre completo, puesto, fecha de ingreso y
+   departamento
+2. Sistema normaliza el nombre, el puesto y el departamento a mayúsculas
+3. Sistema calcula `nombreNormalizado`
+4. Sistema guarda con `merge` usando la nómina como identificador del documento
 
 ### Reglas de negocio
-- **Múltiples técnicos pueden tomar la misma OT** (multi-técnico)
-- Cada técnico que toma la OT necesita su propia confirmación del solicitante por separado
-- Un técnico que ya tomó la OT no puede volver a tomarla
-- La OT sigue visible en el panel de técnicos disponibles aunque ya tenga uno o más asignados
+- **La nómina es el identificador del documento.** Guardar con una nómina que ya
+  existe actualiza a esa persona, no crea una nueva.
+- **El departamento se elige de una lista, no se escribe.** Es lo único que
+  evita las variantes con acento distinto.
+- **Un alta nueva nace sin `apps` ni `roles`**, o sea sin acceso a ninguna
+  aplicación. Darle acceso es un acto aparte y deliberado.
+
+---
+
+# SPEC-005 — Baja, reactivación y eliminación
+
+**Estado:** implementado
+**Actor:** `ADMIN`
+
+### Flujo principal — baja
+1. Usuario presiona «Dar de baja» sobre un colaborador
+2. Sistema pide confirmación
+3. Sistema cambia `estatus` a `BAJA`; el documento se conserva completo
+
+### Flujo principal — eliminación
+1. Usuario presiona el botón de eliminar
+2. Sistema muestra una confirmación que **nombra a la persona** y advierte que
+   se perderán sus accesos a las demás aplicaciones
+3. Usuario confirma
+4. Sistema borra el documento
+
+### Reglas de negocio
+- **Dar de baja es lo normal; eliminar es la excepción.** La baja conserva el
+  historial y permite reactivar. Eliminar existe solo para registros creados por
+  error, por ejemplo con la nómina mal escrita.
+- **Eliminar se lleva `apps` y `roles`.** Esa persona pierde el acceso a EPP,
+  Procesos y a lo que tuviera, sin dejar rastro. Por eso la confirmación tiene
+  que decirlo, no basta un «¿estás seguro?».
+- **Una persona en `BAJA` no puede iniciar sesión en ninguna app**, aunque
+  conserve `apps` y `roles`.
+- **Reactivar es cambiar `estatus` a `ACTIVO`.** No hay que volver a capturar
+  nada ni se reasignan permisos: los que tenía siguen ahí.
+
+---
+
+# SPEC-006 — Importación desde Excel
+
+**Estado:** implementado
+**Actor:** `ADMIN`
+
+### Flujo principal
+1. Usuario selecciona un archivo `.xlsx`
+2. Sistema lee la primera hoja y reconoce las columnas de nómina, nombre,
+   puesto, fecha de ingreso y departamento
+3. Sistema descarta las filas sin nómina o sin nombre
+4. Sistema compara contra lo que ya existe y muestra un **resumen previo**:
+   cuántas altas, cuántas actualizaciones, y **qué personas en `BAJA` serían
+   reactivadas**, con nombre y nómina
+5. Usuario confirma o cancela
+6. Sistema guarda en lote, con `merge`
+
+### Reglas de negocio
+- **La importación nunca reactiva a nadie en silencio.** Si el archivo trae a
+  alguien que está en `BAJA`, se lista antes y el usuario decide. Hoy la
+  aplicación fuerza `ACTIVO` en todos los registros importados, así que volver a
+  subir la plantilla completa revive a todo el personal dado de baja sin avisar.
+- **Un alta que llega por importación nace `ACTIVO`.** Una persona que ya existe
+  conserva su estatus salvo que el usuario acepte reactivarla.
+- **La importación pisa nombre, puesto, fecha y departamento con lo que traiga
+  el archivo.** Si el Excel viene mal, el padrón queda mal. Es la vía por la que
+  entró el error de las nóminas 2396 y 2398.
+- **Los departamentos que no pertenezcan al catálogo cerrado se reportan como
+  error** y esas filas no se guardan. Es preferible rechazar una fila a meter
+  «FLEXOGRAFIA» sin acento y dejar a esa gente sin EPP asignado.
+- **`apps` y `roles` no se tocan.** Aplica la regla de la SPEC-003.
 
 ### Flujos alternativos
-- **OT ya cerrada:** Sistema oculta el botón "Tomar OT" y muestra el status actual
-- **Técnico ya asignado:** Sistema muestra estado "En proceso" en lugar del botón
+- **Ninguna fila válida:** se avisa qué columnas se esperaban
+- **Archivo ilegible:** se avisa y no se guarda nada
 
 ---
 
-# SPEC-004 — Confirmar "Técnico en máquina"
+# SPEC-007 — Módulos propios de RRHH
 
-### Actor
-Usuario con rol **solicitante** (creador de la OT).
+**Estado:** implementado
+**Actor:** `ADMIN` para escribir; `CAPTURA` y `CONSULTA` para leer
 
-### Precondiciones
-- OT existe con `status = "proceso"`
-- Al menos un técnico ha tomado la OT (array `tecnicos` no vacío)
-- El solicitante es el creador de la OT
-
-### Flujo principal
-1. Solicitante ve la OT en "Mis solicitudes" con el técnico ya asignado
-2. Por cada técnico asignado aparece un botón "Confirmar [Nombre del técnico] en máquina"
-3. Solicitante presiona el botón cuando físicamente verifica que el técnico está atendiendo
-4. Sistema marca al técnico como confirmado (`confirmado = true` en su entrada del array)
-5. Sistema escribe el cambio en Firebase
-6. Sistema notifica al técnico que ya puede iniciar actividades
-7. El técnico puede ahora acceder a la pantalla de tipo de problema y actividades
-
-### Postcondiciones
-- Técnico marcado como confirmado en la OT
-- Técnico habilitado para registrar tipo de problema, actividades y refacciones
+### Alcance
+Incidencias, capacitación, cursos, antigüedad y vacantes.
 
 ### Reglas de negocio
-- **Cada técnico requiere confirmación independiente** del solicitante
-- El solicitante puede confirmar a un técnico sin haber confirmado a otro
-- Una vez confirmado, no se puede revertir
+- **Estos datos se quedan en el proyecto propio de RRHH**, no en la suite. Es
+  deliberado y no debe «optimizarse» juntándolo todo: el plan gratuito da cuota
+  por proyecto, y concentrar las cinco apps en uno la colapsaría. La suite solo
+  carga con identidad y directorio.
+- **Los registros guardan copia, no referencia.** Una incidencia conserva la
+  nómina **y** el nombre tal como estaban al capturarla, para que el histórico
+  no cambie si después se corrige el padrón.
+- **La antigüedad se calcula al vuelo** desde `fechaIngreso`. No se guarda.
+- **Solo `ADMIN` captura (v2.3).** Quien no lo sea no ve formularios de alta,
+  botones de eliminar ni edición en línea en ningún módulo: ve un aviso de
+  modo consulta. `CAPTURA` perdió la escritura aquí y se comporta como
+  `CONSULTA`; el papel sigue vigente en las demás aplicaciones de la suite.
+- **Consultar, filtrar, paginar y exportar quedan abiertos a todos.** Una
+  descarga a Excel o PDF no modifica nada, así que no se restringe.
+- **Ocultar el formulario no es el control de acceso.** Lo que impide de
+  verdad la escritura son las reglas de la SPEC-008; la interfaz solo evita
+  que alguien intente algo que la base le va a rechazar.
 
 ---
 
-# SPEC-005 — Registrar actividades y refacciones
+# SPEC-008 — Reglas de acceso a los datos
 
-### Actor
-Usuario con rol **técnico**, previamente confirmado en máquina por el solicitante.
+**Estado:** pendiente
+**Nuevo en la v2**
 
-### Precondiciones
-- OT con `status = "proceso"`
-- Técnico actual está en el array `tecnicos` con `confirmado = true`
-- Técnico ha seleccionado un tipo de problema (paso previo)
+### Alcance
+Dos proyectos con reglas distintas.
 
-### Flujo principal
-1. Técnico accede a la pantalla de detalles de la OT
-2. Sistema muestra dos secciones: **Actividades** y **Refacciones**
-3. Técnico puede:
-   - Agregar una actividad con descripción y fecha/hora
-   - Agregar una refacción con descripción y cantidad
-   - Eliminar actividades o refacciones que él mismo agregó
-4. Cada cambio se guarda automáticamente en Firebase
-5. El solicitante y otros técnicos ven los cambios en tiempo real
+### Proyecto de la suite — `colaboradores`
+Las reglas deben permitir la lectura a cualquier sesión autenticada, porque las
+cinco apps necesitan el directorio, y **restringir la escritura**. Como las
+reglas de un proyecto no pueden validar los tokens de otro, y aquí la sesión sí
+es del propio proyecto suite, la escritura puede exigir que la nómina de quien
+escribe tenga `rrhh` en su campo `apps` y `ADMIN` en `roles.rrhh`.
 
-### Postcondiciones
-- Actividades y refacciones registradas en la OT
-- Cambios visibles para todos los usuarios con acceso a la OT
+### Proyecto propio de RRHH
+Cada app inicia además una sesión anónima en su propio proyecto, y las reglas
+exigen esa sesión junto con App Check. Eso cierra el acceso a extraños pero no
+distingue entre usuarios. Riesgo aceptado a conciencia: la trazabilidad no
+depende de las reglas sino de los datos que la app graba.
+
+### Estado real, comprobado en el código (v2.22.1)
+
+El proyecto propio de RRHH **no abre ninguna sesión**. `src/firebase/config.ts`
+inicializa Firestore y nada más: no hay `getAuth` ni inicio de sesión contra ese
+proyecto. La sesión de la persona vive en `impredimex-suite`, y **las sesiones
+de Firebase Auth no cruzan de un proyecto a otro**.
+
+Por lo tanto, en el proyecto de RRHH `request.auth` es siempre `null`, y una
+regla que exigiera sesión dejaría la aplicación entera sin datos. La sesión
+anónima que describe esta spec nunca se implementó.
+
+Lo que sí se hizo, y está en `firestore.rules` dentro del repositorio:
+
+- **Las ocho colecciones que la app usa quedan abiertas**, porque no hay con qué
+  autenticar todavía.
+- **Todo lo demás queda cerrado.** Antes se podían crear colecciones nuevas y
+  usar la base como almacenamiento gratuito, gastando la cuota del plan.
+- **Las reglas están versionadas.** Antes solo existían en la consola, sin
+  historial y sin forma de saber qué decían.
+
+Falta, en este orden: habilitar el proveedor anónimo en la consola, iniciar
+sesión anónima desde `config.ts`, probarlo publicado, y solo entonces cambiar
+las reglas a `request.auth != null`. Publicar las reglas antes que el código
+deja la aplicación sin acceso a nada.
+
+Aun así eso no distinguiría usuarios: quien tome el JavaScript publicado puede
+abrir una sesión anónima igual que la app. Cerrarlo de verdad exige que este
+proyecto comparta la autenticación de la suite.
 
 ### Reglas de negocio
-- **Tipo de problema es inmutable** una vez guardado (solo se puede seleccionar una vez por técnico)
-- Las 7 opciones de tipo de problema son: Mecánico, Eléctrico, Neumático, Electrónico, Hidráulico, Parámetros, Infraestructura
-- Cada técnico puede agregar sus propias actividades y refacciones
-- Un técnico no puede eliminar las actividades/refacciones de otro técnico
+- **Hoy no hay ninguna regla que impida escribir el padrón.** La aplicación no
+  tiene control de acceso y el repositorio es público, así que cualquiera con la
+  dirección puede alterar la lista de personal. Es lo más urgente de esta
+  versión.
+- **El orden de puesta en marcha no se puede invertir:** primero se publica la
+  aplicación con sesión y App Check en monitoreo, se verifica, y hasta entonces
+  se aplican las reglas. Al revés, la versión que está en producción deja de
+  funcionar en ese momento.
 
 ---
 
-# SPEC-006 — Concluir Orden de Trabajo
+# SPEC-009 — Migración del padrón a la suite
 
-### Actor
-Usuario con rol **técnico**, asignado a la OT.
+**Estado:** implementado
 
-### Precondiciones
-- OT con `status = "proceso"`
-- Técnico confirmado en máquina
-- Tipo de problema seleccionado
-- Al menos una actividad registrada
+### Qué resultó ser
+Esta spec se escribió esperando una reconciliación delicada entre dos listas
+divergentes. Al revisar los datos reales, ese trabajo no existía.
 
-### Flujo principal
-1. Técnico presiona el botón "Concluir OT"
-2. Sistema muestra modal preguntando: **"¿La falla fue por error operativo?"** (Sí / No)
-3. Técnico selecciona la respuesta
-4. Sistema marca la OT con:
-   - `status = "validar"`
-   - `errorOperativo = true | false`
-   - `fechaConclusion` (timestamp actual)
-5. Sistema escribe el cambio en Firebase
-6. Sistema dispara notificación push al solicitante con mensaje "OT concluida — lista para validar"
+El proyecto propio de RRHH tenía **tres** colaboradores —86, 852 y 885—, todos
+con el formato viejo: `updatedAt` en inglés, sin `nombreNormalizado`, sin `apps`
+ni `roles`. Eran registros de prueba de cuando se construyó la aplicación.
 
-### Postcondiciones
-- OT con status `"validar"` esperando confirmación del solicitante
-- Solicitante notificado para validar
+Los 121 de la suite nunca salieron de esa aplicación: se cargaron directo desde
+un archivo de Excel el 3 de septiembre de 2026, con una herramienta aparte. Por
+eso las dos colecciones nunca estuvieron sincronizadas ni tenían por qué estarlo.
+
+Verificado que las tres nóminas ya existían en la suite con sus datos correctos,
+la migración se redujo a cambiar el origen de la base en `personalService.ts`.
 
 ### Reglas de negocio
-- Si hay múltiples técnicos asignados, cualquiera puede concluir
-- El campo `errorOperativo` se usa para alertar al solicitante en la validación
+- **El padrón queda solo en la suite.** Los tres registros del proyecto
+  `rrhh-pwa` dejan de leerse y se eliminan a mano, para que nadie encuentre
+  después una segunda colección `colaboradores` y dude de cuál es la buena.
+- **Los demás módulos no se mueven.** Incidencias, capacitación, cursos y
+  vacantes siguen en el proyecto propio, con datos reales. Es la regla 4 de la
+  suite: la cuota del plan gratuito es por proyecto.
+- **La corrección de las nóminas 2396 y 2398 sigue pendiente**, y ahora es un
+  trabajo aparte que se hace desde la propia aplicación, ya no parte de una
+  migración.
 
 ---
 
-# SPEC-007 — Validar cierre de Orden de Trabajo
+# SPEC-010 — Instalación como aplicación
 
-### Actor
-Usuario con rol **solicitante** (creador de la OT).
-
-### Precondiciones
-- OT con `status = "validar"`
-- Solicitante es el creador
-
-### Flujo principal
-1. Solicitante ve la OT en su lista con estado "Por validar"
-2. Sistema muestra detalle completo: técnicos, tipo de problema, actividades, refacciones
-3. Si `errorOperativo = true`, sistema muestra **alerta visible** indicando que fue reportado como error operativo
-4. Solicitante elige una opción:
-   - **Validar y cerrar** → cambia `status = "cerrado"`, registra `fechaCierre`
-   - **Rechazar** → cambia `status = "abierto"`, limpia el array `tecnicos`, regresa la OT al pool disponible
-5. Sistema escribe el cambio en Firebase
-6. Si fue rechazada, sistema dispara notificación push a todos los técnicos
-
-### Postcondiciones
-- **Si validó:** OT con status `"cerrado"` con timestamp de cierre
-- **Si rechazó:** OT regresa al estado `"abierto"` y vuelve a estar disponible para que cualquier técnico la tome; también es visible en el panel de supervisor
+**Estado:** parcialmente implementado
+**Actor:** cualquier usuario
 
 ### Reglas de negocio
-- Cuando se rechaza, **se limpia el array de técnicos** para que la OT esté disponible nuevamente
-- La OT rechazada sigue conservando su folio y descripción original
-- La alerta de error operativo solo aparece si el técnico marcó `errorOperativo = true`
-- Después de cerrar, la OT no puede volver a editarse
+- **Los iconos deben vivir en el repositorio.** Hoy el manifiesto apunta a
+  `cdn-icons-png.flaticon.com`, un servicio ajeno: si cambia o el dispositivo
+  está sin red al instalar, la app queda sin icono. Tampoco hay
+  `apple-touch-icon`, así que en iPhone la pantalla de inicio usa una captura en
+  vez de un icono.
+- **El icono distingue a esta app de las demás.** Las cinco comparten marca; el
+  de RRHH es la silueta de dos personas.
+- **Los colores son los de la suite:** `#003580` en `theme_color` y
+  `background_color`. Hoy declara `#2563eb` y `#f8fafc`.
 
 ---
 
-# SPEC-008 — Suspender OT en espera
+# SPEC-011 — Registro de incidencias
 
-### Actor
-Usuario con rol **técnico**, asignado a la OT.
-
-### Precondiciones
-- OT con `status = "proceso"`
-- Técnico confirmado en máquina
+**Estado:** implementado
+**Actor:** `ADMIN` y `CAPTURA` para capturar; `CONSULTA` para ver y exportar
 
 ### Flujo principal
-1. Técnico presiona el botón "Poner en espera"
-2. Sistema muestra modal pidiendo motivo de la espera (texto libre)
-3. Técnico ingresa motivo y confirma
-4. Sistema marca la OT con:
-   - `status = "espera"`
-   - `motivoEspera` = texto ingresado
-   - `fechaEspera` (timestamp)
-5. Sistema escribe el cambio en Firebase
-6. Sistema dispara notificación push al solicitante con el motivo
+1. El usuario selecciona al colaborador, el tipo de incidencia y, si aplica,
+   escribe observaciones libres.
+2. Si la incidencia implica una suspensión, marca la casilla **Suspensión**.
+   Eso pide primero el número de días y después abre un calendario donde se
+   eligen esos días uno por uno; no tienen que ser consecutivos.
+3. Al guardar, la incidencia queda con la nómina y el nombre del colaborador
+   copiados tal como estaban en ese momento (regla general de la SPEC-007).
 
 ### Postcondiciones
-- OT con status `"espera"` y motivo registrado
-- Solicitante notificado vía push con el motivo
+- Se crea un documento en `incidencias` (proyecto `rrhh-pwa`) con `tipo`,
+  `observaciones`, `suspension` y, si aplica, `diasSuspension` y
+  `fechasSuspension` (una fecha `YYYY-MM-DD` por cada día elegido).
+- El botón **Guardar Incidencia** queda deshabilitado mientras el número de
+  fechas elegidas no coincida exactamente con `diasSuspension`.
 
 ### Reglas de negocio
-- La OT en espera puede ser reactivada por el técnico (regresa a `"proceso"`)
-- El motivo es obligatorio y queda en el historial de la OT
-
----
-
-# SPEC-009 — Sistema de notificaciones push
-
-### Actor
-Sistema (automático, no requiere acción del usuario).
-
-### Precondiciones
-- OneSignal SDK cargado en el navegador
-- Service Worker `OneSignalSDKWorker.js` registrado
-- Usuario autenticado con tags aplicados (nomina, role, nombre)
-- Cloudflare Worker `mantoapp-push` activo
-
-### Flujo principal
-1. Sistema detecta un evento que requiere notificar (creación de OT, toma de OT, conclusión, etc.)
-2. Sistema construye payload con destinatarios (nóminas) + título + mensaje
-3. Sistema invoca la función `notifyPush(toNominas, title, body)`
-4. Frontend envía POST al Cloudflare Worker
-5. Worker reenvía la petición a OneSignal REST API con la API key oculta
-6. OneSignal procesa la petición y entrega la push a los dispositivos suscritos con esos tags
-
-### Postcondiciones
-- Notificación entregada a los dispositivos cuyos tags coinciden con las nóminas destinatarias
-- Push aparece en el dispositivo aunque la app esté cerrada
-
-### Reglas de negocio
-- **Tags de suscripción:** cada dispositivo se etiqueta con `nomina`, `role` y `nombre` al hacer login
-- **Limpieza de tags:** al cambiar de usuario o hacer logout, los tags anteriores se eliminan
-- **Filtrado por nómina:** las notificaciones se envían a nóminas específicas, no a todos
-- **Identificación del solicitante:** las notificaciones dirigidas al solicitante usan el campo `ot.nomina` directamente (guardado al crear la OT), NO se busca por nombre con `getNominaByName()` porque las comparaciones por nombre son frágiles (espacios, mayúsculas, acentos)
-- **Re-suscripción forzada:** en cada login, la app llama a `OneSignal.User.PushSubscription.optIn()` para reactivar automáticamente cualquier suscriptor que haya sido marcado como "unsubscribed" en OneSignal Dashboard
-- **API key segura:** la REST API Key de OneSignal NUNCA se expone en el frontend; vive solo en Cloudflare Worker
-- **Eventos que disparan push:**
-  - Nueva OT → a todo el personal activo del depto MANTENIMIENTO (ver SPEC-011)
-  - Técnico toma OT → al solicitante
-  - OT concluida → al solicitante
-  - OT en espera → al solicitante con motivo
-  - OT rechazada (cierre rechazado por solicitante) → notificación interna al técnico y supervisor, y push a todo el depto MANTENIMIENTO (ver SPEC-011)
+- **No hay fecha de inicio y fin genéricas.** La v2.1 las retira: la única
+  fecha que la aplicación captura es la de una suspensión real, y son fechas
+  puntuales elegidas a mano, no un rango.
+- **El estatus de aprobación se retira.** La versión anterior guardaba un
+  campo `estatus` que solo podía valer `APROBADO`: no había ningún flujo que
+  lo cambiara, así que no describía nada real.
+- **El historial muestra # Nómina, Nombre, Tipo, Suspensión, Observaciones y
+  Acción.** La columna Suspensión lista las fechas elegidas si la incidencia
+  las tiene, o un guion si no.
+- **El indicador de "días acumulados" del resumen ahora cuenta solo días de
+  suspensión.** El total genérico que existía antes perdió sentido al quitarse
+  el rango de fechas: ya no hay un número de días asociado a una falta o un
+  retardo, así que sumar «días» de todas las incidencias por igual ya no
+  describía nada real.
 
 ### Flujos alternativos
-- **Permiso de notificaciones denegado:** El sistema sigue funcionando pero el usuario no recibe push (solo ve cambios al abrir la app)
-- **Worker de Cloudflare caído:** El frontend ignora el error y la app sigue funcionando normalmente
-- **OneSignal rechaza la petición:** Error se loguea en consola pero no se muestra al usuario final
+- Si se cambia el número de días de una suspensión ya en captura, las fechas
+  elegidas se borran y hay que volver a marcarlas: evita que queden fechas de
+  más o de menos sin que el usuario se dé cuenta.
 
 ---
 
-# SPEC-010 — Gestión de catálogos (Administrador)
+# SPEC-012 — Sucesos y rol de turnos
 
-### Actor
-Usuario con rol **admin**.
+**Estado:** implementado
+**Actor:** cualquier sesión, sea o no `ADMIN`
 
-### Precondiciones
-- Usuario autenticado como admin
+### Alcance
+Pestaña **Sucesos y Turnos**. Es la excepción deliberada a la SPEC-007: aquí
+la captura está abierta a todos, porque quien levanta un reporte de piso o
+arma un rol es precisamente quien está en el turno, no un administrador.
 
-### Flujo principal
-1. Admin accede al hub principal con módulos: Personal de mantenimiento, Tipos de servicio, Naves, Máquinas, Infraestructura, Vistas de otros roles
-2. Admin selecciona un catálogo
-3. Sistema muestra listado con opción de agregar, editar o eliminar
-4. Admin realiza la operación
-5. Sistema valida y escribe el cambio en Firebase
-6. Todos los usuarios conectados ven el cambio en tiempo real
+### Sucesos
 
-### Postcondiciones
-- Catálogo actualizado en Firebase
-- Cambios reflejados inmediatamente en todas las sesiones activas
+1. Quien reporta elige fecha, colaborador y tipo de suceso, y puede describirlo.
+2. Al guardar, el suceso conserva nómina, nombre y departamento del colaborador
+   **y** la nómina y el nombre de quien lo reportó, copiados en ese momento.
 
-### Reglas de negocio
-- **El personal ya no se administra aquí.** Altas, bajas, nombres, puestos y
-  departamentos vienen de `colaboradores` en la suite y solo RRHH los escribe.
-  El módulo "Personal de mantenimiento" pasa a editar únicamente los atributos
-  operativos de la SPEC-043: turno y qué tipos de orden atiende cada quien.
-  Los papeles se asignan en la suite, en `roles.manto`.
-- **Tipos de servicio:** 3 tipos fijos por ahora (MAQ-PROD, INFRAESTRUCTURA, SEGURIDAD)
-- **Naves:** 4 naves fijas (A1, A2, B16, B17)
-- **Máquinas:** agrupadas por nave; cada nave tiene su catálogo independiente
-- **Infraestructura:** agrupadas por nave; cada nave tiene sus áreas
-- Las modificaciones de catálogo afectan solo a OTs nuevas (no a OTs ya creadas)
+Catálogo: no se presentó a laborar, abandonó el turno, llegada tarde, cambio de
+turno, accidente o incidente, otro.
 
----
+- **Un suceso siempre va ligado a una persona.** No existen sucesos generales.
+- **Un suceso no es una incidencia.** No afecta nómina, suspensiones ni el
+  historial de la SPEC-011: es bitácora de lo ocurrido, nada más.
+- **Solo `ADMIN` puede borrar un suceso.** Un reporte no se deshace porque a
+  quien lo levantó le haya incomodado después.
+- Todos pueden filtrar la bitácora y exportarla a Excel y PDF.
 
-# SPEC-011 — Destinatarios de las notificaciones por tipo de servicio
+### Rol de turnos
 
-### Actor
-Sistema (automático).
+Réplica del módulo de turnos de la aplicación de Mantenimiento (su SPEC-016),
+reescrita para React y Firestore. Sirve para saber dónde está ubicado el
+personal, no para calcular nómina.
 
-### Precondiciones
-- Se crea una OT (SPEC-002) o el solicitante rechaza un cierre (SPEC-007)
-- El catálogo `DB.personal` está cargado
+1. Se captura nombre, **departamento**, periodo y fecha de inicio.
+2. El sistema genera una cuadrícula: una fila por persona activa de ese
+   departamento, una columna por día del periodo.
+3. Se asigna un turno por celda.
 
-### Flujo principal
-1. El sistema invoca `getNominasByTipoServicio(ot.tipo)`
-2. La función retorna **todas las nóminas activas del departamento MANTENIMIENTO**, sin distinguir el tipo de servicio
-3. Se invoca `notifyPush()` con esa lista (ver SPEC-009)
-
-### Reglas de negocio
-- **Todos los tipos de servicio notifican a todo el departamento:** MTTO-MAQ-PROD, MTTO-INFRAESTRUCTURA y MTTO-SEGURIDAD tienen los mismos destinatarios
-- **Filtro por estatus y depto:** solo se notifica a quienes estén `activo` y en depto `MANTENIMIENTO`
-- **Aplica a la creación y al rechazo de cierre.** Las notificaciones dirigidas al solicitante (técnico asignado, OT concluida, OT en espera) no se ven afectadas por esta spec
-
-### Historial de esta spec
-- **v1.1.0:** se introdujo enrutamiento diferenciado — Infraestructura y Seguridad notificaban solo a Jefe, Auxiliar y Analista de Mantenimiento (filtrado por puesto)
-- **v1.3.0:** se desactivó el enrutamiento diferenciado por decisión operativa. Todos los tipos notifican a todo el departamento. La función `getNominasByTipoServicio()` se conserva como punto único de cambio por si se requiere reactivar
-
----
-
-# SPEC-012 — (Sustituida por SPEC-035)
-
-> Esta especificación quedó reemplazada por **SPEC-035 — Pausa de fin de semana**, que cubre el mismo escenario con un botón flotante más visible y reactivación automática. Se conserva este encabezado como referencia histórica; ver SPEC-035 para el comportamiento vigente.
-
----
-
-# SPEC-012 (histórico) — Fin de turno del técnico (paro de fin de semana)
-
-### Actor
-Técnico de mantenimiento.
-
-### Contexto
-Entre semana aplica la **regla de relevo continuo**: el técnico no abandona la OT hasta que el técnico del siguiente turno la toma. Por eso el corte de su tiempo es la entrada del relevo y no se necesita registrar salida.
-
-En el paro de fin de semana no hay relevo, así que el técnico necesita cerrar su participación explícitamente para que no se le siga contando el tiempo.
-
-### Precondiciones
-- El técnico tiene una participación abierta en la OT (una entrada en `ot.tecnicos` sin `fechaSalida`)
-- La fecha/hora actual está dentro de la ventana de paro
-
-### Ventana de disponibilidad
-El botón **"Fin de mi turno"** solo se muestra:
-- **Sábado** desde las **21:20**
-- **Domingo** completo
-- **Lunes** hasta las **06:00**
-
-Fuera de esa ventana el botón no aparece, y la función lo revalida por si se invoca de otro modo.
-
-### Flujo principal
-1. El técnico abre la OT y pulsa **"Fin de mi turno"**
-2. El sistema pide confirmación
-3. Se registra `fechaSalida` en su entrada de `ot.tecnicos`
-4. Se cierra cualquier periodo de espera abierto (ver SPEC-013)
-5. Se agrega comentario en la OT y notificación interna al supervisor
-
-### Postcondiciones
-- El tiempo de intervención del técnico deja de correr en ese instante
-- **La OT permanece abierta** y disponible para el siguiente turno
-- El técnico puede volver a tomarla después (genera una nueva entrada)
-
-### Reglas de negocio
-- No cambia el estatus de la OT
-- Si el técnico tiene varias participaciones, se cierra la más reciente abierta
-- El corte por `fechaSalida` tiene **prioridad** sobre cualquier otro criterio al calcular su tiempo
-
----
-
-# SPEC-013 — Registro y descuento del tiempo en espera
-
-### Actor
-Sistema (automático).
-
-### Motivación
-El tiempo que una OT pasa suspendida (falta de refacción, sin tiempo, etc.) no es tiempo de trabajo del técnico y no debe cargársele.
-
-### Flujo principal
-1. Al poner la OT en espera (SPEC-008) se agrega un registro a `ot.esperas`:
-   `{inicio, fin: null, motivo, tecnico, nomina}`
-2. Al reanudar la OT registrando una actividad, se cierra el periodo (`fin`)
-3. Al calcular el tiempo de un técnico, se descuentan los segundos de espera que caen dentro de su ventana
-
-### Postcondiciones
-- El tiempo de intervención reportado es **neto de esperas**
-- El tiempo en espera se reporta en su **propia columna**
-
-### Reglas de negocio
-- Se calcula por intersección de rangos: solo se descuenta la parte de la espera que cae dentro de la ventana del técnico
-- Una espera abierta (sin `fin`) se considera vigente hasta el corte de esa ventana
-- El resultado nunca es negativo
-- El "Fin de mi turno" (SPEC-012) también cierra la espera abierta
-
----
-
-# SPEC-014 — Separación del tiempo de validación del solicitante
-
-### Actor
-Sistema (automático).
-
-### Motivación
-Antes, el tiempo del último técnico corría hasta que el **solicitante** validaba el cierre, cargándole una espera que no dependía de él.
-
-### Flujo principal
-1. El técnico concluye la OT → se guarda `fechaCierreMantenimiento`
-2. El solicitante valida → se guarda `fechaCierre`
-3. El tiempo de intervención del último técnico corta en `fechaCierreMantenimiento`
-4. La diferencia entre ambos se reporta como **tiempo de validación del solicitante**
-
-### Postcondiciones
-- El técnico ya no absorbe la espera de validación
-- Se obtiene un indicador de qué tan rápido validan los solicitantes
-
-### Reglas de negocio
-- La columna de validación solo se llena en la fila del **último técnico**
-- Si no existe `fechaCierreMantenimiento`, se usa la última actividad con avance 100% (retrocompatibilidad)
-- El tiempo total de la orden **sigue midiendo** de `fechaAlta` a `fechaCierre`
-
----
-
-# SPEC-015 — Tipos de problema según el tipo de servicio
-
-### Actor
-Técnico de mantenimiento (al seleccionar el tipo de problema, Paso 2).
-
-### Precondiciones
-- La OT fue tomada y el solicitante confirmó la presencia del técnico
-- La OT aún no tiene `tipoProblema` definido
-
-### Flujo principal
-1. El sistema invoca `getTipoFallas(ot.tipo)`
-2. Se pintan como chips únicamente las opciones correspondientes al tipo de servicio de la OT
-3. El técnico selecciona una y confirma
-
-### Catálogos por tipo de servicio
-
-**MTTO-MAQ-PROD** (7 opciones)
-Mecánico · Eléctrico · Neumático · Electrónico · Hidráulico · Parámetros · Infraestructura
-
-**MTTO-INFRAESTRUCTURA** (8 opciones)
-Eléctrico · Hidráulico · Mobiliario · Pintura · Edificios · Fontanería · Alarmas · Otros
-
-**MTTO-SEGURIDAD** (9 opciones)
-Mecánico · Eléctrico · Neumático · Electrónico · Hidráulico · Guardas · Infraestructura · Riesgo de incendio · Riesgo de caídas
-
-### Postcondiciones
-- `ot.tipoProblema` guarda el texto seleccionado
-- El valor sigue siendo **inmutable** una vez guardado (SPEC-003)
-
-### Reglas de negocio
-- Si el tipo de servicio no coincide con ninguno de los tres, se usa el catálogo de MTTO-MAQ-PROD como respaldo
-- No hay validación contra el catálogo al guardar: se almacena el texto del chip seleccionado
-- **Retrocompatibilidad:** las OT antiguas conservan y muestran su `tipoProblema` original aunque ese valor ya no exista en el catálogo de su tipo, porque la vista de solo lectura muestra el texto guardado
-- El catálogo se define en la función `getTipoFallas()`, punto único de cambio
-
----
-
-# SPEC-016 — Módulo de Turnos (rol de turnos del personal)
-
-### Actor
-Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
-
-### Ubicación
-Pestaña **"Turnos"** en la barra inferior del supervisor, entre **Técnicos** y **Alertas**.
-
-### Precondiciones
-- Existe personal activo en el departamento MANTENIMIENTO
-
-### Flujo principal
-1. El supervisor entra a **Turnos** y ve la lista de roles existentes
-2. Pulsa **"+ Nuevo rol de turnos"**
-3. Captura nombre, periodo (semanal / quincenal / mensual) y fecha de inicio
-4. El sistema genera la cuadrícula: una fila por persona activa de Mantenimiento, una columna por día del periodo
-5. Asigna un turno por celda desde el catálogo
-6. Guarda el rol
-
-### Catálogo de turnos
-
-| Clave | Horario |
-|---|---|
-| `T1`  | 06:00 – 14:00 |
-| `T2`  | 14:00 – 21:30 |
-| `T3`  | 21:30 – 06:00 |
+| Clave | Horario | | Periodo | Días |
+|---|---|---|---|---|
+| `T1` | 06:00 – 14:00 | | Semanal | 7 |
+| `T2` | 14:00 – 21:30 | | Quincenal | 14 |
+| `T3` | 21:30 – 06:00 | | Mensual | el mes completo (28–31) |
 | `D12` | 06:00 – 18:00 |
 | `N12` | 18:00 – 06:00 |
-| `G8`  | 08:00 – 18:00 |
-| `LIB` | Horario libre (el supervisor captura entrada y salida manualmente) |
+| `G8` | 08:00 – 18:00 |
+| `LIB` | horario libre, se capturan entrada y salida |
 
-Una celda **vacía** significa descanso / sin turno asignado.
-
-### Periodos
-
-| Periodo | Días |
-|---|---|
-| Semanal | 7 |
-| Quincenal | 14 |
-| Mensual | Los días naturales del mes de la fecha de inicio (28–31) |
-
-Los días se generan a partir de la fecha de inicio y pueden cruzar de mes.
-
-### Postcondiciones
-- El rol se guarda en `DB.turnos` y se sincroniza a Firebase
-- El rol puede consultarse, editarse, exportarse a Excel o eliminarse
-
-### Copiar y pegar turnos
-Para agilizar la captura cuando una persona repite el mismo horario:
-
-1. En una celda con turno asignado, pulsar **Copiar**
-2. Aparece una barra indicando qué turno está copiado
-3. El turno puede pegarse:
-   - En una celda concreta, con **Pegar**
-   - En **todos los días del periodo** de esa persona, con **Pegar fila** (pide confirmación)
-4. **Cancelar** vacía el portapapeles
-
-Cada fila tiene además **Limpiar fila**, que borra todos los turnos de esa persona en el periodo.
-
-El portapapeles guarda una **copia independiente** de la asignación, incluidas las horas del turno libre, de modo que modificar la celda origen no afecta a las pegadas.
+Una celda vacía significa descanso. Los domingos se resaltan.
 
 ### Reglas de negocio
-- Se listan **todas las personas activas** del depto MANTENIMIENTO, sin importar su rol en la app
-- El portapapeles vive solo durante la sesión de edición; no se guarda en la base de datos
-- El nombre del rol y la fecha de inicio son **obligatorios** al guardar
-- Al elegir `LIB` se piden las horas de entrada y salida, validadas en formato **HH:MM** (24 h)
-- Cambiar el periodo o la fecha de inicio **regenera la cuadrícula** conservando las asignaciones de las fechas que sigan dentro del rango
-- Los domingos se resaltan en el encabezado
-- La exportación a Excel genera una hoja con una fila por persona y una columna por día
+- **El departamento se elige al crear el rol** y determina qué personas salen
+  en la cuadrícula. Solo aparece personal activo.
+- **Cualquiera puede crear un rol; solo quien lo creó o un `ADMIN` puede
+  editarlo o borrarlo.** Los demás lo abren en modo lectura, con la cuadrícula
+  deshabilitada y sin botón de guardar, para que nadie capture un periodo
+  entero y descubra al final que no podía guardarlo.
+- **Cambiar periodo o fecha de inicio conserva solo las asignaciones cuyas
+  fechas siguen dentro del rango**; las que quedan fuera se descartan, porque
+  arrastrarlas haría reaparecer turnos de días que ya no son del rol.
+- **Cambiar de departamento vacía las asignaciones**, ya que la lista de
+  personas deja de ser la misma.
+- **Con `LIB` se piden entrada y salida** en formato `HH:MM` de 24 horas, y se
+  validan.
+- **El portapapeles guarda una copia independiente.** Editar la celda de origen
+  no altera las que ya se pegaron. Vive solo durante la edición.
+- **Las fechas se generan con aritmética de calendario**, no sumando
+  milisegundos: con el horario de verano un día dura 23 o 25 horas dos veces al
+  año y el periodo repetiría o se saltaría un día.
+- Cada rol se exporta a Excel con una fila por persona y una columna por día.
 
-### Notas de integración
-- Este módulo es **informativo y de planeación**: no modifica el campo `turno` del catálogo de personal ni la función `turnoActual()`, que sigue derivando el turno de la hora del sistema al tomar una OT
-- Si en el futuro se desea que el rol determine el turno registrado en las OT, el punto de integración sería `turnoActual()`
-
----
-
-# SPEC-017 — Módulo Preventivo (programa mensual de mantenimiento)
-
-### Actor
-Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
-
-### Ubicación
-Pestaña **"Preventivo"** en la barra inferior del supervisor, entre **Turnos** y **Alertas**.
-
-### Documento que reproduce
-Formato controlado **F20-PR-MA-01, Rev. C** — "Programa mensual de mantenimiento preventivo".
-Creado: 02/12/2016. Actualizado: 03/09/2026.
-
-El documento se presenta **sin colores de fondo ni texto de color**, en blanco y negro, como el formato impreso. Los tres renglones del recuadro de control (Código, Creado y Actualizado) se construyen con una tabla anidada para que midan **exactamente la misma altura**.
-
-Las columnas de los siete días tienen **el mismo ancho** entre sí, fijado con `table-layout:fixed` y un `colgroup` explícito. Las firmas del pie se alinean con el ancho del calendario, repartidas en cuatro columnas iguales.
-
-### Flujo principal
-1. El supervisor entra a **Preventivo** y ve la lista de programas capturados
-2. Pulsa **"+ Nuevo programa mensual"**
-3. Selecciona **mes** y **año** en las listas desplegables del encabezado
-4. El sistema construye la cuadrícula del mes y **numera los días automáticamente**
-5. Asigna una máquina por cada día y turno desde las listas desplegables
-6. Guarda el programa
-
-### Estructura de la cuadrícula
-- Columnas: **TURNO** + los siete días (Lunes a Domingo), cada uno con dos subcolumnas: **máquina** y **número de día**
-- Cada semana ocupa **tres filas**, una por turno (1, 2 y 3)
-- El número de día se calcula del mes y año seleccionados, y ocupa las tres filas de turno de ese día
-- Las semanas arrancan en **lunes**; las posiciones fuera del mes quedan vacías
-- El número de semanas se ajusta al mes: **4, 5 o 6** según corresponda
-
-### Celdas y su contenido
-
-| Celda | Contenido |
-|---|---|
-| Mes | Lista desplegable con los doce meses |
-| Año | Lista desplegable, del año actual −3 al +3 |
-| Máquina | Lista desplegable con las máquinas **activas** del catálogo |
-| Número de día | Calculado automáticamente; no editable |
-| Código, Creado, Actualizado | Fijos del formato; no editables |
-
-### Exportación a PDF
-El botón **Exportar a PDF** abre una ventana de impresión con el documento ya formateado y sin controles de captura: las listas desplegables se sustituyen por el **nombre de la máquina en texto**.
-
-La hoja se configura con `@page{size: letter landscape}`, es decir **carta horizontal**, con márgenes de 8 mm. El usuario elige *Guardar como PDF* en el diálogo del navegador.
-
-Si el navegador bloquea la ventana emergente, se avisa al usuario para que la permita.
-
-### Presentación en pantalla
-- El calendario y los botones comparten un contenedor del **80 % del ancho**, centrado, de modo que ambos quedan alineados
-- La tabla usa anchos en **porcentaje** (3.22 % la columna de turno y el número de día, 10.606 % la de máquina), por lo que se expande al contenedor conservando columnas idénticas
-- Se conserva un ancho mínimo de 900 px con desplazamiento horizontal en pantallas chicas
-
-### Postcondiciones
-- El programa se guarda en `DB.preventivos` y se sincroniza a Firebase
-- Puede consultarse, editarse, exportarse a PDF o eliminarse
-
-### Reglas de negocio
-- Las asignaciones se guardan por **fecha ISO y turno**, de modo que cambiar de mes o año no arrastra datos de otro periodo
-- Solo se listan máquinas con `activo: true`
-- Al guardar, si ya existe un programa del mismo mes y año, se pide confirmación
-- El pie del documento reproduce las cuatro firmas del formato: Planeación, Jefe de producción, Gerente de operaciones y Jefe de Mantenimiento
-- Código, revisión y fecha de creación son **fijos**; no se editan desde la app
+### Deuda
+Igual que el resto de esta aplicación, la restricción de quién puede editar un
+rol vive en la interfaz. Las reglas del proyecto de RRHH usan sesión anónima y
+no distinguen usuarios (SPEC-008), así que no pueden sostenerla.
 
 ---
 
-# SPEC-018 — Sincronización granular con Firebase
-
-### Actor
-Sistema (automático).
-
-### Problema que resuelve
-La app escribía con `set(DB)` sobre `manto_db` y escuchaba con un único `on('value')` sobre la misma ruta. En consecuencia, **cada cambio escribía la base completa y se la reenviaba entera a todos los usuarios conectados**.
-
-Marcar una actividad enviaba los 120 empleados, las 48 máquinas, las 53 áreas y todo el histórico de OT a cada dispositivo con la app abierta. El costo crecía en dos direcciones a la vez: la base engordaba con cada OT, y ese peso se multiplicaba por cada cambio y por cada usuario. En un escenario de 15 OT diarias con 15 usuarios, el tráfico superaba los 20 GB el primer mes, contra un límite gratuito de 10 GB.
-
-### Escritura granular
-`saveDB()` conserva su firma, de modo que ningún punto de llamada cambió. Internamente ahora:
-
-1. Mantiene `_snap`, un mapa de ruta a JSON de lo último sincronizado
-2. Al guardar, compara y arma un **update multi-ruta** con lo que realmente cambió
-3. Escribe OTs y notificaciones **elemento por elemento** (`manto_db/ots/<id>`)
-4. Escribe los catálogos completos, pero solo cuando cambian
-5. Si nada cambió, no escribe
-
-### Lectura granular
-- Un listener `on('value')` **por cada catálogo**, en vez de uno sobre toda la base. Modificar una OT ya no vuelve a descargar personal, máquinas, infraestructura, turnos ni programas preventivos
-- OTs y notificaciones usan **eventos por elemento**: `child_added`, `child_changed` y `child_removed`. Solo viaja el registro que cambió
-- El re-render se agrupa con un retardo de 120 ms para no repintar por cada evento
-
-### Formato de almacenamiento
-OTs y notificaciones pasan de guardarse como arreglo (claves `0`, `1`, `2`…) a estar **indexadas por su `id`**, que es lo que permite escribir y recibir por elemento. En memoria se siguen manejando como arreglos, así que el resto del código no cambió.
-
-La migración es **automática y única**: al detectar claves numéricas, la app reescribe la colección indexada por id.
-
-### Unicidad de identificadores
-Los ids de notificación se generaban con `Date.now()` y en varios puntos se crean dos seguidas, que podían colisionar en el mismo milisegundo. Antes esto era inocuo; al escribir por clave habría causado sobrescritura. `_asegurarIds()` garantiza unicidad antes de cada escritura.
-
-### Archivado de OT antiguas
-Desde **Perfil** del supervisor, la opción *Archivar OT cerradas antiguas* mueve las OT cerradas con más de N meses (3 por omisión) a `manto_db_archivo/ots/<id>`.
-
-Las OT archivadas se conservan en Firebase pero dejan de cargarse en la app, lo que evita que la colección viva crezca sin límite.
-
-### Resultados medidos
-
-| Operación | Antes | Después |
-|---|---|---|
-| Cambiar una OT | 158 KB | 436 bytes |
-| Nueva notificación | 158 KB | 85 bytes |
-| Guardar sin cambios | 158 KB | no escribe |
-
-Proyección con 15 OT diarias y 15 usuarios: de **126 GB al mes a 1.4 GB**, y con el archivado el consumo deja de crecer a partir del tercer mes.
-
----
-
-# SPEC-019 — Reorganización del perfil de supervisor
-
-### Actor
-Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
-
-### Módulos retirados
-- **Alertas:** eliminado por no aportar información distinta a la que ya muestran las tarjetas de estado y el propio listado de OT
-- **Panel:** eliminado como pestaña independiente; sus cuatro tarjetas se integraron al encabezado del módulo de OT
-
-La barra inferior queda con cinco pestañas: **OT · Técnicos · Turnos · Preventivo · Perfil**. El módulo de OT es ahora la pantalla inicial del supervisor.
-
-### Orden de la pantalla de OT
-De arriba hacia abajo: **tarjetas de estado → filtros → listado**. Las cuatro tarjetas (Abiertas, En proceso, En espera, Por validar) encabezan la pantalla y se recalculan en cada render. El bloque de filtros vive dentro del área desplazable, debajo de las tarjetas.
-
-### Filtros del listado de OT
-Se agregaron dos filtros y un botón de aplicación:
-
-| Filtro | Comportamiento |
-|---|---|
-| **Mes** | Se arma con los meses que tienen órdenes registradas, del más reciente al más antiguo |
-| **Técnico** | Lista el personal activo de Mantenimiento; coincide si el técnico **participó** en la OT, no solo si fue el primero |
-
-**Regla de visualización:** el listado **no muestra ninguna orden** hasta que se pulsa *Aplicar filtros*, ni siquiera al entrar al módulo. Si no se seleccionó ningún criterio, el botón muestra **todas** las órdenes.
-
-`initSupervisor()` deja el estado en "sin aplicar", y el re-render disparado por datos nuevos respeta ese estado: si el supervisor ya aplicó filtros, la lista se refresca; si no, sigue mostrando la invitación.
-
-El botón *Limpiar* vacía los filtros y devuelve la pantalla al estado inicial. Los chips de estado (Todas, Nuevas, Proceso…) cuentan como aplicación explícita.
-
-### Ranking de técnicos
-En el módulo de Técnicos se retiró la gráfica *OT activas por persona* y se sustituyó por un **ranking comparativo**:
-
-| Columna | Definición |
-|---|---|
-| Tomadas | OT en las que el técnico participó |
-| Cerradas | De las anteriores, las que llegaron a estado cerrado |
-| T. respuesta | Promedio desde la creación de la OT hasta que la tomó (solo cuando fue el primero) |
-| T. intervención | Promedio del tiempo neto trabajado, descontando esperas (SPEC-012, SPEC-013, SPEC-014) |
-
-El criterio de ordenamiento es seleccionable. En cantidades, más es mejor; en tiempos, menos es mejor. Los tres primeros se marcan con medalla.
-
-### Histórico de roles de turnos
-`DB.turnos` conserva **solo el último mes**. Al abrir el módulo de Turnos se eliminan los roles cuyo periodo terminó hace más de 30 días. Esto acota el crecimiento de la colección y es coherente con SPEC-018.
-
-### Nota técnica
-`diffSecs2()` estaba definida dentro de `exportarExcelOTs()` y se elevó a **ámbito global**, ya que el ranking la necesita para calcular los tiempos.
-
----
-
-# SPEC-020 — Aviso de técnicos ocupados al levantar una OT
-
-### Actor
-Solicitante (al crear una orden de trabajo).
-
-### Motivación
-El solicitante creaba su OT sin saber si había alguien disponible para atenderla. Si los técnicos del turno ya estaban trabajando en otra orden, la suya quedaba en espera sin explicación.
-
-### Flujo principal
-1. El solicitante crea la OT (SPEC-002)
-2. El sistema determina **qué técnicos están en turno** en ese momento, según el rol de turnos (SPEC-016)
-3. Para cada uno revisa si tiene una **OT activa asignada**
-4. Si **al menos uno está libre**, la OT se confirma con el mensaje normal
-5. Si **todos están ocupados**, se muestra una ventana emergente con la situación de cada técnico
-
-### Contenido de la ventana emergente
-Por cada técnico ocupado:
-
-| Dato | Origen |
-|---|---|
-| Nombre y puesto | Catálogo de personal |
-| OT que atiende | Folio de la orden activa |
-| Ubicación | Nave y equipo de esa orden |
-| Etapa de intervención | Calculada según el avance de la orden |
-
-### Etapas de intervención
-
-| Condición | Etapa mostrada |
-|---|---|
-| OT suspendida | *Suspendida en espera — <motivo>* |
-| Sin confirmación del solicitante | *Asignado, en camino a la máquina* |
-| Confirmado, sin tipo de problema | *En máquina, diagnosticando la falla* |
-| Con tipo de problema | *Trabajando — <tipo> (avance N%)* |
-
-### Cómo se determina quién está en turno
-Se consulta el rol de turnos (`DB.turnos`) buscando la asignación de cada persona para la fecha actual, y se compara la hora del sistema con el rango del turno asignado.
-
-**Roles traslapados:** cuando varios roles cubren la misma fecha, gana el **más reciente**, determinado por su fecha de última modificación y, en empate, por su fecha de inicio. La pantalla de Turnos avisa cuando detecta roles traslapados, para que el supervisor elimine los que ya no use.
-
-El catálogo de turnos incluye `ini` y `fin` en minutos desde medianoche. Cuando `fin <= ini`, el turno **cruza la medianoche** (T3 y N12); en ese caso también se revisa la asignación del **día anterior**, de modo que a las 02:00 se reconoce al técnico que entró a las 21:30 del día previo.
-
-Para el turno libre (`LIB`) se usan las horas capturadas manualmente.
-
-### Comparación de nombres
-El catálogo de personal guarda los nombres en **mayúsculas**, pero al iniciar sesión la app los convierte a **formato título** (`toTitleCase`), y ese es el valor que queda registrado en `ot.tecnicos`. Por eso toda comparación de nombres se hace con `_mismoNombre()`, que normaliza mayúsculas, acentos y espacios. Una comparación exacta nunca coincidiría.
-
-### Reglas de negocio
-- Solo se considera personal **activo** del departamento MANTENIMIENTO
-- Un técnico cuenta como **ocupado** si tiene una OT en estado `proceso` o `espera` en la que participa y de la que no ha registrado salida (SPEC-012)
-- Si **no hay rol de turnos** que cubra la fecha, no se puede determinar quién está en turno y **no se muestra el aviso**. La función depende de mantener el rol actualizado
-- Con un solo técnico en turno y ocupado, el aviso se muestra igualmente
-- El aviso **no bloquea** la creación: la OT ya quedó registrada y el mensaje lo confirma
-
----
-
-# SPEC-021 — Pausar una orden para atender otra
-
-### Actor
-Técnico de mantenimiento.
-
-### Motivación
-Por urgencia o prioridad, un técnico a veces debe dejar la orden que atiende e ir a otra máquina. Antes no había forma de registrarlo, así que se perdía la trazabilidad y su tiempo seguía corriendo en la orden abandonada.
-
-### Regla principal
-**La pausa solo es posible tomando otra orden.** No se puede pausar sin más: el sistema exige elegir la orden que se va a atender, de modo que siempre quede claro a dónde fue el técnico.
-
-### Acceso
-Un **botón flotante** con el signo `=`, del mismo estilo y color que el de crear orden, aparece en la lista del técnico **desde que toma una orden** y desaparece cuando ya no tiene ninguna en curso.
-
-### Flujo principal
-1. El técnico pulsa el botón flotante
-2. Se abre una ventana que indica qué orden va a pausar y lista las **órdenes disponibles**, con las urgentes primero
-3. El técnico elige una y confirma
-4. El sistema pausa la actual y toma la nueva en una sola operación
-
-### Qué se registra al pausar
-
-| Dato | Efecto |
-|---|---|
-| `fechaSalida` del técnico | Su tiempo en esa orden **deja de contar** (SPEC-012) |
-| Estado `espera` + motivo | La orden queda en espera indicando a qué OT se fue el técnico |
-| Registro en `esperas` | El tiempo de pausa se **descuenta** del tiempo de intervención (SPEC-013) |
-| Registro en `pausas` | Trazabilidad: quién pausó, cuándo y hacia qué orden |
-| Comentario en la OT | Queda visible en el historial de la orden |
-| Notificación al supervisor | Aviso interno de la pausa |
-| Push al solicitante | Se le informa que su orden quedó en espera |
-
-### Reglas de negocio
-- Solo se ofrecen órdenes en estado `abierto`; las urgentes y de máquina parada aparecen primero
-- Si otro técnico toma la orden destino entre la apertura de la ventana y la confirmación, se avisa y se vuelve a mostrar la lista actualizada
-- Si no hay órdenes disponibles, no se puede pausar y así se indica
-- La orden pausada **conserva su técnico** en el historial y puede reanudarse registrando una actividad (SPEC-008)
-- Un técnico puede encadenar pausas: cada una queda registrada por separado
-
----
-
-# SPEC-022 — La orden pausada no se abandona
-
-### Motivación
-Pausar una orden no debe convertirse en abandonarla. Estas reglas garantizan que alguien la retome.
-
-### Restricción al técnico que pausó
-Mientras exista una orden que él pausó y que **nadie esté atendiendo**, el técnico **no puede tomar órdenes nuevas**. Solo puede:
-
-- **Retomar la pausada**, o
-- Esperar a que **otro técnico la tome**, lo que lo libera automáticamente
-
-Al intentar tomar otra orden se le indica cuál tiene pendiente. En su listado aparece además un recordatorio permanente con el folio.
-
-La toma que acompaña a la pausa sí está permitida: es el destino que justificó dejar la anterior.
-
-### Reingreso a la propia orden
-Cuando el técnico vuelve a la orden que dejó, se registra una **nueva entrada** en `ot.tecnicos` con la hora de reingreso, en lugar de reabrir la anterior, de modo que el historial refleja los dos tramos. Al retomarla se **cierra el periodo de espera**, y el tiempo de la pausa queda descontado.
-
-La validación que impide registrarse dos veces en el mismo turno **no aplica al reingreso**, ya que se trata de una vuelta legítima.
-
-### Prioridad para los demás técnicos
-Las órdenes pausadas que quedaron sin atención se muestran a **cualquier otro técnico** en una sección propia, **antes** de las disponibles, encabezada como *Prioridad — órdenes pausadas sin atender*, con la explicación de que un compañero las dejó por una urgencia.
-
-Al técnico que la pausó no se le ofrece en esa sección, porque para él aparece como orden propia.
-
-### Reglas de negocio
-- Una orden se considera **sin atender** cuando está en `espera`, tiene registro de pausa y ningún técnico activo (todos con salida registrada)
-- En cuanto alguien la toma deja de ser prioritaria y libera al técnico original
-- La restricción se evalúa por la **última pausa** registrada en la orden
-
----
-
-# SPEC-023 — Estado real de una OT ya tomada, visible a los demás técnicos
-
-### Problema que resuelve
-En la lista de "Disponibles para tomar", toda OT en estado `abierto` o `proceso` que el técnico aún no hubiera registrado en su turno mostraba el mismo badge **"Sin tomar"**, aunque ya tuviera un técnico trabajando en ella. Un segundo técnico no podía distinguir, de un vistazo, si la orden estaba realmente libre o si solo se le invitaba a sumarse.
-
-En el detalle, el mensaje de invitación decía siempre *"relevaste al turno anterior"*, asumiendo que cualquier segundo técnico llegaba por cambio de turno. Eso es falso cuando dos técnicos comparten el mismo turno y uno se suma para ayudar al otro.
-
-### Cambios en la tarjeta de lista (`otCardTec`)
-
-| Situación | Antes | Ahora |
-|---|---|---|
-| OT en `abierto`, sin técnico | Badge "Sin tomar" | Badge "Sin tomar" (sin cambio) |
-| OT en `proceso`, con técnico | Badge "Sin tomar" | Badge **"En proceso"** (mismo estilo que en el resto de la app) + **nombre del técnico** a la izquierda del badge, en el encabezado |
-
-Además, el cuerpo de la tarjeta agrega una fila **"Técnico:"** con el nombre de quien ya la tomó, cuando aplica.
-
-### Corrección del mensaje al abrir el detalle
-Se compara el turno guardado en la última entrada de `ot.tecnicos` contra `turnoActual()`:
-
-- **Turnos distintos** → *"OT en proceso — relevo de turno"*, con el nombre del técnico anterior y su turno.
-- **Mismo turno** → *"OT en proceso — mismo turno"*, indicando que el técnico ya está atendiendo la orden en el turno actual y que el nuevo puede sumarse a ayudar.
-- **Sin técnico previo** → *"OT sin atender"*, sin cambios.
-
-### Reglas de negocio
-- La comparación de turno usa el texto guardado al tomar la orden (`turno: turnoActual()`), no una nueva consulta al rol de turnos
-- Estos cambios son de presentación: no alteran el flujo de toma, unión ni los tiempos de intervención
-
----
-
-# SPEC-024 — Persistencia de sesión y encabezado simplificado
-
-### Actor
-Todos los roles (solicitante, técnico, supervisor, admin).
-
-### Motivación
-`currentUser` vivía solo en memoria. Al presionar F5 o recargar la página, la variable volvía a `null` y la app regresaba a la pantalla de login, obligando a capturar nómina y contraseña de nuevo.
-
-### Persistencia de sesión
-- Al iniciar sesión (`doLogin()`), `currentUser` se guarda también en **`sessionStorage`** bajo la clave `mantoSession`
-- Al cargar la página, `restoreSession()` se ejecuta antes de `initFirebase()`: si hay una sesión guardada, restaura `currentUser`, carga el cache local de la base (`mantoDB`, en `localStorage`) para tener datos con qué renderizar de inmediato, y navega directo a la pantalla del rol correspondiente — sin pasar por login
-- Los listeners de Firebase actualizan la información en cuanto conectan, igual que en cualquier sesión iniciada de cero
-- Al cerrar sesión (`logout()`), se borra la clave `mantoSession` de `sessionStorage`
-
-### Por qué sessionStorage y no localStorage (SPEC-026)
-La sesión usa deliberadamente `sessionStorage`, exclusivo de **cada pestaña o ventana**, y no `localStorage`, que se comparte entre **todas** las ventanas del mismo navegador.
-
-En pruebas con dos personas usando dos ventanas del mismo Chrome (una como solicitante, otra como técnico), guardar la sesión en `localStorage` provocaba que la sesión de quien iniciaba sesión después sobrescribiera la del otro: al refrescar la primera ventana, aparecía el usuario equivocado.
-
-El cache de datos (`mantoDB`) sí sigue en `localStorage` a propósito, porque no es específico de un usuario — es una copia de la información compartida de Firebase, útil de compartir entre ventanas para renderizar más rápido.
-
-### Encabezado
-- Se retiró el ícono de campana del encabezado de **solicitante** y **técnico**. El acceso a notificaciones se mantiene igual desde las pestañas inferiores **Avisos** / **Historial**, que ahora llaman directamente a `renderNotifsSol()` / `renderNotifsTec()` al pulsarse (antes ese renderizado dependía de pasar por la campana, que era el único punto que lo invocaba)
-- Se agregó un botón circular pequeño y discreto con ícono de apagar, a la izquierda del indicador de conexión (**En línea / Conectando…**). Solo es visible mientras hay una sesión activa; cierra sesión al pulsarlo
-
-### Reglas de negocio
-- El botón de apagar es el mismo para los cuatro roles, porque el indicador de conexión es un elemento global fijo en pantalla, no parte del encabezado de cada rol
-- La restauración de sesión **no vuelve a validar** el estatus del trabajador contra el catálogo (por ejemplo, si fue dado de baja después de haber iniciado sesión). Esa validación solo ocurre en `doLogin()`
-- Si `localStorage` no está disponible o el contenido guardado es inválido, `restoreSession()` no falla: simplemente no restaura nada y la app muestra el login normalmente
-
----
-
-# SPEC-025 — Máquina parada se distingue igual que Urgente
-
-### Problema que resuelve
-El formulario de nueva OT ofrece tres prioridades: Normal, Urgente y Máquina parada. Solo **Urgente** se resaltaba visualmente (línea/badge en rojo con el texto "Urgente") en las tarjetas y en el detalle. **Máquina parada** quedaba visualmente idéntica a Normal, sin ninguna marca, tanto en el listado del técnico como en el del solicitante y el del supervisor.
-
-### Cambio
-Se agregó el helper `esPrioridadUrgente(ot)`, que devuelve verdadero para `prioridad==='urgente'` **o** `prioridad==='maquina-parada'`. Todos los puntos que antes comparaban solo contra `'urgente'` ahora usan este helper:
-
-| Función | Pantalla |
-|---|---|
-| `otCardSol` | Tarjetas de OT del solicitante |
-| `otCardTec` | Tarjetas de OT del técnico (propias y disponibles) |
-| `otCardSup` | Tarjetas de OT del supervisor |
-| `buildDetalleTec` | Fila "Prioridad" en el detalle del técnico |
-| `buildDetalleSup` | Etiqueta de prioridad en la línea de tiempo del supervisor |
-| `notifyPush` (título del push) | Ya trataba ambas por igual desde SPEC-011; se unificó para usar el mismo helper |
-
-### Reglas de negocio
-- El texto mostrado es **"Urgente"** para ambas prioridades, igual que antes para `urgente` — no se introduce un texto distinto para "Máquina parada"
-- El reporte de Excel (`prioLabel`) sí distingue internamente el texto exportado: `urgente` → "Urgente", `maquina-parada` → "Urgente — Máquina parada", para no perder la información exacta en el histórico exportable
-- Un único punto de cambio (`esPrioridadUrgente`) evita que futuras prioridades "altas" se olviden de marcarse en alguna de las pantallas
-
----
-
-# SPEC-027 — Un técnico, una orden en proceso a la vez
-
-### Problema que resuelve
-SPEC-022 bloqueaba tomar una orden nueva solo cuando el técnico tenía una **pausada** pendiente (es decir, después de haber usado el botón "="). Pero el caso más básico quedaba sin cubrir: un técnico con una orden **en proceso normal** —sin haberla pausado nunca— podía entrar a "Disponibles" y tomar una segunda, una tercera, cualquier cantidad, sin ninguna restricción.
-
-### Corrección
-`tomarOT()` ahora también valida, mediante `otEnProcesoDelTecnico()`, si el técnico ya tiene otra orden en estado `proceso` en la que participa sin haber registrado salida. Si la hay, se bloquea la toma y se le indica que use el botón **"="** para pausar la actual antes de tomar una nueva.
-
-### Qué NO bloquea, a propósito
-- **Reingresar a su propia orden** (mismo `id`): sigue permitido; ni siquiera entra a esta validación
-- **Tomar una orden mientras la propia está en `espera` por falta de refacción u otro motivo** (SPEC-008, sin pasar por el botón de pausar): esta validación se acotó deliberadamente a `status==='proceso'`, sin incluir `espera`, para no bloquear al técnico mientras espera un insumo por un motivo distinto a haber pausado
-- **La toma que acompaña al flujo de pausar** (`desdePausa=true`, SPEC-021): se omite esta validación porque esa toma es precisamente la forma correcta de cambiar de orden
-
-### Reglas de negocio
-- El mensaje de bloqueo indica el folio de la orden en proceso y remite al botón de pausar
-- Esta validación corre **después** de la de SPEC-022 (orden pausada pendiente); si ambas aplicaran, se muestra primero la de la pausada, por ser más específica
-
----
-
-# SPEC-028 — Ventanas propias en lugar de los diálogos nativos del navegador
-
-### Problema que resuelve
-Las funciones nativas `alert()`, `confirm()` y `prompt()` del navegador muestran un prefijo con el dominio del sitio (por ejemplo, *"victormorenogarcia05-ux.github.io dice"*), que el navegador agrega como medida de seguridad para que el usuario sepa qué sitio le está hablando. **Ninguna app puede quitar ese prefijo** mientras siga usando esas funciones — no existe opción de CSS ni de JavaScript para ocultarlo. La única forma de eliminarlo es dejar de usar los diálogos nativos y mostrar ventanas propias.
-
-### Solución
-Se agregó un modal genérico y reutilizable (`#modal-app-dialog`), con el mismo estilo visual que el resto de los modales de la app, y tres funciones que lo controlan:
-
-| Función | Reemplaza a | Devuelve |
-|---|---|---|
-| `appAlert(msg, title)` | `alert()` | `Promise` (se resuelve al pulsar Aceptar) |
-| `appConfirm(msg, title)` | `confirm()` | `Promise<boolean>` |
-| `appPrompt(msg, defaultValue)` | `prompt()` | `Promise<string \| null>` |
-
-### Alcance del cambio
-- **83 llamadas a `alert()`** se renombraron mecánicamente a `appAlert()`. Es un cambio seguro porque ninguna llamada usaba el valor de retorno de `alert()` (que siempre es `undefined`).
-- **13 llamadas a `confirm()`**, todas con el patrón `if(!confirm('...')) return;`, se convirtieron a `if(!(await appConfirm('...'))) return;`. Las 13 funciones que las contienen pasaron a ser `async function`.
-- **3 llamadas a `prompt()`** (en `setAsignacion` y `archivarOTsAntiguas`) se convirtieron a `await appPrompt('...')`, con las mismas dos funciones marcadas `async`.
-
-### Por qué es seguro convertir esas funciones a `async`
-Se verificó que las 14 funciones afectadas se invocan **exclusivamente** desde atributos `onclick`/`onchange` del HTML, nunca desde otro código JavaScript que dependa de su valor de retorno de forma síncrona. Un `onclick="miFuncion()"` funciona igual de bien si `miFuncion` es `async`; el navegador no necesita esperar su resolución para nada más.
-
-### Comportamiento del modal
-- `appAlert`: un solo botón "Aceptar"
-- `appConfirm`: "Cancelar" y "Confirmar"; devuelve `false`/`true` según cuál se pulse
-- `appPrompt`: muestra un campo de texto con el valor por defecto, y los botones "Cancelar" (devuelve `null`) y "Aceptar" (devuelve el texto escrito)
-- Los flujos que antes encadenaban un `prompt()` seguido de un `confirm()` (como `archivarOTsAntiguas`) siguen funcionando igual, solo que ahora cada paso espera (`await`) a que el usuario responda la ventana antes de continuar
-
-### Reglas de negocio
-- No quedó ninguna llamada nativa a `alert()`, `confirm()` ni `prompt()` en el código
-- El texto y el orden de los mensajes no cambiaron; solo el mecanismo de presentación
-
----
-
-# SPEC-029 — La pausa solo afecta a quien se retira, no a toda la orden
-
-### Problema que resuelve
-En `confirmarPausarYTomar()` (SPEC-021), la orden pausada pasaba a estado `espera` **sin importar si otro técnico seguía activo en ella**. En una orden con dos técnicos del mismo turno, si el segundo se retiraba con el botón "=", la orden completa se marcaba "En espera" aunque el primero siguiera trabajando con total normalidad — y de hecho podía concluirla sin problema. El estatus mostrado no reflejaba la realidad.
-
-### Corrección
-Tras registrar la salida del técnico que se retira, se evalúa si **queda alguien más activo** en `ot.tecnicos` (sin `fechaSalida`):
-
-- **Si nadie más sigue activo:** comportamiento igual que antes — la orden pasa a `espera`, se registra el motivo, se abre un periodo en `esperas[]` y se notifica al solicitante que su orden quedó sin atender.
-- **Si alguien más sigue activo:** la orden **permanece en su estado actual** (normalmente `proceso`). No se abre periodo de espera. Se registra igualmente la trazabilidad de la pausa (`ot.pausas`) y un comentario distinto, más preciso: *"[Técnico] se retiró de la OT para atender la [folio]. Otro técnico continúa."* El supervisor recibe una notificación informativa; al solicitante no se le avisa que su orden quedó en espera, porque no es cierto.
-
-### Reglas de negocio
-- El único criterio es si queda algún técnico sin `fechaSalida` tras la salida del que pausa
-- El registro de `pausas[]` (SPEC-021) ocurre siempre, independientemente del resultado
-
----
-
-# SPEC-030 — Elegibilidad por puesto en el aviso de técnicos ocupados
-
-### Problema que resuelve
-`avisarSiNoHayTecnicoLibre()` (SPEC-020) consideraba "en turno" a cualquier persona con asignación en el rol de turnos, incluyendo puestos que en la práctica no toman órdenes de trabajo. Esto podía dar lugar a evaluaciones incorrectas: por ejemplo, si el Jefe de Mantenimiento aparecía en el rol y estaba libre, el sistema asumía que había alguien disponible aunque él no fuera quien realmente atendería la orden.
-
-### Reglas de elegibilidad aplicadas
-
-**Cambio en la v5.0: la elegibilidad deja de deducirse del texto del puesto.**
-Hasta la v4 estas reglas comparaban cadenas como `AUXILIAR DE MANTENIMIENTO`.
-A partir de la integración con la suite, el puesto lo escribe RRHH: si alguien
-allá lo renombra a «Ayudante de Mantenimiento», la regla dejaba de aplicarse sin
-mostrar ningún error, y la orden se enrutaba mal en silencio.
-
-Ahora la elegibilidad es un atributo explícito de cada persona dentro de
-Mantenimiento (`tiposOT`, SPEC-043), configurable desde el propio módulo. El
-comportamiento visible es el mismo; lo que cambia es de dónde sale el dato.
-
-Equivalencia con la configuración que se migra desde la v4:
-
-| Persona | Configuración |
-|---|---|
-| Jefe de Mantenimiento | `tiposOT: []` — **nunca** cuenta como disponible, aunque aparezca en el rol de turnos |
-| Analista de Mantenimiento | `tiposOT: []` — **nunca** cuenta como disponible |
-| Auxiliar de Mantenimiento | `tiposOT: ['INFRAESTRUCTURA','SEGURIDAD']` — para MAQ-PROD no se considera, esté libre u ocupado |
-| Cualquier otro técnico | `tiposOT` con los tres tipos; se evalúa con normalidad |
-
-### Efecto práctico
-- Si tras filtrar no queda **nadie elegible** en turno, no se muestra el aviso (no hay con quién comparar)
-- Si el Auxiliar está libre pero la orden es de MAQ-PROD, su disponibilidad **no cuenta** para decidir si hay alguien libre: el aviso se basa únicamente en el resto del personal elegible
-- Una persona sin `tiposOT` configurado se considera elegible para los tres
-  tipos. Es el caso más común y evita que un técnico nuevo quede invisible por
-  falta de configuración; restringir es un acto deliberado
-
-### Alcance
-Este filtro aplica únicamente a `avisarSiNoHayTecnicoLibre()`. No afecta la capacidad real de estas personas de tomar órdenes desde su propio panel, ni el módulo de Turnos, ni el ranking de técnicos.
-
----
-
-# SPEC-031 — Rechazar cierre: botón roto y motivos predefinidos
-
-### Problema que resuelve
-El botón **"Rechazar"** en el detalle de la OT llamaba a `mostrarRechazo(id)`, una función que **nunca se había escrito**. Al pulsarlo no pasaba nada, salvo un error en la consola del navegador (`mostrarRechazo is not defined`).
-
-### Corrección del bug
-Se agregó `mostrarRechazo(id)`, que guarda el id en `otParaRechazar`, limpia la selección anterior del modal y lo abre. Es la pieza que faltaba para que el botón funcionara.
-
-### Motivos predefinidos
-El motivo ya no se captura como texto libre obligatorio. Se presentan cuatro opciones fijas, con el mismo patrón visual (chips) que usa "Poner en espera" (SPEC-008):
-
-- Sin reparación al 100%
-- Técnico aún no termina
-- Suciedad en máquina
-- Sin acuerdo en dictamen
-
-Seleccionar uno es **obligatorio**; sin selección, `confirmarRechazo()` no continúa y pide elegir un motivo. Debajo del selector hay un campo de texto **opcional** para agregar detalle adicional, que se concatena al motivo (`"Suciedad en máquina — Quedaron rebabas en la banda"`).
-
-### Qué se guarda
-Además de lo que ya existía (comentario en la OT, notificación interna al técnico y al supervisor, push enrutado por tipo de servicio), se agrega `ot.rechazo = {motivo, detalle, fecha}` como registro estructurado del último rechazo.
-
-### Postcondiciones
-- La OT vuelve a estado `proceso` — sin cambios respecto al comportamiento previo, una vez corregido el bug del botón
-- El técnico y el supervisor reciben el motivo completo (predefinido + detalle si lo hay)
-
----
-
-# SPEC-032 — Regla única para "puede tomar esta orden"
-
-### Problema que resuelve
-Existían varias copias, ligeramente distintas, de la lógica que decide si un técnico puede tomar o unirse a una OT: la del detalle (`puedeUnirse`), la del listado de disponibles, y la de "pausar y tomar otra" (`abrirPausarOT`). Esta última era más estrecha que las demás — solo consideraba OT en `abierto`, dejando fuera:
-
-1. Una OT `en proceso` cuyo técnico ya cambió de turno (aunque unirse a ella **sí** era posible desde el detalle)
-2. Cualquier OT pausada (SPEC-021), que **nadie** podía tomar todavía — ni siquiera desde el detalle, porque `puedeUnirse` nunca contemplaba el estado `espera`
-
-### Solución
-Se creó `puedeTomarOrden(ot, nombreTecnico)`, la única función que responde esa pregunta, usada ahora en los tres lugares (`buildDetalleTec`, `abrirPausarOT`, `confirmarPausarYTomar`):
-
-1. **OT abierta o en proceso:** puede tomarse/unirse si el técnico no se ha registrado ya en el turno actual — sin cambios respecto a la regla de siempre
-2. **OT pausada (con registro en `ot.pausas`) y sin nadie activo:** solo puede tomarse si el técnico que la pausó **ya salió de su turno** — mientras siga en el mismo turno en el que la pausó, la responsabilidad de resolverla sigue siendo suya, para que nadie se la "quite" antes de que le dé tiempo de retomarla. La comparación es entre el turno guardado en su entrada de `ot.tecnicos` y el turno actual (`turnoActual()`)
-
-### Efectos del cambio
-
-**En "Pausar orden y tomar otra"** (`abrirPausarOT`): la lista de candidatas ahora incluye también OT en proceso uniéndose y OT pausadas tomables, no solo abiertas. La tarjeta de cada candidata indica su situación ("Reasignada de [técnico]" o "Pausada por [técnico], ya salió de turno") para que quede claro qué se está tomando. `confirmarPausarYTomar` revalida con la misma regla al confirmar, por si la candidata dejó de estar disponible entre que se abrió la lista y se confirmó.
-
-**En el detalle de la OT** (`buildDetalleTec`): una OT pausada y tomable ahora sí muestra el botón para tomarla, con un mensaje propio: *"OT pausada — disponible para retomar"*, indicando quién la pausó.
-
-### Reglas de negocio
-- Tomar una OT pausada la regresa a `proceso` y cierra el periodo de espera abierto — mismo mecanismo que ya usaba el reingreso normal (SPEC-013)
-- Siguen aplicando los candados existentes: un técnico con su propia OT pausada pendiente (SPEC-022) o con otra en proceso (SPEC-027) no puede tomar una OT pausada de otro sin resolver primero la suya
-- Si no hay dato de turno registrado para quien pausó, se permite tomarla igualmente, para no dejarla indefinidamente sin resolver por falta de información
-
----
-
-# SPEC-033 — Comparación de "mismo día" en hora local, no UTC
-
-### Problema que resuelve
-`tecnicoEnTurnoActual()` — la función que evita que un técnico se registre dos veces en la misma OT durante el mismo turno — comparaba fechas con `new Date().toISOString().split('T')[0]`, que da la fecha en **UTC**. `turnoActual()`, en cambio, usa `getHours()`/`getMinutes()`, que son **hora local**.
-
-Esas dos bases de tiempo no coinciden. México opera en UTC-6: pasadas aproximadamente las 18:00 horas locales, el reloj UTC ya marca el **día siguiente**. Un técnico que se registró a las 14:05 (hora local, dentro del turno T2) quedaba comparado más tarde, a las 18:08, contra "hoy" en UTC — que para ese momento ya era otro día calendario. La comparación de fecha fallaba, `tecnicoEnTurnoActual()` devolvía `false` aunque el técnico sí estuviera registrado hoy y en este turno, y el sistema lo dejaba **unirse a su propia orden por segunda vez**, apareciendo dos veces en `ot.tecnicos`.
-
-### Corrección
-Tanto la fecha de "hoy" como la fecha de registro del técnico (`t.fecha`, guardada en UTC) se convierten a su representación de **fecha local** con `_isoDe()` antes de compararse — la misma función ya usada para el módulo de Turnos, que sí opera correctamente en hora local.
-
-### Segundo caso encontrado con el mismo patrón
-`buildDetalleTec()` precargaba la fecha del formulario "Registrar actividad" con el mismo patrón UTC (`now.toISOString().split('T')[0]`), mientras que la hora sí se tomaba en local. Pasadas las 18:00 en México, un técnico que abriera el formulario para registrar una actividad vería la **fecha de mañana** precargada, con la hora de hoy. Se corrigió con el mismo cambio a `_isoDe()`.
-
-### Alcance
-Este era un problema de fondo, no aislado a un único botón: `tecnicoEnTurnoActual()` se usa en cuatro puntos (el filtro de "Disponibles", el candado de re-registro en `tomarOT`, y la regla central `puedeTomarOrden` de SPEC-032), así que la corrección repara la causa una sola vez para todos ellos.
-
-### Nota para revisiones futuras
-Cualquier comparación de "mismo día" en esta app debe construirse con componentes de fecha **locales** (`getFullYear()`, `getMonth()`, `getDate()`, como hace `_isoDe()`), nunca con `toISOString()`, que siempre da UTC. La discrepancia solo se manifiesta en ciertas horas del día, según el huso horario, lo que la vuelve fácil de pasar por alto en pruebas hechas a otra hora.
-
----
-
-# SPEC-034 — Tiempo de comedor
-
-### Actor
-Técnico de mantenimiento.
-
-### Motivación
-No existía forma de registrar que un técnico está en su horario de comedor. Si tenía una OT activa, ese tiempo se le cargaba como si estuviera trabajando; y si un solicitante creaba una OT nueva, el sistema no tenía forma de saber que el único técnico en turno estaba comiendo, no disponible por otra causa.
-
-### Acceso
-Un botón circular, arriba del botón de pausar ("="), visible en todo momento para el rol técnico (a diferencia del de pausar, que solo aparece con una orden en curso).
-
-### Duración según el tipo de turno
-Se consulta el turno **asignado en el rol de turnos** (no el cálculo de reloj de `turnoActual()`, que solo distingue T1/T2/T3):
-
-| Tipo de turno | Duración del comedor |
-|---|---|
-| T1, T2, T3 (jornadas de ~7.5–8 h) | 30 minutos |
-| D12, N12 (jornadas de 12 h) | 45 minutos |
-| G8, Horario libre, o sin rol cargado | 30 minutos (valor por defecto; el usuario no especificó estos casos) |
-
-Si no hay rol de turnos cargado para hoy, se usa el turno de reloj (T1/T2/T3) como respaldo, garantizando que el botón funcione siempre.
-
-### Flujo principal
-1. El técnico pulsa el botón y confirma
-2. Se calcula la duración según su turno y se registra en `DB.comidas`: `{nomina, nombre, turno, inicio, fin}`, con `fin` ya calculado desde el inicio — no requiere una acción de "regresar"
-3. Si tiene una OT en proceso, se agrega un periodo a `ot.esperas` con la **misma ventana ya cerrada** (`inicio` y `fin` fijos desde el momento de la confirmación), para que ese tiempo se descuente solo, sin intervención posterior
-4. La OT **no cambia de estado** — sigue en `proceso` durante y después del comedor; es una interrupción rutinaria, no una incidencia
-5. Pasado el tiempo límite, el descuento de tiempo se detiene automáticamente: como la ventana de espera tiene `fin` fijo, el cálculo existente de tiempos (`segsEsperaEnRango`, SPEC-013) deja de contarla en cuanto el reloj la rebasa, sin ninguna acción adicional
-
-### Un uso por turno
-Se calcula el **bloque de turno vigente** (inicio y fin reales, en fecha y hora, del turno actual — reutilizando los minutos ya definidos en `CAT_TURNOS`, con el mismo tratamiento para turnos que cruzan medianoche que usa SPEC-020). Si ya existe un registro de comida cuyo `inicio` cae dentro de ese bloque, el botón queda deshabilitado (visualmente atenuado) y no permite un segundo uso, con el mensaje *"Ya usaste tu tiempo de comedor en este turno."* En cuanto el bloque cambia (nuevo turno), el botón vuelve a estar disponible automáticamente — no se necesita ningún reinicio manual.
-
-### Visibilidad para otros usuarios
-`avisarSiNoHayTecnicoLibre()` (SPEC-020) ahora también considera "ocupado" a un técnico en su tiempo de comedor, **aunque no tenga ninguna OT asignada**. En la ventana de "técnicos ocupados" aparece con una tarjeta propia: *Etapa: En el comedor* y la hora estimada de regreso. Si además tiene una OT activa, `etapaDeOT()` prioriza mostrar "En el comedor" sobre el avance del trabajo, porque refleja mejor su situación en ese momento.
-
-### Reglas de negocio
-- El registro de comida no depende de tener una OT asignada
-- La OT nunca cambia de estado por el comedor; solo se descuenta el tiempo
-- `DB.comidas` se sincroniza como catálogo (SPEC-018) para que el aviso de disponibilidad lo vea en tiempo real desde cualquier sesión
-
----
-
-# SPEC-035 — Pausa de fin de semana (reemplaza a SPEC-012)
-
-### Actor
-Técnico de mantenimiento.
-
-### Motivación
-Normalmente la semana de trabajo termina al concluir el segundo turno del sábado (21:30). Si no hay tercer turno ni actividad en domingo, el técnico no puede continuar su OT hasta el lunes. El botón de pausar (SPEC-021) no resuelve este caso porque **exige elegir una orden destino**, y habitualmente no hay otra orden a la cual cambiarse — simplemente hay que detenerse hasta el lunes.
-
-La versión anterior (SPEC-012, "Fin de mi turno") solo registraba la salida del técnico sin cambiar el estatus de la OT ni reactivarla sola. Se sustituyó por este botón, que sí pausa la orden visiblemente y la reactiva sin intervención.
-
-### Acceso
-Un botón flotante, arriba del de comedor (SPEC-034), visible únicamente cuando se cumplen **dos condiciones a la vez**:
-
-1. La hora actual cae en la ventana de fin de semana: **sábado 21:20 → lunes 06:00** (misma ventana que usaba SPEC-012, función `puedeFinTurno()`)
-2. El técnico tiene una OT en curso (`otEnCursoDelTecnico()`)
-
-### Flujo principal
-1. El técnico pulsa el botón y confirma, viendo la fecha y hora exacta en que se reanudará
-2. Se registra su `fechaSalida` en la OT (su tiempo deja de contar desde ese instante, igual que en SPEC-012)
-3. La OT pasa a estado **`espera`**, con `ot.espera = {motivo, tipo:'finSemana', hastaLunes}`, donde `hastaLunes` es la fecha/hora exacta del próximo lunes 06:00, calculada en el momento de pausar
-4. Se agrega un periodo a `ot.esperas` con esa misma ventana ya cerrada (`inicio`/`fin` fijos), para que el tiempo se descuente automáticamente igual que en SPEC-013 y SPEC-034
-5. Se notifica al supervisor
-
-### Reactivación automática
-**No hay ninguna acción manual para reanudar.** `reloadDB()` — que se ejecuta en absolutamente todas las pantallas de la app — llama a `revisarFinDeSemana()` en cada carga. Esta función recorre las OT pausadas con `tipo:'finSemana'` y, en cuanto la hora actual alcanza `hastaLunes`, las regresa a `proceso` automáticamente y deja un comentario indicándolo. La primera sesión de cualquier usuario que se abra después del lunes 06:00 dispara la corrección.
-
-### Reglas de negocio
-- `proximoLunes6am()` calcula la fecha exacta del lunes según el día en que se pulsa el botón (sábado, domingo, o lunes antes de las 06:00), no un cálculo aproximado
-- La reactivación ocurre exactamente al llegar la hora — se verificó que a las 05:59 la OT sigue pausada y a las 06:00 en punto ya se reactivó
-- El botón no aparece fuera de la ventana de fin de semana, ni si el técnico no tiene ninguna OT en curso
-
----
-
-# SPEC-036 — PIN individual de 4 dígitos por persona
-
-**Estado:** pendiente — replanteada en la v5.0
-
-### Actor
-Cualquier persona que decida activar el PIN en su dispositivo.
-
-### Motivación
-Los técnicos compartían una sola contraseña ("mantenimiento") para todos. La v4
-les dio un PIN propio de 4 dígitos, pero lo hizo mal: los PIN quedaron escritos
-en claro dentro del código de un repositorio público, y dos de ellos eran el
-propio número de nómina de la persona, así que cualquiera podía entrar como
-ellos. Además, cuatro dígitos son diez mil combinaciones sin nada del lado del
-servidor que frene los intentos: no aguantan como única puerta.
-
-La v5.0 conserva la comodidad de los cuatro dígitos sin sostener la seguridad en
-ellos.
-
-### Cómo funciona a partir de la v5.0
-El PIN **no es una credencial de acceso, es un candado local**, igual que la
-huella en EPP. Desbloquea una sesión que ya estaba autenticada; no identifica a
-nadie ante el servidor.
-
-1. La persona entra una vez con su nómina y su clave de la suite (SPEC-001)
-2. Si lo desea, activa un PIN de 4 dígitos en ese dispositivo
-3. A partir de entonces, al volver a la app le basta con sus cuatro dígitos
-4. El PIN se guarda **solo en el dispositivo**; nunca viaja a la base ni existe
-   en el código
-5. Cerrar sesión con el botón Salir borra el PIN de ese dispositivo
-
-### Reglas de negocio
-- **Un dispositivo, una persona.** El PIN no está diseñado para equipos
-  compartidos: si dos técnicos usan la misma tableta, el segundo debe cerrar
-  sesión y entrar con su clave.
-- **El PIN no sustituye a la clave.** Es un atajo sobre una sesión viva. Si la
-  sesión se cierra o expira, se vuelve a entrar con nómina y clave.
-- **Nadie más que el dueño del dispositivo conoce su PIN.** Ni el administrador
-  puede consultarlo ni restablecerlo, porque no está almacenado en ningún lado
-  al que él tenga acceso. Si lo olvida, cierra sesión y vuelve a entrar con su
-  clave.
-- **Los PIN de la v4 dejan de existir.** Los seis que estaban precargados en el
-  código se eliminan; no se migran ni se convierten en claves.
-- El estatus de baja sigue bloqueando el acceso, y lo hace antes: una persona en
-  `BAJA` no puede siquiera iniciar sesión en la suite.
-
-### Cómo se determina el rol al iniciar sesión
-`doLogin()` ahora busca primero a la persona por su nómina:
-
-- **Si tiene un PIN individual asignado** (`persona.pin`), la contraseña capturada debe coincidir **exactamente** con ese PIN. La contraseña compartida de su rol **deja de funcionar para ella** — el PIN la sustituye, no la complementa. El rol se toma del propio catálogo (`persona.rol`).
-- **Si no tiene PIN asignado**, el inicio de sesión funciona exactamente igual que antes: contraseña compartida por rol (`PASSWORDS`).
-
-Esto permite una transición gradual: se puede asignar el PIN a un técnico a la vez sin afectar a los demás, y a cualquier persona (no solo técnicos) si el administrador decide usarlo en otro rol.
-
-### Lo que desaparece de la v4
-- El campo "PIN individual" del formulario de personal, en el panel de
-  administrador. Ya no hay PIN que asignar a nadie: cada quien pone el suyo en
-  su propio dispositivo.
-- Los seis PIN precargados en `DEFAULT_PERSONAL`, y el PIN de la nómina 2431 que
-  se había capturado directo en la base en vivo.
-- La regla de que un PIN sustituye a la contraseña compartida del papel, que ya
-  no tiene sentido porque las contraseñas compartidas desaparecieron.
-
----
-
-# SPEC-037 — Marcar mantenimiento preventivo como realizado
-
-### Actor
-Supervisor (dentro del módulo Preventivo).
-
-### Motivación
-El calendario de Preventivo solo registraba la **planeación** (qué máquina toca cada día y turno). No existía ningún rastro de si ese mantenimiento planeado se llevó a cabo, lo que hacía imposible calcular después el cumplimiento del programa.
-
-### Flujo principal
-1. En cada celda del calendario que ya tiene una máquina asignada, aparece un botón pequeño ("Marcar")
-2. Al pulsarlo, se registra `pv.completados[fecha][turno] = {fecha, por, nomina}` con el momento y quién lo marcó
-3. El botón cambia a "✓ Hecho" (verde); tocarlo de nuevo lo desmarca
-
-### Reglas de negocio
-- No se puede marcar un día **futuro** como realizado
-- Si se quita la máquina asignada a una celda, su marca de "realizado" (si la tenía) se limpia junto con ella
-- El registro de quién y cuándo se conserva mientras la celda siga marcada
-
----
-
-# SPEC-038 — Indicadores de mantenimiento (panel de administrador)
-
-### Actor
-Administrador.
-
-### Acceso
-Nuevo módulo **"Indicadores de mantenimiento"** en el hub del administrador, junto a Catálogo de personal.
-
-### Alcance de las OT consideradas
-Por decisión explícita, **MTBF, MTTR, Disponibilidad y el conteo de correctivas cerradas solo consideran OT de tipo `MTTO-MAQ-PROD`** (fallas de máquina). Infraestructura y Seguridad quedan fuera de estos cuatro indicadores.
-
-### Selector de periodo
-Cuatro opciones: **Últimos 30 días**, **Este mes**, **Mes anterior**, **Todo el histórico**. El periodo activo recalcula los seis indicadores.
-
-### Los seis indicadores
-
-**MTBF (tiempo medio entre fallos)** — Para cada equipo, se mide el tiempo entre el cierre de una falla y el inicio de la siguiente en ese mismo equipo (solo se cuentan las fallas cuyo **inicio** cae dentro del periodo elegido). Se promedian todos los intervalos encontrados, sin importar el equipo.
-
-**MTTR (tiempo medio de reparación)** — Promedio de la duración de las OT cerradas en el periodo, **descontando el tiempo en espera** (SPEC-013): solo cuenta el tiempo de trabajo real, igual criterio que el resto del sistema.
-
-**Disponibilidad** — A diferencia de MTTR, aquí **no se descuenta la espera**: desde la perspectiva de la planta, la máquina sigue indisponible aunque el técnico esté esperando una refacción. Se calcula como `(1 − tiempo de indisponibilidad ⁄ tiempo total posible) × 100`, donde el tiempo total posible es la duración del periodo multiplicada por el número de máquinas activas.
-
-**OT correctivas cerradas** — Conteo directo de OT de Maquinaria cerradas dentro del periodo.
-
-**Reducción de fallas correctivas** — Compara las OT correctivas cerradas del periodo contra un periodo previo de la misma duración, justo antes. Se muestra como porcentaje: negativo (en verde) significa menos fallas que antes; positivo (en rojo), más fallas. No aplica en "Todo el histórico", que no tiene un periodo previo comparable.
-
-**Cumplimiento del programa preventivo** — De las celdas del calendario de Preventivo con máquina asignada dentro del periodo, qué porcentaje tiene su marca de "realizado" (SPEC-037). Si no hay celdas programadas en el periodo, se muestra "Sin datos" en vez de un porcentaje engañoso.
-
-### Reglas de negocio
-- Si no hay suficientes datos para calcular un indicador (por ejemplo, ningún par de fallas consecutivas para MTBF, o ningún preventivo programado en el periodo), se muestra **"Sin datos"** en vez de un cero o un valor inventado
-- Los colores (verde/ámbar/rojo) de Disponibilidad y Cumplimiento son solo una guía visual de umbral, no un cálculo adicional
-
----
-
-# SPEC-039 — Detalle desplegable en cada indicador
-
-### Actor
-Administrador.
-
-### Flujo principal
-Al tocar cualquiera de las seis tarjetas de indicadores, debajo de la cuadrícula aparece una tabla con los registros exactos que produjeron ese resultado. Tocar la misma tarjeta de nuevo cierra la tabla; tocar otra tarjeta cambia el detalle mostrado, sin necesidad de cerrar la anterior primero. Cambiar el periodo cierra cualquier tabla abierta, ya que los datos detrás de ella dejan de corresponder a lo mostrado.
-
-### Contenido de cada tabla
-
-| Tarjeta | Columnas |
-|---|---|
-| MTBF | Equipo, folio y cierre de la falla anterior, folio e inicio de la siguiente, intervalo |
-| MTTR | Folio, equipo, alta, cierre, tiempo en espera descontado, tiempo neto |
-| Disponibilidad | Folio, equipo, alta, fin real, horas de indisponibilidad contabilizadas en el periodo |
-| OT correctivas cerradas | Folio, equipo, solicitante, alta, cierre |
-| Reducción de fallas correctivas | Las OT del periodo actual y del periodo anterior en una sola tabla, etiquetadas para distinguirlas |
-| Cumplimiento preventivo | Fecha, turno, máquina, si se marcó como realizado, y quién lo marcó |
-
-### Reglas de negocio
-- Los datos de cada tabla se calculan en el mismo recorrido que ya arma el número de la tarjeta — no hay un segundo cálculo por separado, así que la tabla siempre coincide con el resultado mostrado
-- Solo una tabla puede estar abierta a la vez
-
----
-
-# SPEC-040 — Filtro por técnico en los indicadores
-
-### Actor
-Administrador.
-
-### Alcance decidido
-Solo **MTTR** y **OT correctivas cerradas** tienen sentido a nivel de una persona con los datos disponibles hoy — ambas se recalculan usando únicamente las OT donde el técnico seleccionado participó (por nómina, en `ot.tecnicos[]`).
-
-Los otros cuatro son métricas de **máquina** o de **programa**, no de persona, y con un técnico filtrado se muestran como **"No aplica a nivel técnico"** en vez de forzar un número que no significaría lo que parece:
-
-| Indicador | Por qué no aplica por persona |
-|---|---|
-| MTBF | Mide qué tan seguido falla una máquina, no depende de quién la atiende |
-| Disponibilidad | Mide tiempo de planta parada, no es atribuible a una persona |
-| Reducción de fallas correctivas | Es una tendencia de fallas reportadas; un técnico no controla cuántas le llegan |
-| Cumplimiento preventivo | El calendario de Preventivo asigna **máquinas** a cada celda, no técnicos — no hay una meta atribuible a una persona con la que comparar |
-
-### Acceso
-Nuevo selector **"Técnico"**, junto al de periodo, con la opción **"Todos — vista general"** (comportamiento igual que antes) y cada persona activa del departamento de Mantenimiento.
-
-### Comportamiento
-- Al elegir un técnico, el encabezado indica el periodo y el nombre elegido
-- Las tarjetas de MTBF, Disponibilidad, Reducción y Cumplimiento se muestran atenuadas, sin la posibilidad de tocarlas para ver detalle, con una explicación breve de por qué no aplican
-- MTTR y OT correctivas siguen siendo tocables; su tabla de detalle (SPEC-039) muestra únicamente las órdenes del técnico elegido
-- Cambiar de técnico o de periodo cierra cualquier tabla de detalle abierta
-
----
-
-# SPEC-041 — "Poner en espera" ya no cuenta como ocupado en el aviso de disponibilidad
-
-### Problema que resuelve
-`otActivaDeTecnico()` —usada por el aviso de "técnicos ocupados" (SPEC-020)— consideraba ocupado a un técnico con una orden en estado `espera`, sin distinguir el motivo. Esto era correcto para las pausas reales (SPEC-021 "=", SPEC-035 fin de semana), que sí marcan `fechaSalida` y por lo tanto ya quedaban excluidas por ese otro criterio — pero **"Poner en espera"** (SPEC-008: sin refacción, sin tiempo, esperando proveedor, etc.) **no marca `fechaSalida`**, porque el técnico sigue siendo responsable de la orden, solo que está esperando algo externo. El resultado: un técnico con su única orden detenida por falta de refacción, con fecha estimada de reparación semanas a futuro, seguía apareciendo como "ocupado" para cualquier solicitante que creara una orden nueva — aunque en la práctica estuviera libre y de hecho pudiera tomarla sin problema (SPEC-027 ya lo permitía).
-
-### Corrección
-`otActivaDeTecnico()` ahora solo considera **`status==='proceso'`** como ocupado — el mismo criterio que ya usaba `otEnProcesoDelTecnico()` (SPEC-027) para decidir si un técnico puede tomar una orden nueva. Con esto, ambas reglas quedan alineadas: si SPEC-027 no bloquea tomar otra orden, SPEC-020 tampoco debe reportar al técnico como ocupado.
-
-### Por qué no afecta a las pausas reales
-Un técnico que pausó con "=" o por fin de semana ya tenía `fechaSalida` registrada en su entrada de `ot.tecnicos`, así que el filtro por nombre (`!t.fechaSalida`) ya lo excluía de todos modos. Quitar `'espera'` de la condición de estatus no cambia su comportamiento; solo corrige el caso de "Poner en espera", que es al que no le aplicaba ese otro filtro.
-
----
-
-# SPEC-042 — Identidad y personal desde la suite
+# SPEC-013 — Quién puede programar turnos
 
 **Estado:** implementado
-**Nuevo en la v5.0**
+**Actor:** `ADMIN` asigna; cualquiera puede resultar asignado
 
-### Alcance
-De dónde salen los datos de las personas a partir de esta versión.
+### Por qué
+La SPEC-012 dejó la creación de roles abierta a todos. En la práctica cada área
+tiene a quien le toca programarla, y un rol capturado por quien no conoce la
+línea es peor que no tener rol.
+
+### Cómo funciona
+- Cada colaborador puede tener `departamentosTurnos`: la lista de departamentos
+  cuyos roles puede crear y editar. Vacío o ausente significa que solo consulta.
+- `ADMIN` puede programar **todos** los departamentos sin aparecer en ninguna
+  lista, y es el único que puede asignar permisos a los demás.
+- La asignación se hace desde la pantalla **Permisos**, dentro de la pestaña de
+  Sucesos y Turnos, visible solo para `ADMIN`. Cada marca se guarda al
+  instante.
 
 ### Reglas de negocio
-- **La colección `colaboradores` de `impredimex-suite` es la única lista de
-  personal válida.** Esta aplicación la **lee y nunca la escribe**. Solo RRHH la
-  modifica.
-- **Desaparece el catálogo propio.** Las 119 personas que estaban escritas en el
-  código, y el nodo `personal/` de la base de Mantenimiento, dejan de existir.
-- **De la suite vienen:** nómina, nombre, puesto, departamento y estatus.
-- **De la suite viene también el papel**, en `roles.manto`: `solicitante`,
-  `tecnico`, `supervisor` o `admin`.
-- **Cuidado con el estatus.** La suite usa `ACTIVO` y `BAJA` en mayúsculas; esta
-  aplicación usaba `activo` y `baja` en minúsculas. Hay diez comparaciones
-  exactas en el código que deben ajustarse, o dejarán a todo el personal fuera
-  sin mostrar ningún error.
-- **Los registros históricos guardan copia, no referencia.** Una orden de
-  trabajo conserva la nómina **y** el nombre tal como estaban al crearla, para
-  que el historial no cambie si después se corrige el padrón. Esto ya se cumplía
-  en `solicitante` y `tecnicos`, y se mantiene.
+- **El permiso es por departamento, no por autoría.** Quien puede programar un
+  área puede corregir cualquier rol de esa área, lo haya creado o no. Es lo que
+  hace falta cuando varios supervisores cubren la misma línea, o cuando alguien
+  falta y su rol hay que ajustarlo igual. Esto **reemplaza** la regla de la
+  SPEC-012, donde mandaba quien lo había creado.
+- **Consultar y exportar siguen abiertos a todos.** El candado es solo sobre
+  crear y editar.
+- **Un rol que no se puede editar se abre en modo lectura**, con la cuadrícula
+  deshabilitada y sin botón de guardar.
+- **El selector de departamento solo ofrece los permitidos**, así que no es
+  posible crear un rol de un área ajena ni por descuido.
+- **La lista de departamentos sale del padrón**, no de un catálogo escrito a
+  mano: si mañana nace un área, aparece sola.
+- **Los permisos asignados se cruzan contra los departamentos que existen hoy.**
+  Si un área se renombra o se queda sin personal, deja de ofrecerse aunque el
+  permiso siga guardado; no se borra, por si el área vuelve.
+
+### Por qué el campo vive en el padrón y no en el código
+Un archivo de configuración obligaría a editar y recompilar cada vez que alguien
+entra, sale o cambia de área, y ataría los permisos a nombres o nóminas escritos
+a mano. En el padrón, `ADMIN` los cambia solo.
+
+`departamentosTurnos` **no** viaja en `construirDocumento`: si lo hiciera, una
+importación de Excel sin esa columna borraría todos los permisos en cada carga.
+Solo lo escribe `asignarDepartamentosTurnos`, desde la pantalla de permisos.
+
+### Deuda
+Igual que el resto de la aplicación, el candado vive en la interfaz. Las reglas
+del proyecto de RRHH usan sesión anónima y no distinguen usuarios (SPEC-008),
+así que no pueden sostenerlo.
 
 ---
 
-# SPEC-043 — Atributos operativos de Mantenimiento
+# SPEC-014 — Asistencia confirmada por EPP
 
 **Estado:** implementado
-**Nuevo en la v5.0**
+**Aplicaciones:** EPP escribe, RRHH lee
 
-### Motivación
-Mantenimiento necesita saber cosas de su gente que Recursos Humanos no
-administra: en qué turno está cada quien y qué tipos de orden puede atender.
-Esos datos cambian cada mes y los decide el jefe del área, no RRHH.
+### Por qué
+Una revisión de EPP no se le puede hacer a alguien que no vino. La inspección
+es, por sí misma, prueba de que la persona estuvo presente. Y como la revisión
+es obligatoria para todo el personal, su ausencia significa que esa persona no
+se presentó.
 
-Meterlos en `colaboradores` rompería la regla de que solo RRHH escribe ahí.
-Deducirlos del puesto —como hacía la v4— los ata a un texto que RRHH puede
-cambiar en cualquier momento, y cuando eso pasa el enrutamiento falla en
-silencio.
+### Cómo viaja el dato
+EPP guarda sus inspecciones en Realtime Database de su propio proyecto, que
+desde RRHH no se ve. El puente es la colección `asistencia` del proyecto
+**`impredimex-suite`**, el único terreno que las dos aplicaciones ya comparten.
 
-### Modelo
-En el proyecto propio de Mantenimiento, indexado por número de nómina:
+Al guardar una revisión, EPP escribe un documento con id `AAAA-MM-DD_nómina`:
+`fecha`, `noNomina`, `nombreCompleto`, `departamento`, `origen: 'EPP'` y `ts`.
+RRHH consulta esa colección por rango de fechas y marca su cuadrícula.
 
-```
-operativo/<nomina>/
-  tiposOT:  ["MTTO-MAQ-PROD", "MTTO-INFRAESTRUCTURA", "MTTO-SEGURIDAD"]
-  obs:      "texto libre"
-```
-
-**El turno no está aquí.** La ficha de personal tenía un campo `turno` desde
-versiones tempranas, cuando el turno era fijo por persona. Al llegar el rol de
-turnos de la SPEC-016 ese campo dejó de leerse: quien decide si alguien está en
-turno es `asignacionDe(nomina, fecha)`, que consulta el calendario día por día.
-El campo siguió ahí sin que nadie lo usara, invitando a configurarlo. Se retiró
-en la v5.0.
-
-### Actor
-Usuario con papel `admin` o `supervisor`, desde el módulo "Personal de
-mantenimiento".
-
-### Flujo principal
-1. Sistema muestra la lista de personas que tienen `manto` en su campo `apps`,
-   con su nombre y puesto tomados de la suite
-2. Usuario edita turno, tipos de orden y observaciones
-3. Sistema guarda en `operativo/<nomina>` de su propio proyecto
+### Cómo se ve
+Dentro de la celda del turno, a la derecha: una palomita verde si asistió, una
+cruz roja si no. Sin texto, para que un rol mensual de 31 columnas siga siendo
+legible. El detalle aparece al mantener el cursor encima.
 
 ### Reglas de negocio
-- **Aquí no se dan altas ni bajas de personal.** La lista de personas la
-  determina la suite; este módulo solo les cuelga atributos.
-- **Los tipos de orden solo se muestran al personal de MANTENIMIENTO.** El
-  enrutamiento nunca evalúa a nadie de otro departamento, porque el rol de
-  turnos solo contempla a esa área. Mostrarlos en la ficha de un solicitante
-  afirmaba algo que no era cierto.
-- **Una nómina sin registro en `operativo/` es válida** y se comporta con los
-  valores por defecto: sin turno asignado y elegible para los tres tipos de
-  orden. Restringir es un acto deliberado, no un descuido de configuración.
-- **`tiposOT` sustituye la deducción por puesto** de la SPEC-030. El
-  comportamiento visible no cambia; lo que cambia es que ahora está escrito
-  donde se decide.
-- **Si una persona pierde el acceso a `manto`, su registro operativo se
-  conserva.** Volver a darle acceso no obliga a reconfigurar su turno.
+- **El documento va sin foto, sin firma y sin el detalle del EPP.** Leer los
+  registros completos desde RRHH acabaría con la cuota del plan gratuito: esos
+  registros llevan imágenes en base64.
+- **Un documento por persona y día.** Una segunda revisión el mismo día
+  sobrescribe, no duplica.
+- **Solo se evalúan celdas con turno asignado.** Un descanso no es una falta.
+- **La falta solo se afirma cuando el turno ya terminó.** Antes de la hora de
+  salida, que no haya revisión no significa nada: alguien de T2 entra a las
+  14:00, y darlo por ausente en la mañana sería inventar una falta. El
+  «Asistió», en cambio, aparece en cuanto se hace la revisión: solo se hace
+  esperar al dato que puede equivocarse.
+- **Se contemplan los turnos que cruzan la medianoche.** Un `T3` o un `N12` del
+  día 14 terminan a las 06:00 del 15, y hasta esa hora no se juzgan. En `LIB`
+  se usan las horas capturadas a mano; si una salida es anterior o igual a la
+  entrada, se entiende que cruza la noche. Un `LIB` sin horas nunca se da por
+  terminado, que es el lado que no inventa faltas.
+- **La cuadrícula se refresca sola cada minuto**, para que una celda cambie de
+  estado al terminar el turno aunque la pantalla lleve rato abierta.
+- **RRHH solo lee.** La asistencia nunca se marca a mano desde el rol de
+  turnos: si se pudiera, dejaría de ser lo que la revisión constató.
+- **La consulta va por rango**, no trayendo la colección entera. `asistencia`
+  crece con cada revisión de cada persona, todos los días.
+
+### Modos de fallo, y por qué se avisan
+Si la escritura falla en EPP, la inspección **sí** se guarda —es lo prioritario—
+pero se muestra una advertencia. Si la lectura falla en RRHH, se registra el
+error y la exportación se cancela con aviso.
+
+La razón es la misma en los dos casos: en silencio, el sistema reportaría como
+ausente a gente que sí vino. Un fallo visible es molesto; uno callado genera
+faltas falsas en un tema que toca nómina y disciplina.
+
+### Requisito de configuración
+La colección `asistencia` del proyecto de la suite necesita su regla: **EPP
+escribe, RRHH lee**. Sin ella, la advertencia de arriba aparecerá en cada
+revisión y RRHH no marcará a nadie.
+
+### Deuda
+La asistencia se infiere de que exista una revisión. Si un supervisor no alcanza
+a hacerla, esa persona aparece como ausente aunque haya venido. Es el precio
+aceptado a cambio de no capturar la asistencia dos veces, y descansa sobre la
+regla de que la revisión de EPP es obligatoria para todos.
 
 ---
 
-# SPEC-044 — Reglas de acceso a los datos
+# SPEC-015 — Reporte de faltas
 
-**Estado:** reglas publicadas; **App Check aplazado a conciencia**.
+**Estado:** implementado
+**Actor:** cualquiera puede pedirlo; solo algunos, de todas las áreas a la vez
 
-El código de la aplicación ya trae el soporte listo —el SDK cargado y la
-constante `APPCHECK_SITE_KEY` esperando—, así que activarlo después es pegar una
-cadena, sin volver a tocar nada. Lo que se aplazó es la configuración en la
-consola.
+### Qué es
+Ventana emergente desde la pestaña de Sucesos y Turnos. Se pide un periodo y un
+departamento, y devuelve la lista de faltas, con descarga a Excel y PDF.
 
-**Qué queda abierto.** Las reglas exigen una sesión, pero esa sesión es anónima
-y cualquiera puede abrir una. Alguien que tome la configuración de Firebase del
-código, que está en un repositorio público, podría abrir su propia sesión
-anónima y leer o escribir la base desde la consola del navegador. App Check es
-lo que cerraría esa puerta, porque comprueba que la petición viene de esta
-aplicación y no de un script cualquiera.
+### Cómo se calcula una falta
+Una falta existe donde se cumplen las tres cosas: **había turno asignado**, ese
+**turno ya terminó**, y **no hubo revisión de EPP**. Es la misma regla que pinta
+la cruz roja en la cuadrícula (SPEC-014), aplicada sobre un rango.
 
-**Por qué se aceptó.** Contra alguien de fuera el riesgo es bajo: haría falta
-leer el código, entender Firebase y proponérselo. Contra alguien de dentro con
-conocimientos técnicos, la puerta es real y la única barrera es que nadie
-quiera cruzarla.
-
-**Lo que reduce más el riesgo por el mismo esfuerzo** es hacer privados los
-repositorios, porque de ahí sale la configuración que hace posible el ataque.
-Está pendiente como parte de mover el hosting.
-
-**Nota sobre reCAPTCHA.** Google marcó como obsoleto el reCAPTCHA clásico y
-empuja hacia reCAPTCHA Enterprise. Enterprise **sí funciona en el plan Spark**,
-con cuatro niveles de puntuación en vez de once y el umbral recomendado de 0.5
-disponible; no hace falta vincular una cuenta de facturación. La clave se crea
-en la consola de Google Cloud, en Fraud Defense, de tipo Web y sin marcar la
-casilla de verificación. Al registrarla conviene poner el tiempo de vida del
-testigo en **7 días**, el máximo: por omisión se renueva dos veces por hora y
-cada renovación consume una evaluación de la cuota mensual sin costo.
-**Nuevo en la v5.0**
-
-### Alcance
-La base de Mantenimiento está hoy abierta: cualquiera con la dirección del
-proyecto puede leerla y escribirla.
+El recorrido va por los roles, no por el padrón: son los roles los que dicen
+quién debía trabajar cada día. Quien no tiene turno asignado no puede faltar.
 
 ### Reglas de negocio
-- **Las reglas de un proyecto no pueden validar los tokens de otro.** La sesión
-  del usuario vive en el proyecto suite, así que las reglas de Mantenimiento no
-  pueden saber quién es. En vez de duplicar cuentas o pagar Cloud Functions, la
-  aplicación abre además una **sesión anónima** en su propio proyecto, y las
-  reglas exigen esa sesión junto con App Check.
-- Eso cierra el acceso a extraños pero **no distingue entre usuarios**. Riesgo
-  aceptado a conciencia, igual que en EPP: son empleados de confianza, y la
-  trazabilidad no depende de las reglas sino de los datos que la app graba en
-  cada orden.
-- **Si falla la sesión anónima, la aplicación debe avisarlo con claridad**, no
-  quedarse en blanco ni fallar en silencio.
+- **La opción «Todos los departamentos» está restringida.** La ven los `ADMIN` y
+  quien tenga `reporteFaltasTodas` en su documento del padrón. El resto elige un
+  departamento a la vez.
+- **El botón lo ve todo el mundo.** Consultar y exportar roles ya estaba abierto
+  a todos (SPEC-012); restringir el reporte por departamento sería incoherente
+  con eso.
+- **Dos roles del mismo departamento pueden solaparse en fechas.** Las faltas se
+  deduplican por persona y día, o la misma se contaría dos veces.
+- **Si la lectura de asistencias falla, no se entrega reporte.** Sin ellas, todo
+  turno terminado parecería falta y el reporte acusaría a quien sí vino.
+- **Un periodo que incluye días futuros no los reporta**, porque sus turnos no
+  han terminado.
 
-### Orden de puesta en marcha
-No se puede invertir:
+### Por qué `reporteFaltasTodas` y no `ADMIN`
+Quien necesita el reporte completo es Recursos Humanos, por función. Hacerlo
+`ADMIN` para conseguirlo le daría además permiso para programar los roles de
+toda la planta, que es justo lo que la SPEC-013 quiso evitar. Son dos cosas
+distintas y se marcan por separado, desde la misma pantalla de Permisos.
 
-1. Publicar esta versión con la sesión anónima y App Check en modo monitoreo
-2. Verificar que las peticiones llegan con testigo válido
-3. Hasta entonces, exigir App Check y publicar las reglas
-
-Aplicar las reglas antes del paso 1 deja sin leer ni escribir a la versión que
-está en producción, que hoy no inicia sesión de ninguna clase.
+`reporteFaltasTodas` **no** viaja en `construirDocumento`, por la misma razón que
+`departamentosTurnos`: un Excel sin esa columna borraría la marca en cada carga.
 
 ---
 
-# SPEC-045 — Migración a la suite
+# SPEC-016 — Promociones internas
 
-**Estado:** en curso — permisos y cuentas ya aplicados; falta publicar la
-aplicación, migrar los turnos y eliminar el nodo `personal/`
-**Nuevo en la v5.0** — se ejecuta una sola vez
+**Estado:** implementado
+**Actor:** `ADMIN` y quien tenga `capturaPromociones`; el resto solo consulta
 
-### Personas con acceso
-Veinticuatro, de las cuales quince ya tienen cuenta en la suite. Hay que crear
-nueve: 638, 1049, 1332, 1827, 2047, 2339, 2366, 2396 y 2431.
-
-| Papel | Nóminas |
-|---|---|
-| `admin` | 2058 |
-| `supervisor` | 1237, 2432 |
-| `tecnico` | 638, 1049, 1332, 1827, 2047, 2366, 2431 |
-| `solicitante` | 20, 885, 1802, 1853, 2068, 2129, 2159, 2292, 2308, 2339, 2377, 2396, 2398, 2435 |
-
-### Personas que pierden el acceso
-Siete tenían papel elevado en el catálogo de la v4 y no continúan:
-
-- **86, 810 y 2034** siguen en la empresa pero no interactúan con la aplicación:
-  simplemente no reciben `manto` en su campo `apps`.
-- **2182, 2324, 2408 y 2411** ya no trabajan en Impredimex. Se les da de baja en
-  RRHH, con lo que quedan fuera de las cinco aplicaciones a la vez. No hay que
-  hacer nada específico en Mantenimiento.
+### Qué es
+Sección dentro de la pestaña de Capacitación, debajo de la matriz. Registra la
+evaluación de un colaborador para **contrato de planta**, **nueva categoría
+dentro de su mismo puesto** o **cambio de puesto**.
 
 ### Flujo
-1. Agregar `manto` a `apps` y el papel en `roles.manto` de las 24 personas
-2. Crear las nueve cuentas faltantes
-3. Migrar el turno vigente de cada técnico al nodo `operativo/`
-4. Configurar `tiposOT` según la equivalencia de la SPEC-030
-5. Publicar la aplicación
-6. Verificar, y hasta entonces aplicar las reglas (SPEC-044)
-7. Eliminar el nodo `personal/` de la base de Mantenimiento
+1. Se elige colaborador, tipo, fecha de inicio del periodo y, salvo en contrato
+   de planta, la categoría o el puesto de destino.
+2. La evaluación nace **en proceso**, con un periodo de tres meses.
+3. Cada mes se captura una calificación de 0 a 100. La aplicación calcula las
+   fechas en que toca cada una y muestra el promedio de las capturadas.
+4. Al cerrar el periodo se marca **aprobada** o **rechazada**.
 
 ### Reglas de negocio
-- **El nodo `personal/` se elimina al final, no al principio.** Mientras la
-  versión anterior siga publicada, lo necesita para funcionar.
-- **Los PIN de la v4 no se migran.** Ver SPEC-036.
-- **Antes de publicar hay que corregir el registro 2396 en RRHH**, que hoy tiene
-  la nómina y la fecha de Tania Herrera Jáquez con el nombre de Samuel Zárate
-  encima. Si no, esa persona entra a Mantenimiento con el nombre equivocado y
-  cada orden que levante queda sellada así, porque los registros guardan copia.
+- **Los datos del colaborador se copian al abrir la evaluación**, incluido el
+  puesto actual, para que el histórico no cambie si después se corrige el
+  padrón. Es la misma regla de la SPEC-007.
+- **El destino no aplica en un contrato de planta**, y en ese caso el campo no
+  se escribe: Firestore rechaza el documento entero si encuentra un campo en
+  `undefined`.
+- **Las calificaciones se guardan solo del mes ya evaluado**, con clave `'1'`,
+  `'2'` y `'3'`, en vez de tres campos que nacerían vacíos, por la misma razón.
+- **Las fechas de evaluación son meses de calendario, no bloques de 30 días.**
+  Si el día no existe en el mes destino —un periodo que empieza el 31 de enero,
+  cuyo primer corte caería el 31 de febrero— se recorta al último día del mes.
+- **El promedio se calcula solo sobre las calificaciones capturadas**, así que
+  un periodo a la mitad no se castiga por los meses que faltan.
+- **Consultar está abierto a todos; capturar y calificar, no.**
+- **Un alta nueva en el directorio estrena su evaluación de contrato de planta
+  automáticamente**, con el periodo arrancando en su fecha de ingreso. Aplica
+  solo al registro individual, no a la importación desde Excel, y solo a altas:
+  editar a alguien que ya existe no abre nada.
+- **El documento de esa evaluación automática lleva un identificador
+  determinista**, `planta_<nómina>`, no uno al azar: si el alta se reintenta o
+  se vuelve a guardar al mismo colaborador, se sobrescribe la misma evaluación
+  en lugar de acumular duplicados.
+- **Sin fecha de ingreso no se abre**, porque no habría de dónde calcular los
+  tres cortes mensuales. Se avisa al guardar, para que se capture la fecha y se
+  abra a mano.
+- **No se puede abrir a mano un segundo contrato de planta** para quien ya
+  tiene uno. Las promociones de categoría y de puesto sí pueden repetirse:
+  alguien puede subir de categoría más de una vez a lo largo de su carrera.
+- **Si falla la apertura automática, el colaborador queda registrado igual** y
+  se avisa en el mismo mensaje. El alta es lo prioritario; en silencio, nadie
+  se enteraría de que esa evaluación nunca se creó.
+
+### Por qué `capturaPromociones` y no `ADMIN`
+Quien lleva estas evaluaciones es Recursos Humanos. Volverlos `ADMIN` les daría
+además permiso sobre el padrón y sobre los roles de turnos de toda la planta.
+Se marca por separado, desde la pantalla de Permisos, y así las dos plazas de
+RH que hoy están vacantes se habilitan el día que se ocupen sin tocar código.
 
 ---
 
-# Anexo A — Modelo de datos en Firebase
+---
 
-```
-manto_db/
-├── ots/                  (array de Órdenes de Trabajo)
-│   └── [n]/
-│       ├── folio: "#000001"
-│       ├── desc: "descripción"
-│       ├── tipoServicio: "MAQUINARIA"
-│       ├── nave: "A1"
-│       ├── equipo: "FL1"
-│       ├── prioridad: "Normal"
-│       ├── solicitante: {nomina, nombre}
-│       ├── tecnicos: [{nomina, nombre, confirmado, fechaToma}]
-│       ├── tipoProblema: "Mecánico"
-│       ├── actividades: [...]
-│       ├── refacciones: [...]
-│       ├── status: "abierto" | "proceso" | "espera" | "validar" | "cerrado"
-│       ├── errorOperativo: bool
-│       ├── motivoEspera: "string"
-│       ├── fechaCreacion, fechaConclusion, fechaCierre: timestamps
-│
-├── folioSig: 1           (contador de folio, reinicia a 1 si ots está vacío)
-│
-├── operativo/            (atributos propios de Mantenimiento, por nómina)
-│   └── <nomina>/ {turno, tiposOT: [...], obs}
-│                          identidad, nombre, puesto, depto y papel NO viven
-│                          aquí: vienen de la suite (SPEC-042)
-│
-├── tiposServicio/        (3 tipos)
-├── naves/                (4 naves)
-├── maquinas/             (48 máquinas)
-└── infraestructura/      (53 áreas)
-```
+# SPEC-017 — Cumpleaños del mes
+
+- **La pestaña de Antigüedad y Vacantes muestra los cumpleaños del mes en
+  curso**, en su propia tarjeta, separada de los aniversarios de ingreso. Son
+  dos cosas distintas: una se felicita, la otra se reconoce por antigüedad, y
+  mezclarlas obligaba a columnas que no aplican a la mitad de los renglones.
+- **Solo se comparan día y mes.** El año se guarda porque sirve para la edad,
+  pero se omite si no es creíble (menos de 14 o más de 90 años): hay bases
+  donde el año viene como 1900 porque solo se capturó día y mes.
+- **La lista va ordenada por día**, no por nómina, para que se lea como
+  calendario. El cumpleaños de hoy se resalta y los que ya pasaron se atenúan.
+- **Se excluye a las bajas.**
+- **La plantilla registrada del Directorio lleva una columna `Cumpleaños`** a la
+  derecha de `Ingreso`, en día y mes. El año no se muestra ahí: la tabla es para
+  consultar la plantilla, no para calcular edades.
+- **Las fechas se siembran solas** desde `src/data/cumpleanos.ts` al abrir la
+  pestaña, sin que nadie suba ningún archivo. Escribe `guardarFechasNacimiento`,
+  que toca únicamente `fechaNacimiento`.
+- **La siembra solo rellena huecos y nunca pisa una fecha existente.** Si
+  alguien corrige en el Directorio una fecha equivocada, la lista del código no
+  debe devolverla en la siguiente visita.
+- **Solo siembra quien puede capturar**, porque las reglas de Firestore no
+  dejarían escribir a los demás. Un fallo se anota en consola, deja la pantalla
+  funcionando y se reintenta en la próxima visita.
+- **La siembra no da de alta a nadie:** solo escribe sobre nóminas que ya están
+  en el padrón. Una fecha de cumpleaños no basta para crear una persona.
+- **La lista del código no es la fuente de verdad.** Una vez sembrada, la fecha
+  vive en el padrón y se edita desde el Directorio como cualquier otro dato.
+- **`fechaNacimiento` se escribe de forma condicional en `construirDocumento`**,
+  igual que `estatus`. Si viajara sin condición, un Excel del directorio sin la
+  columna borraría todos los cumpleaños en cada importación.
+- **Las fechas `AAAA-MM-DD` se parten a mano** (`utils/fechas.ts`), nunca con
+  `new Date(cadena)`. Ese constructor interpreta la cadena como UTC, y en
+  México todo se corre un día hacia atrás: quien nació o entró un día 1 caía en
+  el mes anterior y nunca aparecía en su lista.
 
 ---
 
-# Anexo B — Estados de una OT
+# SPEC-018 — Gráficas
 
-```
-        ┌─────────┐
-        │ abierto │ ◄─────────────────┐
-        └────┬────┘                   │
-             │ técnico toma           │ solicitante rechaza
-             ▼                        │
-        ┌─────────┐                   │
-        │ proceso │ ◄──────┐          │
-        └────┬────┘        │          │
-             │             │ reactivar│
-   ┌─────────┴─────────┐   │          │
-   │                   │   │          │
-   ▼                   ▼   │          │
-┌──────┐         ┌────────┴┐          │
-│espera│         │ validar │──────────┘
-└──────┘         └────┬────┘
-   │                  │ solicitante valida
-   └─► proceso        ▼
-                 ┌─────────┐
-                 │ cerrado │ (estado final)
-                 └─────────┘
-```
-
----
-
-# Cambios a implementar (pendientes detectados)
-
-Estos son ajustes al código actual para alinearlo con las specs:
-
-| # | Pendiente | Spec relacionada |
-|---|---|---|
-| 1 | Implementar reinicio de `folioSig` cuando `ots` está vacío | SPEC-002 |
-| 2 | Verificar que rechazar cierre limpia array de técnicos | SPEC-007 |
-| 3 | Documentar oficialmente el flujo multi-técnico en el código | SPEC-003 |
+- **Se dibujan a mano en SVG** (`src/components/Graficas.tsx`), sin librería de
+  gráficas. El proyecto se compila desde el navegador de un teléfono, sin forma
+  de correr `npm` para regenerar `package-lock.json`, y el flujo de publicación
+  instala con ese archivo: una dependencia nueva rompería la compilación sin
+  dejar claro por qué.
+- **Cinco gráficas, cada una debajo de la sección que le corresponde:**
+  antigüedad bajo Aniversarios, rotación bajo Cumpleaños, plazas bajo Abrir
+  nueva vacante, incidencias bajo el Historial, y faltas bajo la Bitácora.
+- **Barras verticales para lo que se lee en orden** (meses, días, tramos de
+  años); **horizontales para categorías con nombres largos** (departamentos,
+  tipos de incidencia), porque en vertical esas etiquetas se encimarían o
+  habría que girarlas, ilegibles en un teléfono.
+- **La rotación necesita `fechaBaja`**, que escribe `cambiarEstatus` y nadie
+  más. `actualizadoEn` no sirve: cambia con cualquier edición, así que una baja
+  vieja parecería reciente en cuanto alguien corrija el puesto de esa persona.
+  Las bajas anteriores a este campo no lo traen y quedan fuera, y la gráfica lo
+  dice en lugar de fingir que no hubo ninguna.
+- **Las altas de la rotación salen de `fechaIngreso`, no de `creadoEn`.** El
+  padrón entró de una sola importación, así que `creadoEn` amontonaría a todos
+  en el mismo mes.
+- **La antigüedad se cuenta sobre el padrón activo completo**, no sobre la
+  tabla de aniversarios de arriba: esa solo trae a quienes cumplen este mes.
+- **Las incidencias se agrupan por tipo y por departamento, no por mes**: no
+  guardan fecha propia, solo el momento de captura, y las registradas antes de
+  esa versión ni siquiera lo traen.
+- **La gráfica de faltas va bajo demanda, con un botón.** Calcularla exige leer
+  las asistencias de EPP del periodo, que son un documento por persona y por
+  día; hacerlo al abrir la pestaña gastaría cuota sin que nadie lo pida.
+- **Respeta los permisos del reporte de faltas**: quien no puede ver todas las
+  áreas solo cuenta las de sus departamentos asignados, y se avisa en la nota.
+- **Si fallan las asistencias no se grafica nada.** Sin ellas, todo turno
+  terminado parecería falta, y la gráfica acusaría a gente que sí vino.
 
 ---
 
-*Documento actualizado el 13 de agosto de 2026 — versión 2.7 (agrega SPEC-022).*
-*A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
+# SPEC-019 — Quién ve las gráficas
+
+- **Las gráficas se reservan a quien tenga la marca `verGraficas` en el padrón**,
+  más los administradores, que las ven siempre sin necesidad de aparecer
+  marcados. Concentran información de toda la plantilla —rotación, faltas por
+  área, incidencias por departamento— que no le toca a cualquiera que entre a
+  consultar su propio turno.
+- **El permiso se administra como dato, no como código**: vive en
+  `colaboradores` y se enciende desde la casilla «Puede ver las gráficas» de la
+  pantalla de Permisos, dentro de Sucesos y Turnos. Así, cuando se contrate a
+  alguien más de Recursos Humanos, basta con marcarlo; no hay que tocar código
+  ni recompilar.
+- **`verGraficas` no viaja en `construirDocumento`.** Si lo hiciera, un Excel
+  del directorio sin esa columna borraría el permiso en cada importación.
+- **La regla está escrita una sola vez**, en `services/permisosPadron.ts`. Las
+  gráficas aparecen en tres pestañas distintas; con la condición repetida tres
+  veces, tarde o temprano una se quedaría atrás y alguien vería en una pestaña
+  lo que no puede ver en otra.
+- **Ante la duda, no se concede.** Sin nómina, fuera del padrón o sin la marca,
+  las gráficas no se muestran.
+- **Es un candado de interfaz**, como el resto de los de esta aplicación: quien
+  tenga conocimientos puede leer los datos de todos modos. Se sostiene en que
+  las reglas de Firestore no distinguen usuarios (SPEC-008).
 
 ---
 
-## SPEC-046 — Los tiempos de comedor dejan de ser catálogo
+# SPEC-020 — Captura acotada y fecha de incidencia
 
-**Problema.** `comidas` estaba en `CATALOGOS_FB`, el grupo que se escribe y se
-lee completo. Pero no es un catálogo: es una bitácora que crece con cada comida
-marcada y nunca se limpia. Cada registro nuevo reescribía el arreglo entero y
-todos los dispositivos conectados lo volvían a descargar completo, de modo que
-el costo de marcar una comida era el peso acumulado de todas las anteriores
-multiplicado por cada aparato encendido. Crecía al cuadrado.
-
-**Decisión.** `comidas` pasa a `COLECCIONES_FB` y viaja elemento por elemento,
-igual que las órdenes de trabajo y las notificaciones. Al marcar una comida solo
-se transmite ese registro.
-
-- **Los datos guardados con el formato viejo se migran solos.** Llegan con llave
-  numérica (0, 1, 2…), lo que activa la misma bandera que ya usaban las OT, y se
-  reescriben indexados por su `id`. No hace falta tocar nada a mano.
-- **Los registros de más de 30 días se archivan**, no se borran: se mueven a
-  `manto_db_archivo/comidas`, donde siguen consultables desde la consola de
-  Firebase pero dejan de viajar a los dispositivos en cada reconexión. La app
-  solo consulta si alguien está en su comida ahora y si ya la tomó en el bloque
-  de turno vigente; nada mira más atrás.
-- **El corte se mide por el fin de la comida**, no por su inicio: mientras la
-  ventana siga abierta el registro está en uso, aunque haya empezado antes.
-- **Una fecha ilegible o ausente conserva el registro.** Ante la duda no se
-  archiva: perder un dato pesa más que sincronizar uno de más.
-- **El movimiento es una sola escritura atómica**, así que no puede quedar un
-  registro borrado del nodo vivo y ausente del archivo.
-- **Solo lo ejecuta un administrador.** Es idempotente y no haría daño si
-  coincidieran varios, pero con ocho aparatos conectados sería repetir ocho
-  veces el mismo trabajo.
-- **Se intenta al arrancar y también al iniciar sesión.** Sin sesión guardada,
-  los listeners se levantan antes del login y en ese momento no se sabe todavía
-  quién entró ni con qué papel.
-
-**Pendiente conocido.** Las notificaciones tampoco se limpian nunca. Viajan por
-elemento, así que no tienen el defecto cuadrático, pero siguen acumulándose y
-se descargan enteras en cada arranque.
+- **La incidencia lleva fecha capturada**, no la del guardado: se registra a
+  veces días después de ocurrida. Viene con la de hoy puesta, que es el caso
+  normal, y se puede mover. Las incidencias anteriores a este campo no la traen
+  y se muestran con un guion, sin inventarles una.
+- **El departamento va antes que el puesto en el Directorio**, porque de él
+  dependen los puestos elegibles.
+- **Los puestos se eligen de una lista acotada al departamento**, tanto en el
+  Directorio como al abrir una vacante. La lista sale del propio padrón
+  (`puestosPorDepartamento`), no de un catálogo escrito a mano: se mantiene sola
+  conforme cambia la plantilla y nadie tiene que recompilar para dar de alta un
+  puesto nuevo.
+- **Se agrupa por departamento normalizado**, para que un acento o una mayúscula
+  de más no parta el mismo departamento en dos listas.
+- **Las bajas siguen aportando sus puestos a la lista**: quien salió deja su
+  puesto vacante, y es justo el que se va a querer volver a capturar.
+- **Hay una salida «Otro puesto» con captura libre.** Sin ella no se podría
+  abrir una plaza que nunca ha existido, que es cuando más falta hace.
+- **El puesto ya capturado se agrega a la lista aunque no figure entre los del
+  departamento.** Pasa al editar a alguien con un puesto único; sin esto, abrir
+  su ficha se lo borraría en silencio.
+- **Limpiar el puesto al cambiar de departamento lo hace el formulario, no el
+  selector.** Dentro del selector no se distingue un cambio hecho a mano de
+  cargar la ficha de alguien para editarla, y abrir a un colaborador le vaciaba
+  el puesto sin que nadie lo tocara.
+- **Se retiró la carga masiva del padrón desde Excel**, junto con su vista
+  previa y su motor de lectura. Lo que SPEC-006 describe sobre ese resumen ya no
+  aplica. El alta y la corrección son uno por uno; la exportación a Excel y PDF
+  del directorio sigue igual.
 
 ---
 
-## SPEC-047 — Las notificaciones del supervisor se eliminan
+# SPEC-021 — Promociones internas: captura y seguimiento
 
-**Hallazgo.** El perfilador de Firebase mostró que `manto_db/notifs` era el 74%
-de toda la descarga del proyecto: 12.26 MB en media hora, contra 3.78 MB de las
-órdenes de trabajo y 118 KB de las comidas. Cada conexión bajaba 291 KB solo de
-avisos, sobre una base que entera pesaba 460 KB.
-
-Al revisar por qué, apareció la causa de fondo: **diez de los diecisiete avisos
-que generaba el sistema iban dirigidos al supervisor, y el supervisor nunca tuvo
-pantalla donde verlos.** Existía una llamada a `updateNotifDot('sup-notif-dot',
-…)`, pero ese elemento no está en el documento: nadie lo dibujó nunca. Sin
-pantalla que los mostrara, tampoco había nada que los marcara como leídos, así
-que se acumulaban desde el primer día.
-
-**Decisión.** El supervisor se entera por el push de OneSignal, que es un
-servicio aparte y no consume esta base. Los diez avisos dirigidos a él se
-eliminan del código, junto con la llamada al indicador inexistente. Los ya
-guardados se archivan.
-
-- **El costo no lo provocaba crear avisos.** La app escucha por elemento, así
-  que un aviso nuevo viaja solo. El gasto ocurre **al conectarse**: un
-  dispositivo que se engancha recibe todas las notificaciones existentes, una
-  por una, porque acaba de llegar y no tiene ninguna. En planta, cada teléfono
-  se reconecta decenas de veces al día.
-- **Retención de las que sí se ven.** Las del solicitante y el técnico se
-  archivan pasados `DIAS_NOTIFS_VIVAS` días (15). Esas sí tienen pantalla y sí
-  se marcan como leídas, pero cumplido el plazo el dato vive igual en la orden.
-- **Sin fecha legible se conserva.** Perder un dato pesa más que sincronizar
-  uno de más.
-- **Se archiva por tandas de 200.** Lo acumulado puede ser de miles de
-  registros y una sola escritura con todos sería enorme. Cada tanda es atómica:
-  un corte a media limpieza deja tandas completas, nunca un registro a medias.
-
-**Por qué no se usó `limitToLast` en el listener.** Parecía la solución obvia
-—limitar a los últimos N y olvidarse—, pero es peligrosa con este código.
-`flushDB` borra de Firebase todo hijo que esté en `_snap` y ya no esté en
-`DB[col]`. Con `limitToLast`, al entrar un aviso nuevo Firebase dispara
-`child_removed` del más viejo, `_quitarHijo` lo saca del arreglo local y en el
-siguiente guardado `flushDB` lo **borraría de la base**, no solo de la pantalla.
-Sería una pérdida de datos silenciosa. El archivado explícito evita esa trampa;
-usar `limitToLast` exigiría antes rehacer la lógica de borrado de `flushDB`.
+- **El colaborador se busca escribiendo**, no eligiendo de un desplegable. El
+  padrón pasa de cien personas y en un teléfono esa lista obliga a girar una
+  rueda enorme. Se filtra por nombre o por nómina y se elige de los resultados.
+- **La nómina elegida se guarda aparte del texto escrito.** Un nombre tecleado a
+  medias nunca cuenta como selección: el campo obligatorio se satisface con la
+  nómina, así que no se puede abrir una evaluación para alguien que no existe.
+- **El aviso de «nadie coincide» va en el flujo normal, no flotando.** Flotando
+  tapaba el botón de abrir evaluación, que queda justo debajo, y lo volvía
+  intocable.
+- **Las bajas no aparecen** entre las sugerencias.
+- **El destino depende del tipo:** con «cambio de puesto», la lista trae todos
+  los puestos del padrón, sin acotar al departamento, porque un cambio de puesto
+  suele ser precisamente a otra área. Con «nueva categoría», la lista es la
+  escala fija A, B, C y D, que no se deduce del padrón porque las categorías no
+  se capturan como dato. Con «contrato de planta» no hay destino.
+- **Semáforo de las fechas de evaluación:** en rojo si el corte ya pasó sin
+  calificación, en ámbar si faltan tres días o menos. Solo alarma mientras la
+  evaluación sigue en proceso y ese mes no tiene calificación; en una ya
+  aprobada o rechazada sería ruido sobre algo cerrado.
+- **Una calificación de cero cuenta como calificada.** Se comprueba contra
+  `undefined` y no por valor verdadero, porque un cero es una nota real y
+  tratarlo como vacío pintaría de rojo un mes ya evaluado.
+- **Rechazar pregunta antes de escribir nada:** o el caso termina en rechazo, o
+  se abren tres meses más para volver a evaluar. Son decisiones distintas y una
+  de ellas vacía las calificaciones de la ronda en curso.
+- **La segunda oportunidad arranca hoy**, no al día siguiente del último corte:
+  ese corte suele estar en el pasado, y encadenarlo dejaría el mes 1 vencido y
+  en rojo desde el primer momento, sin que nadie hubiera podido calificarlo.
+- **La ronda que termina se archiva en `rondasPrevias`** antes de limpiar las
+  calificaciones. Perderlas en silencio borraría la única evidencia de por qué
+  se le dio otra oportunidad a alguien. La tarjeta muestra «2º periodo».
 
 ---
 
-## SPEC-048 — La dirección del sitio se deduce, no se escribe
+# SPEC-022 — Roles de turnos: autoría y faltas a la vista
 
-**Problema.** La dirección de la aplicación estaba escrita a mano apuntando a
-la cuenta personal desde la que se publicaba. Al trasladar el repositorio a la
-organización, los avisos push habrían seguido abriendo una página que ya no
-existe, y nadie se habría enterado hasta que alguien tocara una notificación.
-
-**Decisión.** `urlDeLaApp()` la deduce de `location` en tiempo de ejecución.
-Funciona en cualquier cuenta o dominio sin tocar código, y un traslado futuro ya
-no exige recordarlo.
-
-- **Se conserva solo la primera carpeta de la ruta**, que en GitHub Pages es el
-  nombre del repositorio.
-- **Un segmento con punto se trata como archivo, no como carpeta**, por si algún
-  día la app vive en la raíz de un dominio propio y se abre como `/index.html`.
-
-**Lo que no cambió y por qué.** El nombre del repositorio sigue siendo
-`Mantenimiento-Impredimex`, así que la ruta `/Mantenimiento-Impredimex/`
-continúa siendo válida después del traslado. Eso deja intactos `manifest.json`
-—su `start_url` y su `scope`— y el registro del trabajador de servicio de
-OneSignal. Solo cambia el dominio, no la ruta.
-
-**Dependencia personal que sigue abierta.** El envío de push pasa por un
-trabajador de Cloudflare en la cuenta personal
-(`mantoapp-push.victormorenogarcia05.workers.dev`). No estorba para el traslado
-del repositorio, pero es el último punto de la aplicación que no vive en la
-organización.
-
----
-
-## SPEC-049 — Se entra con la sesión de la suite
-
-**Problema.** Al llegar desde el portal, o desde otra aplicación de la suite,
-Mantenimiento volvía a pedir la clave aunque la persona ya estuviera dentro.
-Recursos Humanos y EPP no lo hacen.
-
-La causa era que solo miraba su propia sesión guardada (`restoreSession`, en
-`sessionStorage`, que es de esta app y de esta pestaña). El manejador de
-`onAuthStateChanged` sí detectaba la sesión de la suite, pero únicamente
-recargaba el personal **si esta app ya tenía sesión propia**; con `currentUser`
-vacío no hacía nada y la pantalla de acceso se quedaba puesta.
-
-**Por qué no se podía antes.** La sesión de Firebase se comparte entre páginas
-del mismo origen. Mientras el repositorio vivió en la cuenta personal, la app
-corría en otro dominio y no había sesión que adoptar. Esto es posible **desde**
-el traslado a la organización, no antes.
-
-**Decisión.** Si hay sesión de la suite y esta app no la ha adoptado, se entra
-con ella llamando a `abrirSesion(user)`, la misma función del acceso manual. No
-se duplica la comprobación de permisos: sigue siendo la de siempre —registro
-activo, acceso a esta app, papel asignado.
-
-- **Una bandera impide entrar dos veces.** `abrirSesion` es asíncrona y un
-  segundo disparo de `onAuthStateChanged` llegaría antes de que el primero
-  haya puesto `currentUser`.
-- **Un rechazo legítimo deja la pantalla de acceso a la vista con su motivo**
-  —sin registro, dado de baja, sin acceso a esta app— en lugar de entrar a
-  medias.
-- **No se cierra la sesión de la suite al rechazar.** Que alguien no tenga
-  acceso a Mantenimiento no lo saca de las demás aplicaciones; hacerlo lo
-  expulsaría del portal por abrir la app equivocada.
+- **Un rol guardado solo lo modifica quien lo creó.** Verlo lo puede cualquiera
+  que entre a la pestaña; guardarlo, únicamente su autor. **Esto reemplaza la
+  regla por departamento de SPEC-013** para la edición.
+- **Los departamentos asignados siguen mandando sobre quién puede *crear*
+  roles.** Son dos cosas distintas: crear está acotado al área, editar a la
+  autoría.
+- **Un administrador también puede modificar cualquier rol**, y no por
+  privilegio: si el autor sale de la empresa, su rol quedaría congelado para
+  siempre y no habría forma de corregir un turno mal puesto.
+- **Las dos nóminas tienen que existir para que coincidan.** Comparar dos
+  cadenas vacías da verdadero, y un rol antiguo sin autor registrado habría
+  quedado abierto a cualquier sesión que tampoco trajera nómina.
+- **Consecuencia conocida:** tres supervisores comparten impresión
+  (flexografía y rotograbado). Con esta regla, si el autor del rol falta, sus
+  compañeros de área ya no pueden ajustarlo; hay que pedírselo a un
+  administrador. Fue la razón por la que SPEC-013 había pasado el permiso a
+  departamento, y se revierte a petición expresa.
+- **Cada rol muestra su número de faltas** a la izquierda del icono de Excel.
+  En cero se muestra igual, en gris: no mostrar número se confundiría con «no
+  se ha calculado».
+- **Se cuentan con una sola lectura de asistencias** que cubre el tramo ya
+  vivido de todos los roles juntos. Consultar rol por rol multiplicaría las
+  lecturas de Firestore en cada visita a la pestaña.
+- **Solo se consultan los días ya transcurridos**: un rol que empieza el mes que
+  viene no pide nada. La falta sigue la misma regla que el reporte: hubo turno,
+  el turno ya terminó y no hay revisión de EPP.
+- **Si la lectura falla no se muestra número.** Sin asistencias, todo turno
+  terminado parecería falta, y el contador acusaría a gente que sí vino.
 
 ---
 
-## SPEC-050 — Encabezado estándar de la suite
+# SPEC-023 — La fecha de la baja se captura
+
+### Por qué
+
+La gráfica de rotación cuenta las bajas por `fechaBaja`, un campo que se empezó
+a registrar en la versión 2.11.0. Antes de eso no existía, así que **las bajas
+anteriores están en el padrón sin día y quedan fuera de la gráfica**. La propia
+pestaña de Antigüedad y Vacantes lo dice al pie de la rotación.
+
+Ese dato **no se puede deducir del sistema**. `actualizadoEn` no sirve: cambia
+con cualquier edición del registro, así que una baja de hace un año parecería de
+ayer en cuanto alguien le corrija el puesto. Solo lo tiene quien lleve el
+archivo de nómina.
+
+Había además un defecto menor en el camino normal: `cambiarEstatus` ponía
+siempre la fecha del día, y las bajas se capturan con retraso. Quien sale un
+viernes y se registra el lunes quedaba fechado en lunes.
+
+### Flujo principal — dar de baja
+
+1. En el Directorio, `ADMIN` pulsa el icono de baja de una persona activa.
+2. Se abre el diálogo con el **último día que trabajó**, propuesto como hoy.
+3. Al guardar, se escriben `estatus: 'BAJA'` y esa fecha.
+
+### Flujo principal — completar una baja vieja
+
+1. En el Directorio, las personas de baja muestran su fecha debajo de la
+   etiqueta de estatus; **las que no la traen dicen «sin fecha» en rojo**.
+2. `ADMIN` pulsa el icono de calendario de esa fila.
+3. Captura el día y guarda. **El estatus no se toca.**
+
+### Reglas de negocio
+
+- **La fecha no puede ser posterior a hoy.** Una baja futura contaría en la
+  rotación a alguien que todavía está trabajando.
+- **La fecha no puede ser anterior al ingreso** de esa persona.
+- **Las tres comprobaciones comparan texto, no `Date`** (regla R3). El formato
+  `AAAA-MM-DD` ya ordena bien, y así no se repite el error de zona horaria.
+- **Corregir la fecha no pasa por reactivar y volver a dar de baja.** Ese rodeo
+  falsearía el dato: al reactivar, `fechaBaja` se borra, y la nueva baja
+  quedaría fechada el día de la corrección.
+- **`fecharBaja` solo escribe `fechaBaja`.** No toca `estatus`; la comprobación
+  de que la persona esté dada de baja se hace en la pantalla, que es la única
+  que ofrece el botón.
+- **`fechaBaja` no viaja en `construirDocumento`** (regla R2). Si lo hiciera,
+  una importación de Excel sin esa columna borraría de un golpe todas las
+  fechas capturadas a mano.
+- **Al reactivar, la fecha se borra**, para no arrastrar una baja que ya no
+  existe. Sigue siendo el comportamiento de `cambiarEstatus`.
+- **La exportación a Excel del Directorio incluye la columna «FECHA DE BAJA»**,
+  con `SIN FECHA` en las que faltan, para poder cotejar contra nómina fuera de
+  la aplicación. Es solo de lectura: **la importación no escribe este campo**.
+
+### Deuda
+
+Las bajas viejas siguen sin fecha hasta que alguien las capture una por una. No
+hay carga masiva: el dato no está en ningún archivo digital de la empresa, así
+que una pantalla de carga no tendría de dónde leer.
+
+---
+
+# SPEC-024 — Promociones internas en su propia pestaña
+
+### Por qué
+
+Promociones vivía como una sección al final de Capacitación. Son dos cosas
+distintas: una programa cursos para grupos, la otra sigue el avance de una
+persona hacia otro puesto durante tres meses. Compartir pestaña obligaba a bajar
+por toda la lista de cursos para llegar a lo que se venía a ver.
+
+### Reglas de negocio
+
+- **La pestaña va a la derecha de Capacitación**, de donde salió.
+- **El permiso no cambia.** Sigue siendo `capturaPromociones` en el padrón, más
+  los administradores (SPEC-016, regla R1). La pestaña la ve cualquiera; lo que
+  el permiso decide es quién captura.
+- **El módulo se suscribe por su cuenta** a promociones y al padrón. Antes
+  Capacitación traía ambas cosas aunque el usuario nunca bajara a la sección; al
+  separarse, cada pestaña lee solo lo suyo.
+- El comportamiento descrito en la SPEC-021 —semáforo, calificaciones mensuales,
+  flujo de rechazo con segunda oportunidad— **no cambia**.
+
+### Defecto corregido al separar
+
+La fecha de inicio propuesta se calculaba con `new Date().toISOString()`, que
+convierte a UTC: después de las 18:00 en México proponía el día siguiente. Ahora
+usa `hoyISO()` (regla R3).
+
+---
+
+# SPEC-025 — El nombre del rol de turnos se arma solo
+
+### Por qué
+
+Cada quien titulaba sus roles a su manera: «Flexo semana del 21 de septiembre al
+3 de octubre» junto a «Tintas 21-03 oct» y «Mantenimiento Semana 39». Con la
+lista creciendo, encontrar un rol dependía de recordar cómo lo había llamado su
+autor, y dos roles del mismo periodo no se podían comparar de un vistazo.
+
+### Cómo se arma
+
+`DEPARTAMENTO · Periodo · dd/mm/aa al dd/mm/aa`
+
+Por ejemplo: `TINTAS · Quincenal · 05/10/26 al 18/10/26`.
+
+El rango sale de `diasDelPeriodo`, o sea del primer y el último día que el rol
+realmente cubre. En un rol mensual eso es el mes natural de la fecha de inicio,
+no treinta días contados desde ella.
+
+### Reglas de negocio
+
+- **El campo no se escribe.** Se muestra de solo lectura, para que quien
+  programa vea con qué nombre va a quedar antes de guardar.
+- **Se rehace con cada cambio de cabecera** y también al guardar. Así no puede
+  quedar describiendo un rango o un área que ya se cambió.
+- **Un rol nuevo nace con el nombre puesto**; no hay un momento en que esté
+  vacío, y por eso desapareció la validación de «el rol necesita un nombre».
+- **Los roles ya guardados conservan su nombre viejo** hasta que alguien los
+  abra y los guarde. No se renombran solos: reescribir documentos que nadie
+  pidió tocar es más riesgoso que convivir un tiempo con dos estilos.
+- **Dos roles pueden llamarse igual** si comparten área, periodo y fechas. Se
+  distinguen por su identificador, no por el nombre, así que no estorba; y si
+  aparecen dos idénticos, probablemente sobre uno.
+
+---
+
+# SPEC-026 — El nombre del colaborador ocupa dos renglones fijos
+
+### Por qué
+
+En la cuadrícula del rol, un nombre largo se salía de su columna y se montaba
+sobre las casillas de turno del lunes y el martes, tapando lo que se estaba
+capturando.
+
+### Reglas de negocio
+
+- **La columna mide 200 px fijos**, encabezado y celdas.
+- **El nombre ocupa siempre dos renglones**, aunque quepa en uno. La altura se
+  reserva para que todas las filas midan igual; con altura variable, la
+  cuadrícula se desalinea del encabezado de días conforme se baja.
+- **Lo que no cabe en dos renglones se recorta**, y el nombre completo queda en
+  el `title` de la celda.
+- El número de nómina va debajo, fuera de esos dos renglones.
+
+---
+
+# SPEC-027 — `G8` se llama `ADM`
 
 ### Alcance
 
-El encabezado es el mismo en las cinco aplicaciones de la suite. Está definido
-en la SPEC-035 del repositorio `rrhh-pwa`, que es la referencia. Esta app era la
-única distinta: no tenía barra de marca, sino una barra de título por pantalla,
-y por eso la aplicación del estándar aquí cambió más cosas que en las demás.
+La clave de turno `G8` (08:00 – 18:00) pasa a llamarse `ADM`. El horario y todo
+lo demás del catálogo queda igual.
 
-### Qué hace
+### Reglas de negocio
 
-- **Un solo encabezado arriba de todas las pantallas**, para los cuatro papeles.
-  Marca en Jost a la izquierda con «MANTENIMIENTO» debajo; botón de portal y
-  círculo de la nómina a la derecha; nombre y puesto centrados en pantalla ancha.
-- **Las pestañas de abajo siguen siendo la navegación.** No se tocaron.
-- **Se oculta en la pantalla de entrada** y aparece al identificarse. Lo decide
-  `showPage()`, así cubre también la sesión que sobrevive a F5 y el cambio de
-  papel del administrador.
-- **Queda fijo sin `position: sticky`.** El documento no se desplaza: cada
-  pantalla tiene su propio desplazamiento debajo del encabezado. Por eso mide
-  **56 px fijos**, y cada página se acorta exactamente eso
-  (`body.con-hdr .page`).
-- **El punto de conexión refleja la conexión real a Firebase**
-  (`.info/connected`), no solo si el teléfono tiene red: verde conectado, rojo
-  sin conexión, ámbar parpadeando mientras sincroniza. Es más preciso que en las
-  otras apps, que usan lo que reporta el teléfono.
-- **Panel al tocar la nómina**: nombre, puesto, conexión, nómina y papel, más
-  «Ir al portal» y «Cerrar sesión».
-
-### Qué se retiró
-
-- **Las barras de título de las doce pantallas principales**: Mis solicitudes,
-  Notificaciones y Mi perfil del solicitante; Mis órdenes, Historial y Mi perfil
-  del técnico; Todas las OT, Técnicos, Turnos, Preventivo y Mi perfil del
-  supervisor; y el Panel de administración. Solo repetían el nombre de la
-  pestaña que ya está marcada abajo.
-- **Los tres saludos** que vivían en esas barras («Hola, …», el nombre del
-  técnico, el del administrador). El código que los escribía se ajustó: si se
-  hubiera quitado solo el elemento, la app habría fallado justo al entrar.
-- **El indicador flotante de conexión** con su mini botón de salida, de la
-  esquina superior derecha. Sigue en la pantalla de entrada; después se esconde,
-  porque quedaría encimado sobre los botones del encabezado.
-
-### Qué se conservó
-
-- **Las barras de las subpantallas**: nueva solicitud, detalle de OT, registrar
-  actividad, poner en espera, rol de turnos, programa preventivo y las de
-  administración. Llevan la flecha de regreso y datos propios como el número y
-  el estado de la OT; sin ellas no habría forma de volver.
-- **El turno del técnico.** Se mostraba en la barra de «Mis órdenes»; ahora va
-  en el panel de la sesión.
-
-### Defectos corregidos de paso
-
-- **El botón de Excel de «Todas las OT» y el de cerrar sesión del administrador
-  eran invisibles.** Tenían el icono en blanco sobre la barra, que había pasado a
-  blanca. El Excel vuelve como botón redondo verde, igual que en las demás apps;
-  cerrar sesión, al panel.
+- **`G8` sigue existiendo en el catálogo, pero ya no se ofrece.** Los roles
+  guardados tienen celdas con `G8` escrito dentro: quitarlo las dejaría sin
+  horario y sin hora de fin, y una jornada sin hora de fin **nunca contaría como
+  falta** (SPEC-014). El dato viejo se lee; lo que se escribe de aquí en
+  adelante es `ADM`.
+- **Se muestra siempre como `ADM`**, a través de `etiquetaTurno`. Quien capture
+  no llega a ver la clave vieja ni en la cuadrícula, ni en el portapapeles, ni
+  en las exportaciones.
+- **Una celda guardada con `G8` se ofrece aparte en su desplegable**, o el campo
+  saldría vacío sobre un turno que sí está puesto.
+- **Las celdas viejas se convierten al guardar**, no antes: al tocar esa celda y
+  elegir `ADM`, queda escrita la clave nueva. No hay conversión masiva, por lo
+  mismo que en la SPEC-025.
 
 ---
 
-## SPEC-051 — Abrir sin mostrar la contraseña de paso
+# SPEC-028 — Quién ya cursó, y quién falta
+
+### Por qué
+
+Un curso que se imparte a toda la planta se parte en varias sesiones, y hasta
+ahora llevar la cuenta era trabajo manual: quién lo tomó, a quién le falta, qué
+calificación sacó cada quien. La pestaña de Cursos mostraba el estatus del
+**curso** (programado, no asistencia), no el de **cada persona**.
+
+### Flujo principal
+
+1. Se filtra por un curso. Sin curso elegido no hay a quién dar por cursado, así
+   que las columnas de captura no aparecen.
+2. La tabla de arriba lista a **quienes faltan** de tomarlo.
+3. Se palomea la casilla **Cursado** de quienes asistieron, y opcionalmente su
+   **Calif.**
+4. Se pulsa **Actualizar**: esas personas pasan a la sección **Completados** y
+   desaparecen de la tabla de arriba.
+
+### Reglas de negocio
+
+- **Marcar y guardar son dos momentos distintos.** Las casillas viven en
+  pantalla y solo se escriben al pulsar Actualizar. Una sesión de treinta
+  personas cuesta **una** escritura, no treinta, y quien se equivoca de casilla
+  la desmarca sin que haya pasado nada.
+- **La calificación es opcional**, porque no todos los cursos llevan examen. Se
+  habilita solo al marcar Cursado: capturar una nota para alguien que no asistió
+  no significa nada.
+- **Una calificación fuera de 0 a 100 detiene el guardado.** Guardarla como
+  vacía sin avisar perdería la captura en silencio.
+- **En Completados la calificación se puede corregir**, porque el examen se
+  suele calificar días después de la sesión. Ahí sí se guarda al salir del
+  campo: es un dato suelto y esperar a un botón confundiría.
+- **Se puede regresar a alguien a pendientes.** Marcar es un clic y equivocarse
+  también; sin esa salida, una casilla mal picada dejaría a esa persona como
+  capacitada para siempre.
+- **Se guarda quién registró y en qué día**, y se muestra en Completados. La
+  trazabilidad no la dan las reglas de Firestore (SPEC-008, regla R6) sino los
+  datos que la app graba.
+- **La captura la hace quien tenga permiso de captura.** Los demás ven las dos
+  tablas completas, pero sin casillas, sin botón y sin poder corregir.
+
+### Cómo se guarda
+
+**Un documento por curso**, en la colección `cursosCompletados`, con un mapa
+`nómina → registro` adentro. Con 122 personas pesa unos 7 KB, y saber quién
+falta es restarle el padrón que la app ya tiene en memoria.
+
+Un documento por persona y por curso daría 122 documentos por curso, y armar la
+lista de pendientes obligaría a leerlos todos cada vez que alguien abre la
+pestaña. Es el mismo error que hoy le cuesta a EPP más de un giga al mes.
+
+**Solo se lee el curso filtrado**, y solo mientras lo está: un documento, no la
+colección.
+
+Cada nómina se escribe bajo su propia clave con `merge`, así que dos personas
+capturando el mismo curso al mismo tiempo no se pisan.
+
+### Cambios de presentación
+
+- **Se retiraron las columnas Departamento y Estatus**, también del selector de
+  columnas y de las exportaciones. Departamento sigue estando como filtro.
+- **La columna de fecha ya no repite el título del curso** en pantalla: la
+  columna de al lado ya lo lleva, y el título la ensanchaba de más. En las
+  exportaciones sí se conserva, porque ahí pueden ir varios cursos a la vez y
+  dos columnas llamadas «Fecha» se confundirían entre sí.
+- **Excel y PDF exportan a los pendientes**, que es lo que la tabla muestra.
+
+### Pendiente de configuración
+
+La colección `cursosCompletados` es nueva. Si las reglas de Firestore del
+proyecto `rrhh-pwa` nombran las colecciones una por una, hay que darle de alta
+antes de que esto funcione; si usan una regla general para toda sesión
+autenticada, ya queda cubierta. El síntoma de que falta es que Actualizar falle
+con permiso denegado.
+
+---
+
+# SPEC-029 — Botones redondos y reporte de las dos tablas
+
+### Por qué
+
+Con el texto dentro, los botones Excel, PDF y Actualizar no cabían en la fila de
+filtros y Actualizar se bajaba solo a un segundo renglón, encimado bajo los
+demás.
+
+Y el reporte servía a medias: exportaba únicamente a los pendientes, así que
+para saber cómo iba un curso había que sacar el archivo y compararlo a mano
+contra la pantalla.
+
+### Reglas de negocio
+
+- **Los tres botones son redondos, de 30 px, solo con icono**, del mismo alto
+  que el resto de la fila. Verde para Excel, rojo para PDF, azul marino para
+  Actualizar.
+- **Actualizar conserva su número** en una marca roja sobre la esquina. Al
+  quitarle el texto, sin ese número no habría forma de saber cuántos van
+  marcados sin contar casillas a mano.
+- **El icono gira mientras guarda.** Es la única señal que queda de que está
+  trabajando, porque ya no hay texto que diga «Guardando…».
+- **Con un curso filtrado, Excel y PDF llevan las dos tablas**: pendientes y
+  completados. De nada sirve la lista de quién falta sin saber quién ya lo tomó.
+- **Sin curso filtrado no hay completados**, y el reporte sale como antes, de
+  una sola tabla.
+- **En Excel son dos hojas**, «Pendientes» y «Completados». En el PDF, dos
+  tablas una tras otra, cada una con su subtítulo y su total.
+- **Una tabla vacía se omite** en lugar de salir con el encabezado solo. Si las
+  dos están vacías, no se descarga nada y se avisa.
+
+### Implementación
+
+Se agregaron `exportToExcelSheets` y `exportToPDFSections` a `utils/exportUtils`
+**sin tocar** `exportToExcel` ni `exportToPDF`, que siguen usando las demás
+pestañas.
+
+### Defecto corregido de paso
+
+El nombre de los archivos exportados se fechaba con `toISOString()`, que
+convierte a UTC: después de las 18:00 en México el archivo salía con la fecha
+del día siguiente. Afectaba a todas las pestañas que exportan, y ya usa la fecha
+local (regla R3).
+
+---
+
+# SPEC-030 — Los botones de exportar son redondos en toda la aplicación
+
+### Alcance
+
+Lo que la SPEC-029 hizo en Cursos se extiende a las seis pestañas que exportan.
+Quedaron redondos, de 30 px y solo con icono, en:
+
+| Pestaña | Botones |
+|---|---|
+| Directorio | Excel, PDF |
+| Antigüedad y Vacantes | Excel (cumpleaños del mes) |
+| Incidencias | Excel, PDF |
+| Capacitación | Excel, PDF |
+| Promociones | Excel |
+| Cursos | Excel, PDF, Actualizar |
+| Sucesos y Turnos | Excel y PDF de la bitácora; Excel y PDF del reporte de faltas |
+
+### Reglas de negocio
+
+- **El estilo se escribe una sola vez**, en `index.css`, como las clases
+  `.btn-circular`, `.btn-circular-excel`, `.btn-circular-pdf` y
+  `.btn-circular-navy`. Repetido en cada pestaña, tarde o temprano una se
+  quedaría distinta de las demás. Es la misma razón por la que
+  `puedeVerGraficas` vive en un solo archivo (regla R1).
+- **Cursos también usa esas clases.** La copia local que tenía se retiró, o
+  habría dos definiciones del mismo botón.
+- **Todos llevan `title`.** Sin texto, es lo único que dice qué hacen.
+- **El estado deshabilitado lo da el CSS**, con `:disabled`, y no cada pantalla
+  por su cuenta con opacidad y cursor inline.
+- **Los botones de exportar del reporte de faltas medían 28 px** y ahora miden
+  30, como todos.
+
+### Lo que no cambió
+
+El icono verde de Excel que aparece **dentro de cada renglón** de la lista de
+roles de turnos se queda como está: es una acción de fila, sin fondo ni forma
+de botón, y redondearlo lo haría competir visualmente con los de la cabecera.
+
+---
+
+# SPEC-031 — Un rol de turnos solo lo modifica quien lo creó
+
+### Qué cambia
+
+Hasta la versión 2.19, un administrador también podía guardar el rol de otra
+persona. Ya no: **la edición queda reservada a su autor, sin excepciones.** Ni
+administradores ni RRHH.
+
+### Por qué se retiró la excepción
+
+Quien programa un turno responde por él. Que otro pudiera cambiarlo sin que se
+notara rompía esa responsabilidad: el rol seguía diciendo «creado por» una
+persona mientras su contenido podía ser de otra.
+
+### Qué hace un administrador en su lugar
+
+**Puede borrar el rol, no editarlo.**
+
+Esa salida tiene que existir. La razón por la que un administrador podía editar
+era que, si el autor dejaba la empresa, su rol quedaba congelado para siempre.
+Ese problema no desaparece al retirar el permiso; empeora, porque el rol
+tampoco se podría retirar de la lista. Y no es un estorbo cosmético: **la
+asistencia se calcula sobre los turnos asignados** (SPEC-014), así que un rol
+equivocado que nadie puede tocar seguiría generando faltas falsas contra gente
+que sí vino a trabajar, indefinidamente.
+
+Borrar no es modificar. Un administrador no puede cambiarle un turno a nadie;
+lo que puede es retirar un rol que quedó mal y que su autor ya no puede
+corregir. El rol se rehace desde cero, a nombre de quien lo rehizo, y la
+autoría sigue siendo honesta.
+
+### Reglas de negocio
+
+- **Guardar un rol: solo su autor**, comparando la nómina de la sesión contra
+  `creadoPorNomina`.
+- **Borrar un rol: su autor o un administrador.**
+- **Verlo lo puede cualquiera.** Un rol ajeno se abre en modo lectura, con el
+  aviso de quién lo creó y a quién hay que pedirle el cambio.
+- **Un rol sin autor registrado no lo edita nadie**, porque comparar dos
+  nóminas vacías daría verdadero y lo dejaría abierto a cualquiera. Un
+  administrador sí puede borrarlo, que es justo para lo que sirve esa salida.
+- **Quién puede crear roles no cambia**: sigue siendo el permiso
+  `departamentosTurnos` del padrón, que administra un ADMIN (SPEC-013, regla
+  R1). Un administrador no se queda sin control; lo ejerce antes, decidiendo
+  quién programa, y no después corrigiendo lo programado.
+
+### Consecuencia aceptada
+
+Si el autor de un rol está de vacaciones, incapacitado o ya no trabaja aquí,
+**su rol no se puede corregir**: hay que borrarlo y rehacerlo. Con roles
+semanales o quincenales el costo es bajo; con uno mensual a media captura,
+significa volver a capturarlo completo.
+
+Esta regla también deja fuera a los tres supervisores que comparten impresión,
+que fue el motivo por el que el permiso se había puesto por departamento y no
+por persona. Cada uno seguirá pudiendo crear roles de su área, pero no tocar el
+del compañero.
+
+---
+
+# SPEC-032 — Revertir una falta que no lo fue
+
+### Por qué
+
+La asistencia se infiere: una falta es un turno asignado que ya terminó sin que
+exista revisión de EPP de esa persona ese día (SPEC-014). El riesgo estaba
+documentado y aceptado, y ocurrió: una semana en que no se hicieron las
+revisiones dejó marcadas como ausentes a personas que sí vinieron a trabajar.
+
+Sin una salida, el único remedio sería borrar el rol, que además falsearía todo
+lo demás.
+
+### Quién puede
+
+**Solo quien tenga marcado `revertirFaltas` en el padrón.**
+
+Este permiso **rompe a propósito el patrón de todos los demás: ser ADMIN no
+basta.** Se pidió expresamente que lo tuviera una sola persona, y si el papel lo
+concediera, cualquier administrador podría borrar faltas sin que nadie lo
+hubiera decidido.
+
+Eso no lo convierte en un candado. Un administrador administra la pantalla de
+permisos y podría marcarse a sí mismo; la regla R6 ya dice que los candados de
+esta app son de interfaz. **Lo que sostiene el permiso no es el bloqueo, es la
+firma:** cada corrección guarda quién la hizo, cuándo y por qué, y se muestra en
+una lista junto al reporte.
+
+### Flujo principal
+
+1. Se genera el reporte de faltas del periodo.
+2. Quien tiene el permiso ve en cada renglón un botón **Sí vino**.
+3. Al pulsarlo se pide el motivo, propuesto como «No se hizo la revisión de EPP,
+   pero sí asistió». Sin motivo no se guarda.
+4. La falta desaparece del reporte y pasa a la lista de revertidas.
+
+### Reglas de negocio
+
+- **Una corrección vale lo mismo que una revisión de EPP.** Se unen en un solo
+  conjunto dentro de `asistenciaService`, no en cada pantalla, porque las faltas
+  se cuentan en **tres** lugares: el reporte, el número junto a cada rol y la
+  gráfica. Separadas, tarde o temprano uno de los tres se quedaría sin mirar las
+  correcciones y seguiría acusando a quien ya se dio por presente.
+- **El motivo se guarda fijo**, junto con quién corrigió y en qué día. No se
+  muestra en ningún lado desde la 2.23.0, pero se sigue escribiendo: cuesta
+  nada y deja el rastro en la base.
+- **No se puede deshacer, ni hay lista de revertidas.** Se retiraron en la
+  versión 2.23.0 a petición expresa; el razonamiento y sus consecuencias están
+  en la SPEC-034.
+- **No se corrige en bloque.** Van de una en una, con su motivo. Una semana
+  entera sin revisiones son muchas pulsaciones, y así debe sentirse: el arreglo
+  de fondo es que se hagan las revisiones, no que sea cómodo revertirlas.
+- **Solo aparece sobre faltas que ya existen.** No se puede dar por presente a
+  alguien que no tenía turno asignado.
+
+### Cómo se guarda
+
+**Un documento por mes**, en la colección `asistenciaManual`, con un mapa
+`nómina_fecha → corrección` adentro. Un rango semanal o quincenal toca uno o dos
+documentos; uno mensual, uno solo. Un documento por corrección obligaría a
+consultar la colección entera cada vez que se cuentan faltas, que es tres veces
+por visita a la pestaña.
+
+Se esperan pocas: existen para la excepción, no para el uso diario.
+
+### Pendiente de configuración
+
+`asistenciaManual` es una colección nueva. Si las reglas de Firestore nombran
+las colecciones una por una, hay que darla de alta, igual que
+`cursosCompletados` (SPEC-028). El síntoma de que falta es que el botón **Sí
+vino** falle con permiso denegado.
+
+### Lo que esto no arregla
+
+Sigue siendo un parche sobre el riesgo de fondo: la asistencia se infiere de una
+revisión que puede no hacerse. Mientras las revisiones de EPP no sean
+efectivamente obligatorias para todos, seguirán apareciendo faltas falsas y
+alguien tendrá que revertirlas a mano, una por una.
+
+---
+
+# SPEC-033 — Calendario de cumplimiento de cursos
+
+### Por qué
+
+La Matriz de Capacitaciones decía qué cursos hay y a quién van dirigidos, pero
+no si se están tomando. Para saber si un curso se está quedando atrás había que
+entrar a Cursos, filtrar por ese curso y contar a mano los pendientes.
+
+### Flujo principal
+
+1. En la Matriz de Capacitaciones se pulsa el botón redondo azul marino, a la
+   izquierda de Excel.
+2. Se abre el calendario del mes en curso. Cada curso aparece en el día de su
+   **fecha compromiso**, con su color.
+3. Debajo va el detalle de los cursos de ese mes: título, instructor, cuántos
+   participantes le tocan, cuántos ya lo tomaron y cuántos faltan.
+4. Se navega mes a mes con las flechas.
+
+### Reglas de negocio
+
+### En la cuadrícula solo se pinta el día
+
+El nombre del curso estaba dentro de la casilla del día, en una sola línea. Un
+título largo —los de las NOM lo son— estiraba su columna y **desacomodaba toda
+la cuadrícula**: los días dejaban de alinearse con los encabezados.
+
+- **La casilla no lleva texto del curso.** Los días con curso se pintan de azul
+  marino, con el número en blanco; el título aparece al pasar el cursor encima,
+  y el detalle completo está debajo del calendario.
+- **Si hay más de un curso ese día**, la casilla lo dice con «N cursos».
+- **Las columnas son `minmax(0, 1fr)`, no `1fr`.** Con `1fr`, cualquier
+  contenido ancho vuelve a estirar su columna. Así ya no puede pasar, aunque
+  algún día se agregue algo más a la casilla.
+- **El semáforo vive en el detalle de abajo**, no en la cuadrícula.
+
+- **La fecha compromiso es `fechaFin`.** Es la que marca si un curso ya debió
+  estar cubierto.
+- **El color solo aparece cuando la fecha ya pasó.** Antes no hay nada que
+  juzgar: todavía hay tiempo de tomarlo. Un curso que no vence sale en gris
+  aunque no lo haya tomado nadie.
+
+  | Estado | Cuándo | Color |
+  |---|---|---|
+  | En tiempo | La fecha compromiso no ha pasado | Gris |
+  | Completo | Venció y lo tomó el grupo entero | Verde |
+  | Incompleto | Venció y va del 50 % para arriba | Amarillo |
+  | Atrasado | Venció y va por debajo del 50 % | Rojo |
+  | Sin participantes | Venció y no le toca a nadie del padrón activo | Gris claro |
+
+- **El 50 % exacto cuenta como incompleto, no como atrasado.** Se pidieron los
+  cortes «menos del 50», «arriba del 50.1» y «100», que dejaban fuera el 50
+  justo. La mitad del grupo capacitada no es lo mismo que nadie.
+- **Los participantes son los del padrón activo** a quienes aplica el curso por
+  departamento y puesto. Una baja deja de contar, así que un curso puede subir
+  de porcentaje sin que nadie lo tome.
+- **Quien tomó el curso nunca supera al total.** Si alguien cambió de área
+  después de tomarlo, el conteo guardado podría pasarse del padrón de hoy, y un
+  «21 de 20» se leería como un error de la aplicación.
+- **Un curso sin documento de completados cuenta como cero.** Que falte no es un
+  error: significa que nadie lo ha tomado todavía.
+
+### Cómo se lee
+
+Los completados se piden **al abrir el calendario**, no al cargar la pestaña:
+mientras nadie lo consulte, no se descarga nada. Es una lectura por curso, de
+unos kilobytes cada una.
+
+### Regla compartida
+
+`cursoAplicaA` se movió a `utils/cursos`, porque ahora la usan dos pestañas:
+**Cursos** para armar la matriz de pendientes y **Capacitación** para contar
+participantes. Escrita dos veces, una acabaría contando distinto de la otra y
+los dos números nunca cuadrarían. Es la misma razón de la regla R1.
+
+---
+
+# SPEC-034 — La corrección de faltas no se audita ni se deshace
+
+### Qué cambia
+
+Se retiran dos cosas de la SPEC-032: la **lista de faltas revertidas** que
+aparecía bajo el reporte, y el botón de **deshacer**.
+
+El razonamiento de quien lo pidió: como el permiso lo tiene una sola persona, no
+hay a quién auditar.
+
+### Lo que se conserva, y por qué no se puede quitar
+
+**La corrección se sigue guardando.** No es un historial aparte que se pueda
+dejar de escribir: **es el dato que sostiene la reversión**. Si no se guardara,
+la falta reaparecería en cuanto alguien volviera a generar el reporte. Lo que se
+retiró es mostrarla, no almacenarla.
+
+Se siguen escribiendo el motivo, la nómina y el nombre de quien corrigió, y el
+día. Cuesta nada y deja el rastro en la base por si alguna vez hay que revisar
+qué pasó.
+
+### Consecuencias aceptadas
+
+- **Un renglón mal pulsado es definitivo desde la app.** Antes bastaba la equis
+  roja. Ahora hay que entrar a la consola de Firebase, colección
+  `asistenciaManual`, documento del mes `AAAA-MM`, y borrar la clave
+  `nómina_fecha` del mapa `registros`.
+- **No hay forma de saber qué ya se corrigió.** Una persona corregida
+  simplemente deja de salir en el reporte, igual que alguien que nunca faltó.
+  Las dos situaciones se vuelven indistinguibles desde la aplicación.
+- **La trazabilidad deja de ser visible.** La SPEC-032 sostenía este permiso en
+  que cada uso quedara a la vista, porque las reglas de Firestore no distinguen
+  usuarios (regla R6). Con la lista retirada, el rastro sigue existiendo en la
+  base pero solo lo alcanza quien entre a la consola.
+
+### Lo que queda como resguardo
+
+**Una confirmación con el nombre y la fecha a la vista** antes de escribir. Es
+el único freno que queda entre un clic y borrar una falta real, y por eso se
+mantiene aunque el motivo ya no se pregunte.
+
+---
+
+# SPEC-035 — Encabezado estándar de la suite
+
+### Alcance
+
+El encabezado es el mismo en las cinco aplicaciones. Esta spec lo define para
+RRHH, que va primero; las demás lo copian cambiando una sola línea, el nombre de
+la aplicación.
+
+### Por qué se rehizo
+
+El anterior se centraba con `flex: 1` sobre el espacio que **sobraba** después
+de los botones, no sobre la pantalla. En escritorio casi no se notaba; en un
+iPhone el bloque salía corrido y «Sistema de Gestión de Recursos Humanos» se
+partía en dos renglones contra el círculo de la nómina. Ocupaba 175 px antes del
+primer dato: casi una quinta parte de la pantalla del teléfono.
+
+### Estructura
+
+Una sola fila:
+
+`[ IMPREDIMEX / NOMBRE DE LA APP ] ······ [ nombre y puesto ] [ portal ] [ nómina ]`
+
+- **Alineado a la izquierda, no centrado.** Centrarlo es lo que causaba el
+  descuadre; alineado no hay nada con qué pelear.
+- **El nombre y el puesto solo aparecen desde 760 px de ancho.** En el teléfono
+  no caben sin cortarse: el caso más largo del padrón son 74 caracteres y en un
+  iPhone caben unos 40.
+- **En el teléfono viven en el panel** que abre la nómina, donde tienen el ancho
+  completo y pueden ocupar dos renglones. Ninguno se corta, mida lo que mida.
+- **La barra mide igual para todos.** Con 122 personas de nombres muy distintos,
+  si el nombre viviera en la barra la altura dependería de quién entró. Es lo
+  que se necesita de algo que va a vivir en cinco aplicaciones.
+
+Resultado: **56 px de alto en el teléfono**, contra 175.
+
+### El panel de la nómina
+
+Se abre al tocar el círculo y contiene el nombre, el puesto, la nómina, el papel
+y el estado de conexión, más **Ir al portal** y **Cerrar sesión**.
+
+- **El apagado se mudó aquí**, así la barra se queda con dos botones en vez de
+  tres. Cerrar sesión pasa a ser dos toques, y es algo que se hace una vez al
+  día.
+- Se cierra tocando fuera.
+
+### Reglas de presentación
+
+- **El logotipo va en Jost, peso 600, espaciado `.20em`.** Antes era peso 800
+  sin espaciado: a ese peso las letras se tocan y se lee apretado. El aire es lo
+  que da calma.
+- **El nombre de la aplicación va en mayúsculas finas y grises**, peso 400,
+  espaciado `.26em`. Antes competía con la marca; ahora la acompaña. Y se acortó
+  a «Recursos Humanos»: con la marca encima, lo demás sobraba, y era justo lo
+  que se partía en dos renglones.
+- **Si Jost no carga**, el respaldo del sistema conserva el mismo peso y
+  espaciado: cambia la letra, nunca el acomodo.
+- **El estado de conexión es un punto sobre el círculo de la nómina**, no un
+  renglón propio. Ahorra un renglón entero de alto.
+- **Los botones se ven de 32 px pero responden en 44.** Con guantes, 32 px se
+  falla; es la medida mínima para atinarle.
+- **Botón de portal**, los cuatro cuadros. Antes no había forma de volver a la
+  suite salvo apagar y entrar de nuevo.
+
+### Fijo, opaco, y de borde a borde
+
+- **Queda fijo arriba** (`position: sticky`) y siempre visible al desplazarse.
+  Va en la capa 45: por encima de los menús desplegables del contenido (30) y
+  por debajo de todas las ventanas emergentes (50 en adelante), que tienen que
+  poder taparlo.
+- **El nombre y el puesto van centrados de verdad.** Las dos orillas del
+  encabezado —la marca y los botones— crecen igual (`flex: 1 1 0`), así lo de en
+  medio queda centrado en la pantalla. Antes el bloque crecía para llenar el
+  hueco y el texto se alineaba a la derecha: el nombre, más largo, parecía
+  centrado, y el puesto se cargaba hacia la orilla.
+
+- **El encabezado no lleva transparencia ni desenfoque de fondo.** Tenía 12 % de
+  transparencia y `backdrop-filter`, pero **no está fijo**: se desplaza con la
+  página, así que no había nada detrás que desenfocar. Lo único que lograba era
+  dejar pasar el fondo y, en iOS, lavar el logotipo.
+- **No usa la columna centrada del contenido.** El resto de la página se acota a
+  1050 px, pero el encabezado va de borde a borde: así la marca queda en la
+  esquina izquierda y los botones en la derecha, en lugar de flotar hacia el
+  centro en pantallas anchas.
+- **El renglón del puesto no repite el estado de conexión.** El punto sobre el
+  círculo de la nómina ya lo dice, y su título lo deletrea.
+
+### Dónde vive el estilo
+
+En `src/index.css`, como `.hdr-marca`, `.hdr-app`, `.hdr-identidad` y
+`.hdr-boton`, **no dentro del componente**. Las otras cuatro aplicaciones son
+HTML de un solo archivo: copian esas reglas tal cual y quedan iguales sin
+traducir nada.
+
+El corte de 760 px se resuelve con `@media` en el CSS y no midiendo la ventana
+desde JavaScript, para que las apps de HTML plano puedan usar exactamente el
+mismo código.
+
+### Pendiente
+
+Falta aplicarlo a EPP, Mantenimiento, Calidad y Procesos. Y la barra de pestañas
+sigue cortándose en el teléfono; es un problema aparte de éste.
+
+---
+
+# SPEC-036 — Abrir sin mostrar la contraseña de paso
 
 ### Por qué
 
@@ -1983,231 +1773,370 @@ terminaba de leer la ficha del padrón: entre medio segundo y un segundo y medio
 
 ### Particular de esta app
 
-- **El aviso sale de `showPage()`**: pasar a una página de papel es sesión
-  confirmada; volver a la de entrada es que ya no hay. Así cubre también la
-  sesión guardada que sobrevive a F5 y el cambio de papel del administrador.
-- **Sin sesión y sin nada guardado, la app no hacía nada**, porque la
-  contraseña ya estaba a la vista. Ahora quita la marca en ese caso; si no, la
-  tendría tapada 8 segundos.
+La pantalla intermedia «Verificando tu sesión…», en azul claro, se cambió por la
+misma marca blanca, para que las seis apps se vean idénticas mientras abren. La
+función `arranqueListo` vive en `index.html` porque debe correr antes de que
+React cargue; `App.tsx` solo le avisa, con `avisarArranque`.
 
 ---
 
-## SPEC-052 — La pantalla de administrador existe desde el arranque
+# SPEC-037 — Acceso a las aplicaciones desde el Directorio
 
 ### Por qué
 
-Al volver a la app en la misma ventana —por ejemplo, del portal a
-Mantenimiento—, el administrador quedaba ante una pantalla en blanco, sin
-encabezado y sin ningún error en la consola. Los demás papeles no.
+Quién entra a cada app, y con qué papel, vive en el padrón de la suite: la
+lista `apps` y el mapa `roles` de cada colaborador. Hasta ahora solo se
+cambiaba **a mano en la consola de Firebase**, documento por documento. Eso
+contradecía la regla R1 y tenía un riesgo concreto: cada app escribe sus papeles
+distinto, y Mantenimiento en minúsculas. Un `ADMIN` en mayúsculas en la clave
+`manto` hacía que esa persona entrara sin que la app reconociera su pantalla.
 
-### Causa
+### Flujo principal
 
-`restoreSession()` recupera la sesión guardada en `sessionStorage` y corre
-**mientras el navegador todavía está leyendo el archivo**. Las pantallas del
-solicitante, el técnico y el supervisor están escritas antes del código, pero
-la del administrador —con sus seis ventanas emergentes— estaba al final,
-después de él. En ese instante todavía no existía.
+1. En el Directorio, un administrador de RRHH pulsa el icono de llave de una
+   persona.
+2. Se abre una ventana con las cinco apps y, en cada una, un selector: «Sin
+   acceso» o uno de sus papeles.
+3. Las que cambian se marcan como «cambiará». Guardar solo se habilita si hay
+   algún cambio.
 
-`showPage()` escondía la pantalla de entrada, no encontraba la de
-administrador y fallaba. El fallo lo atrapaba un `catch` que no avisaba nada.
-Como `currentUser` ya estaba puesto, el vigilante de Firebase creía que la
-sesión estaba abierta y no dibujaba ninguna pantalla.
+### Reglas de negocio
 
-Era un defecto antiguo: solo se manifiesta al regresar a la app en la misma
-ventana, con una sesión de administrador guardada.
+- **El catálogo de apps y papeles vive en un solo lugar**, `utils/accesosSuite`.
+  Los valores se eligen de una lista, así que no hay forma de escribirlos mal.
+- **Tener la app en `apps` es lo que da acceso**; `roles` solo dice con qué papel.
+  Quitar el acceso borra también el papel, para que si se le devuelve la app
+  entre con el que se elija entonces y no con uno viejo olvidado.
+- **Con acceso pero sin papel escrito**, se muestra el que la app aplica por
+  omisión, que es el que la persona tiene de verdad.
+- **Un papel mal escrito se señala, no se disimula.** Cada app lo trata distinto,
+  así que no hay un papel efectivo honesto que mostrar: se pide elegir uno.
+- **Las apps que la pantalla no conoce se conservan.** Guardar aquí no le borra
+  a nadie el acceso a una app futura que el catálogo todavía no incluya.
+- **Solo se escriben `apps`, las claves de `roles` que cambian y la firma** de
+  quién y cuándo. No viajan en `construirDocumento` (reglas R2 y R5).
+- **Nadie puede quitarse a sí mismo el administrador de RRHH:** perdería esta
+  pantalla y no habría forma de deshacerlo sin la consola.
+- **El cambio se aplica al siguiente ingreso.** Quien tenga una app abierta
+  debe cerrar sesión y volver a entrar.
 
-### Reglas
+### Quién puede
 
-- **Toda pantalla y ventana emergente va antes del código.** Nada de marcado
-  después del último `</script>`: cualquier código que corra al cargar
-  podría no encontrarlo.
-- **`restoreSession()` ya no falla en silencio.** Si algo sale mal, lo registra
-  en la consola, deja `currentUser` en vacío y vuelve a la pantalla de entrada,
-  para que el vigilante de Firebase abra la sesión por su lado.
+Los administradores de RRHH: el icono vive en la columna de acciones del
+Directorio, que solo ellos ven. Es un poder de toda la suite —un administrador
+de RRHH puede darse administrador en cualquier app—, igual que lo era tener
+acceso a la consola. Como todos los candados de esta app, es de interfaz
+(regla R6).
+
+### Pendiente de comprobar
+
+Las reglas de Firestore del proyecto de la suite no están en ningún
+repositorio. Si impiden escribir `apps` o `roles` desde las apps, Guardar
+mostrará que Firebase no lo permitió.
 
 ---
 
-## SPEC-053 — Se retira la pantalla azul de bienvenida
+# SPEC-038 — Un curso puede darse en varios días salteados
 
 ### Por qué
 
-Mantenimiento tenía una pantalla azul con «IMPREDIMEX» y la frase «Sumamos más
-cuando sumamos todos». Aparecía en cada apertura y no se quitaba hasta que el
-navegador terminaba de descargar todo —Firebase, las notificaciones, las
-fuentes— y luego esperaba un segundo y medio más a propósito: en el teléfono,
-tres o cuatro segundos.
+El formulario pedía fecha de inicio y fecha de fin, como si un curso fuera un
+tramo continuo. Muchos se imparten en varias sesiones y en fechas salteadas
+—por ejemplo lunes, jueves y el lunes siguiente—, y eso no se podía capturar.
 
-Con el arranque sin parpadeo (SPEC-051) convivían dos pantallas de marca:
-primero la blanca, mientras se confirma la sesión, y al quitarse aparecía la
-azul debajo, que seguía esperando su turno. Se percibía como una pantalla
-inicial de más.
+### Flujo principal
 
-### Qué cambia
+1. Se indica cuántas **sesiones** tiene el curso.
+2. Aparece un bloque por día, con su **fecha** y su horario.
+3. Los días se pueden capturar en cualquier orden: se guardan ordenados.
 
-- **Se retiró la pantalla azul y su código.** La marca al abrir es ahora la
-  misma blanca de las demás apps de la suite.
-- **La frase no se conserva en ningún lado**, por decisión expresa: se prefirió
-  que Mantenimiento abra igual que las otras cinco.
-- Sin sesión, la contraseña aparece al instante, sin la espera de antes.
+No hay fecha de fin: con días salteados no significa nada. Con un solo día, el
+bloque se titula «Fecha del curso».
+
+### Reglas de negocio
+
+- **Los días se guardan en `sesiones`**, cada uno con su fecha y su horario.
+- **`fechaInicio`, `fechaFin`, `horaInicio` y `horaFin` se siguen guardando**,
+  derivados: el primer día, el último, y el horario del primero. No se capturan.
+  El calendario de cumplimiento usa `fechaFin` como fecha compromiso (SPEC-033)
+  y la matriz de Cursos usa `fechaInicio`; guardarlos evita tocar todo eso.
+- **Los días nuevos heredan el horario del primero**, que es lo habitual, y se
+  pueden cambiar uno por uno.
+- **No se admiten dos días con la misma fecha**, ni días sin fecha.
+- **Entre 1 y 20 días.** Bajar el número recorta los últimos; subirlo conserva
+  lo ya capturado.
+- **Los cursos anteriores siguen valiendo.** No traen `sesiones` y se muestran
+  como el tramo que eran. Al editarlos se abren como uno o dos días —el de
+  inicio y el de fin—, porque lo que hubiera en medio nunca se registró.
+
+### Dónde se ve
+
+- En la lista de Capacitación, un renglón por día con su horario, y el total de
+  días cuando es más de uno.
+- En la matriz de Cursos, la columna de fecha muestra el primer día y avisa
+  «+N días», para que no parezca de una sola fecha.
+- En el Excel se agregaron las columnas «DÍAS» y «FECHAS», con todas las fechas
+  del curso. Se conservan «FECHA INICIO» y «FECHA FIN».
 
 ---
 
-## SPEC-054 — La sesión guardada se restaura al final del código
+# SPEC-039 — Quitar a alguien de un curso
 
 ### Por qué
 
-Al llegar desde la suite, el administrador veía un instante la pantalla de
-contraseña antes de entrar. Los otros papeles no.
+Los cursos se dirigen por departamento y puesto. A veces el mismo puesto lo
+ocupan varias personas y no a todas les toca el curso, y no había forma de
+decirlo: aparecían como pendientes para siempre y hundían el porcentaje de
+cumplimiento sin remedio.
 
-### Causa
+### Flujo principal
 
-`restoreSession()` corría a media página, y la pantalla del administrador
-necesita variables declaradas con `let` más abajo (`admStatusFilter`,
-`personalEditar`, `personalBajaId`). JavaScript no permite leer una variable
-`let` antes de su línea: `initAdmin()` → `renderPersonal()` fallaba con
-*Cannot access 'admStatusFilter' before initialization*.
+1. Se filtra por un curso en la pestaña de Cursos.
+2. En cada renglón de la tabla de pendientes aparece una **equis pequeña y
+   gris** al final, que se pone roja al pasar encima.
+3. Al pulsarla se pide confirmación con el nombre y el curso.
+4. Esa persona deja de aparecer como pendiente.
 
-Desde la SPEC-052 ese fallo ya no dejaba la pantalla en blanco: regresaba a la
-de contraseña y Firebase abría la sesión por su lado un momento después. Ese
-regreso era el parpadeo.
+### Reglas de negocio
 
-### Regla
+- **Solo los administradores de RRHH.** Tener permiso de captura no basta: no
+  es capturar un dato, es decidir a quién le toca capacitarse. Hoy son Víctor
+  Moreno y Maritza Galván (ver «Asignación de acceso»).
+- **Se puede deshacer.** Bajo la tabla aparece un renglón plegado, «N sin
+  asignar a este curso», con quiénes son, quién los quitó y cuándo, y un botón
+  para devolverlos a pendientes. A diferencia de las faltas revertidas
+  (SPEC-034), aquí sí se conserva: quitar a alguien de un curso obligatorio
+  tiene consecuencias, y debe poder revisarse.
+- **No cuentan en el porcentaje del calendario** (SPEC-033): se descuentan de
+  los participantes. Si no, cada persona quitada bajaría el cumplimiento sin
+  que nadie pudiera arreglarlo.
+- **Quitar no es lo mismo que no haberlo tomado.** Quien ya lo tomó sigue en
+  Completados; quitar solo aplica a pendientes.
+- **El botón no lleva encabezado de columna**, para que no compita con las
+  columnas de captura.
 
-- **`restoreSession()` es la última instrucción del bloque de código.** Así
-  todas las variables y funciones ya existen cuando se dibuja cualquier
-  pantalla.
-- Lo que corre entre su lugar anterior y el final —`initFirebase()`,
-  `initSuite()` y el vigilante de la suite— solo registra avisos que llegan
-  después, así que no depende de que la sesión ya se haya restaurado.
+### Cómo se guarda
 
-### Verificación
-
-Se corrió el código real completo en un navegador simulado, con Firebase y las
-notificaciones sustituidos por imitaciones. Con el orden anterior se reprodujo
-el error y la caída a la contraseña; con el nuevo, los cuatro papeles entran
-directo a su pantalla.
-
----
-
-## SPEC-055 — Filtro por máquina y tablas ordenables en los indicadores
-
-### Filtro por máquina
-
-Se agrega un tercer filtro, junto a periodo y técnico.
-
-- **Aplica a los seis indicadores**, a diferencia del de técnico. Todos son
-  métricas de máquina o de su programa, así que todos tienen sentido acotados a
-  una: MTBF y MTTR de esa máquina, su disponibilidad, sus correctivas, su
-  comparación contra el periodo anterior y su programa preventivo.
-- **Con una máquina elegida, la disponibilidad se calcula sobre esa sola
-  máquina**, no sobre las 51. Si no, el número no significaría nada.
-- **Las opciones salen de los equipos que aparecen en las OT de maquinaria**, no
-  del catálogo. Así ninguna opción puede quedar sin coincidir con los datos por
-  una diferencia de nombre.
-- **Si la máquina elegida deja de aparecer en los datos, el filtro vuelve a
-  «todas»**, en vez de quedarse como un filtro invisible que no cuadra con nada.
-
-### Tablas ordenables
-
-Cada encabezado de las tablas de detalle ordena al pulsarlo: un clic de menor a
-mayor, el siguiente al revés, con una flecha que lo indica.
-
-- **Se ordena por el dato, no por el texto de la celda.** Cada columna declara
-  si es texto, número o fecha. Ordenar por texto pondría «45 min» antes que
-  «3 h», y «10/01» antes que «2/12».
-- **El texto ordena de forma natural**: «Prensa 2» antes que «Prensa 10».
-- **Cada tabla abre con el orden más útil**: MTBF por el intervalo más largo,
-  MTTR por la reparación más tardada, disponibilidad por el paro más largo,
-  correctivas por el cierre más reciente, y el preventivo por fecha.
-- **El orden se recuerda por indicador** mientras la pantalla esté abierta.
-- Reordenar **no recalcula nada**: se reordena lo que ya está en pantalla.
+En el **mismo documento del curso** donde vive quién lo tomó
+(`cursosCompletados/{curso}`), bajo `excluidos`, con la nómina como clave y la
+firma de quién lo hizo. No cuesta ni una lectura más: la pestaña ya traía ese
+documento, y el calendario ya lo leía para contar cuántos lo tomaron.
 
 ---
 
-## SPEC-056 — Filtros en un renglón, y exportar el detalle
-
-### Filtros
-
-Periodo, técnico y máquina van en un solo renglón. Se reparten el ancho por
-igual y, cuando no caben —en un teléfono—, **bajan en lugar de encogerse** hasta
-no poder leerse.
-
-### Dos columnas más en OT correctivas cerradas
-
-- **Tiempo total:** de la alta al cierre, **sin descontar esperas**. Es a
-  propósito distinto del de MTTR, que sí las descuenta: uno dice cuánto estuvo
-  abierta la orden y el otro cuánto se trabajó en ella. Ver las dos juntas
-  muestra cuánto se fue en esperar.
-- **Técnicos:** quiénes intervinieron, separados por coma. Una raya si la orden
-  se cerró sin técnico asignado.
-
-Las dos ordenan como el resto (SPEC-055): el tiempo por duración real.
-
-### Exportar
-
-Cada tabla de detalle trae dos botones redondos junto a su título, **con el
-mismo trazo que en Recursos Humanos**: círculo de 32 px con zona de toque de 44,
-verde para Excel y rojo para PDF.
-
-- **Se exporta lo que se ve**: las mismas columnas y **el mismo orden** que haya
-  en pantalla en ese momento.
-- **Las celdas van como texto**, sin marcado: los saltos de línea pasan a un
-  espacio para que una celda no traiga etiquetas dentro.
-- **El archivo deja constancia de los filtros** —periodo, técnico, máquina y
-  cuándo se generó—, para que se explique solo fuera de la app.
-- **El PDF sale por la ventana de impresión del navegador**, que es de donde se
-  guarda como PDF. Así no hace falta traer otra librería solo para esto: la app
-  ya usa este camino para el programa preventivo. Si el navegador bloquea la
-  ventana emergente, se avisa.
-- **Sin filas no se exporta nada** y se dice.
-
----
-
-## SPEC-057 — Se retiran los avisos dentro de la app
+# SPEC-040 — Nunca una pantalla en blanco
 
 ### Por qué
 
-La colección de avisos era **la partida más grande del consumo de datos**: en la
-medición de septiembre, 12.26 MB de 16.6 MB en media hora, el 74 %. La causa no
-es crear avisos, es **conectarse**: la app se suscribía a esa colección al
-arrancar, sin importar el papel ni la pantalla, y cada dispositivo que se
-enganchaba descargaba todos los avisos vivos, uno por uno. En planta cada
-teléfono se reconecta decenas de veces al día.
+La app se quedaba en blanco al abrirla con mala red, sin aviso y sin salida, y
+a veces al siguiente intento funcionaba. «Blanco» no era una causa: era lo que
+se veía cuando **cualquier** paso fallaba antes de alcanzar a dibujar algo.
 
-La SPEC-047 quitó los del supervisor, que nadie leía. Esto quita el resto.
+### Los pasos que pueden fallar
 
-### Por qué se puede quitar sin perder nada
+1. **Descargar la aplicación.** Si el archivo no llega, nada del código corre.
+2. **Verificar la sesión** con Firebase.
+3. **Leer el registro de personal** en el padrón de la suite.
 
-- **El aviso lo da el push de OneSignal**, que no toca esta base.
-- **El estado se ve en la lista de OT.** El solicitante lo ve en «Mis OT» y el
-  técnico en la suya: el aviso no decía nada que la lista no diga.
+### Reglas de negocio
 
-### Qué se retiró
+- **Ningún paso se espera para siempre.** Verificar la sesión tiene un límite
+  de 12 segundos; descargar la aplicación, otro tanto. Pasado eso se muestra un
+  aviso, no una pantalla quieta.
+- **El aviso dice en qué paso se detuvo** y si el dispositivo reporta conexión.
+  Una foto de esa pantalla basta para saber dónde buscar, en lugar de adivinar.
+- **Siempre hay un botón de Reintentar.**
+- **El respaldo del primer paso vive en `index.html`, no en la aplicación.**
+  Tiene que funcionar justamente cuando la aplicación no funciona. React lo
+  reemplaza al arrancar, así que solo se ve si nunca arrancó.
+- **La marca del arranque se retira al mostrar un aviso**, o lo taparía
+  (SPEC-036).
 
-- **La pestaña «Avisos» del solicitante**, en sus tres pantallas, y la pantalla
-  correspondiente.
-- **Los siete puntos que generaban avisos** —cinco para el técnico, dos para el
-  solicitante—.
-- **La suscripción a `notifs`.** Es lo único que de verdad baja el consumo:
-  quitar solo la pestaña no habría cambiado nada, porque la suscripción corría
-  igual.
-- El archivado y la migración de esa colección, que ya no tienen qué hacer.
+### Defecto corregido: un tropiezo de red cerraba la sesión
 
-### Defecto corregido de paso
+Si fallaba la lectura del registro de personal, se lanzaba un error de acceso y
+la app **cerraba la sesión**. Un bache de dos segundos se veía igual que no
+tener permiso, y obligaba a escribir la clave otra vez.
 
-La pestaña **«Historial» del técnico mostraba notificaciones**, no su historial.
-Existían dos funciones que escribían en la misma pantalla y la pestaña llamaba a
-la equivocada. Ahora muestra sus órdenes cerradas, que es lo que anuncia.
+Ahora son dos errores distintos: `ErrorDeAcceso` —la cuenta no puede entrar,
+y se cierra la sesión— y `ErrorDeConexion` —no se pudo preguntar, la sesión se
+queda abierta y se ofrece reintentar—.
 
-### Lo que queda en la base
+### Lo que esto no arregla
 
-Lo ya guardado en `manto_db/notifs` se queda donde está. **No lo descarga
-nadie**, porque la app dejó de escuchar esa colección, así que no cuesta
-tráfico; solo ocupa almacenamiento y se puede borrar desde la consola de
-Firebase cuando se quiera.
+No mejora la red. Lo que cambia es que una red mala se vea como lentitud y un
+aviso claro, en lugar de una aplicación rota. Que abra sin depender de la red
+—guardar la aplicación en el teléfono— y que los datos sobrevivan a un corte
+son trabajos aparte.
 
-### Consecuencia aceptada
+---
 
-El push es ahora el único aviso en el momento, y no deja registro: quien no lo
-vea no tiene dónde recuperarlo. No se pierde información —el estado sigue en la
-lista de OT—, pero sí el «te avisamos».
+# SPEC-041 — La matriz de cursos no se deforma, y su fecha se puede elegir
+
+### Por qué
+
+Dos problemas en la misma tabla:
+
+1. **Los títulos largos deformaban la tabla.** Los nombres de las NOM ocupan
+   renglones enteros, y el ancho de cada columna lo decidía su contenido más
+   largo: una sola columna se llevaba media pantalla.
+2. **La columna de fecha solo mostraba el primer día.** Con cursos de varios
+   días salteados (SPEC-038), ese dato se leía como si fuera la única fecha.
+
+### Ancho y alto fijos
+
+- **La tabla usa ancho fijo por columna.** Es lo único que impide que el
+  contenido mande: sin eso, cualquier título largo vuelve a estirarla.
+- **El título del curso usa dos renglones** y lo que no cabe no se ve; el
+  título completo queda al pasar el cursor. Los demás encabezados son de una
+  línea: el alto del renglón lo marca el título largo.
+- **Todos los encabezados van centrados**, a lo alto y a lo ancho. Con
+  alineación arriba o abajo, unos quedaban pegados al borde superior y otros al
+  inferior según su largo, y la fila se veía despareja.
+- **Hay que poner `white-space: normal` en el contenedor de adentro.**
+  `index.css` fuerza `white-space: nowrap !important` en toda celda de tabla y
+  eso se hereda: sin corregirlo, el texto nunca se parte en dos renglones, solo
+  se corta.
+- **El nombre y el puesto también se recortan a dos renglones**, o con ancho
+  fijo crecerían hacia abajo y las filas quedarían de alturas distintas.
+
+### El día de cada persona
+
+Un curso de varias sesiones se reparte entre la gente: no todos van el mismo
+día. Por eso el día **se elige en el renglón de cada participante**, no en el
+encabezado, y **se guarda**.
+
+- **Con un solo día no aparece la lista**: no hay nada que elegir.
+- **Con varios, cada renglón trae la lista** con todos los días —«Día 1 ·
+  2026-10-01»—, y debajo el horario de ese día.
+- **Se guarda el número de día, no la fecha.** Si una sesión se mueve en el
+  calendario, nadie queda apuntado a un día que ya no existe.
+- **Quien no tiene día asignado se muestra en el primero.** No se escribe nada
+  hasta que alguien lo cambia.
+- **Solo lo cambia quien tiene permiso de captura**; los demás ven el día
+  asignado sin poder moverlo.
+- **Las exportaciones llevan el día de cada persona**, no el primero del curso.
+- Se elige con una lista desplegable nativa y no con un menú propio: dentro de
+  una tabla que se desplaza de lado, un menú flotante se corta.
+- **Vive en el documento del curso**, junto a quién lo tomó, así que no cuesta
+  ninguna lectura más.
+
+---
+
+# SPEC-042 — Agregar a alguien a un curso, y barra de filtros más corta
+
+### Barra de filtros
+
+Se retiran **los filtros de departamento y puesto** y **el botón de Columnas**.
+Quedan el curso, la búsqueda por nombre o nómina, y los botones. Con el curso
+elegido, filtrar además por área o puesto era acotar dos veces lo mismo, y las
+columnas siempre son las mismas tres más las del curso.
+
+### Agregar a alguien al curso
+
+Los cursos se dirigen por área y puesto (`cursoAplicaA`), pero a veces asiste
+alguien que no cae en ninguno de los dos. No había forma de incluirlo.
+
+- **Un campo con autocompletado** busca por nombre o nómina y agrega a esa
+  persona al curso filtrado.
+- **Solo aparece con un curso elegido**: sin curso no hay a qué agregar.
+- **Solo busca personal activo.**
+- **Requiere permiso de captura**, como marcar quién ya lo tomó.
+- **El campo se vacía al instante.** Es un botón de agregar, no un campo que
+  conserve a quién se eligió.
+
+### Reglas de negocio
+
+- **A quien ya está en el curso no se le agrega dos veces**, y se dice por qué.
+- **A quien está en «sin asignar» (SPEC-039) no se le agrega por aquí**: sería
+  contradictorio. Se le devuelve desde esa lista.
+- **Quitar a alguien agregado deshace el alta**, no lo anota como excluido: no
+  estaba en el curso de origen, así que marcarlo como «sin asignar» diría algo
+  que nunca fue cierto.
+- **Se guarda en el documento del curso**, bajo `incluidos`, junto a quién lo
+  tomó y a quién se le quitó. Ninguna lectura más.
+
+---
+
+# SPEC-043 — El padrón se lee una sola vez por sesión
+
+### Por qué
+
+El proyecto de la suite llegó a **52 000 lecturas en 24 horas**, contra un
+límite gratuito de 50 000 al día. Al agotarse, Firestore deja de responder: las
+tablas salen vacías, las listas no cargan y la app parece rota **sin ningún
+error visible**. Es la explicación más probable de las fallas intermitentes que
+veníamos persiguiendo, y por eso desaparecían al día siguiente: la cuota se
+reinicia a medianoche.
+
+### La causa
+
+- **Siete pestañas se suscriben al padrón**, cada una por su cuenta.
+- **Cambiar de pestaña desmonta un módulo y monta otro**, así que cada cambio
+  abría una suscripción nueva y volvía a leer los 122 documentos.
+- Veinte cambios de pestaña eran **2 440 lecturas de una sola persona**. Con
+  quince personas y varias sesiones al día, cincuenta mil se alcanzan sin
+  esfuerzo.
+
+### La regla
+
+- **Una sola escucha para toda la aplicación.** Quien se suscribe después
+  recibe de inmediato lo último leído, sin tocar la red.
+- **La escucha no se cierra al salir de la pestaña.** Cerrarla obligaría a leer
+  todo otra vez al volver, que es exactamente lo que se quiere evitar. Una
+  escucha abierta solo cobra los documentos que cambian, y muere al recargar la
+  página.
+- **Lo mismo aplica a los cursos**, que Capacitación y Cursos comparten.
+- **Cualquier colección que lean dos pestañas va así.** Suscribirse por módulo
+  parece inocuo y se paga en lecturas cada vez que alguien navega.
+
+Medido con el mecanismo real: veinte cambios de pestaña pasan de 2 562 lecturas
+a 122.
+
+### Lo que esto no resuelve
+
+Sigue habiendo una lectura completa del padrón por cada carga de página, en cada
+app. Guardar los datos en el dispositivo —para que al recargar solo se pidan los
+documentos que cambiaron— es el siguiente paso y está pendiente.
+
+---
+
+# Deuda técnica conocida
+
+| # | Asunto | Estado |
+|---|---|---|
+| 1 | Sin ningún control de acceso | **Se resuelve** con la SPEC-001 |
+| 2 | El padrón vive en el proyecto equivocado | **Resuelto** |
+| 3 | Eliminar borra sin confirmación y se lleva los permisos | **Resuelto** |
+| 4 | La importación revive bajas en silencio | **Resuelto** |
+| 5 | `nombreNormalizado` no se recalcula | **Resuelto** |
+| 6 | Los departamentos se escriben libres, sin catálogo | **Resuelto** |
+| 7 | Iconos alojados en un servicio ajeno | **Se resuelve** con la SPEC-010 |
+| 8 | Sin `CHANGELOG.md` | **Se resuelve** en esta versión |
+| 9 | `favicon` apunta a `/vite.svg`, que no existe en `public/` | Pendiente |
+| 9b | `tsc` no corría limpio: faltaban los tipos de Vite y `main.tsx` importaba con extensión | **Resuelto** |
+| 10 | Los permisos sobreviven solo gracias al `merge` | **Resuelto**: la escritura usa una lista blanca de campos explícita |
+| 11 | Repositorio público | Pendiente hasta migrar el hosting |
+| 12 | Los módulos de incidencias, cursos y vacantes siguen sin especificar | Incidencias documentado en la SPEC-011; cursos y vacantes, pendiente |
+
+---
+
+# Asignación de acceso
+
+Las quince cuentas existentes reciben `rrhh` en su campo `apps`.
+
+| Papel | Quiénes |
+|---|---|
+| `ADMIN` | Víctor Moreno García y Maritza Galván Rivas |
+| `CONSULTA` | Las trece cuentas restantes |
+| `CAPTURA` | Nadie por ahora |
+
+El puesto de Gerente de Recursos Humanos está vacante. **No se crea una cuenta
+genérica para entregarla después:** el modelo de la suite descansa en que una
+cuenta es una persona, y los registros de las otras apps graban nómina y nombre
+de quien los hizo. Cuando se contrate, se da de alta como cualquier otra persona
+y se le asigna `ADMIN`.
+
+Desde la versión 2.26.0 estos cambios se hacen en el Directorio, con el icono
+de llave de cada persona (SPEC-037). Ya no hace falta entrar a la consola de
+Firebase.
