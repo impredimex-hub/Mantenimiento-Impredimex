@@ -6,6 +6,70 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.10.0] — 2026-10-02
+
+### Corregido
+
+- **Dos solicitantes creando una OT al mismo tiempo se llevaban el mismo folio**
+  (SPEC-059). El contador se leía de memoria, se usaba y se reescribía; entre
+  leer y escribir no había nada que impidiera que otro hiciera lo mismo.
+
+  Simulado con tres solicitantes simultáneos: `000042`, `000042`, `000042`, y el
+  contador avanzando uno en lugar de tres. Era raro que coincidieran en el mismo
+  segundo, por eso no se había visto, pero el riesgo estaba desde el principio.
+
+  Ahora el folio lo aparta el **servidor** con una transacción, que se atiende de
+  una en una. Probado con veinte altas simultáneas desde las dos apps: veinte
+  folios distintos y contiguos. Un contador ausente, en cero, negativo o con
+  basura adentro devuelve `000001` en lugar de romperse.
+
+  Sin conexión se sigue usando el contador local —es mejor una OT con folio
+  dudoso que una OT perdida— y la orden queda marcada con `folioLocal` para
+  poder encontrarla si hubo repetido.
+
+- El botón **«Enviar solicitud» se deshabilita mientras se crea la orden**.
+  Apartar el folio es un viaje a la red, así que ahora hay una pausa entre el
+  toque y el cambio de pantalla donde un doble toque habría creado dos OT.
+
+### Agregado
+
+- **Ingeniería de Procesos puede levantar una OT** al cerrar un check de
+  condiciones, estando frente a la máquina. Solo levantar: tomar la orden,
+  asignar técnico, actividades, refacciones y cierre siguen siendo de esta app.
+
+- **Las OT nacidas de una auditoría se distinguen.** Llevan un distintivo
+  «Auditoría» en las listas de solicitante, técnico y supervisor, y el detalle
+  muestra de qué auditoría salieron, quién las levantó y el hallazgo.
+
+  Es lo que permite medir si el programa de 5S sirve de algo: cuántas OT nacen
+  de auditorías y cuántas de ésas se cierran, en lugar de suponer que el
+  hallazgo se atendió porque se levantó un papel.
+
+- **`manto_db/abiertasPorMaquina`**, un índice de las OT abiertas de cada
+  máquina con lo justo para decidir: folio, descripción, estatus y prioridad.
+
+  Procesos no consulta `ots`: las reglas no tienen `.indexOn`, así que una
+  consulta filtrada descargaría el nodo completo —de 123 a 613 KB por revisión—
+  y Realtime Database cobra por bytes bajados. Con el índice son unos 525 bytes
+  de la máquina que se auditó.
+
+  Se mantiene por elemento, dentro del `update` que ya iba a salir: una OT que
+  cambia mueve una sola ruta.
+
+- **`manto_db/notificarA`** y **`manto_db/urlApp`**, para que el aviso que manda
+  Procesos llegue a las mismas personas y abra esta app al tocarlo. La dirección
+  se publica en lugar de dejarla escrita en la otra app porque va a cambiar
+  cuando el hosting se mude a Firebase Hosting.
+
+### Pendiente
+
+- Las reglas son `".write": "auth != null"`, así que Procesos —que se autentica
+  de forma anónima— puede escribir cualquier ruta de esta base. Era así desde
+  antes de este cambio, pero ahora que escribe de verdad conviene acotarlas a
+  las rutas que le corresponden.
+
+---
+
 ## [2.9.0] — 2026-10-02
 
 ### Agregado

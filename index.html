@@ -339,6 +339,7 @@ body.con-hdr .page{height:calc(100vh - 56px)}
 .badge-validar{background:transparent;color:var(--blue);border-color:var(--blue)}
 .badge-cerrado{background:transparent;color:var(--blue);border-color:var(--blue)}
 .badge-urgente{background:var(--red);color:#fff;border-color:var(--red)}
+.badge-auditoria{background:#E8F0FB;color:#1A4A7A;border-color:#B8D0EA}
 /* Indicadores de estado en tarjetas */
 .st-abierto{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--blue-light);color:var(--blue);border:1.5px solid var(--blue)}
 .st-proceso{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;background:#E3F2FD;color:#1565C0;border:1.5px solid #1565C0}
@@ -2155,9 +2156,69 @@ function flushDB(){
     });
   });
 
+  // SPEC-059: índice de OT abiertas por máquina, para las otras apps.
+  _indexarAbiertas(upd);
+
   if(!Object.keys(upd).length) return;
   db.ref('manto_db').update(upd).catch(function(e){
     console.warn('Firebase save error:', e);
+  });
+}
+
+// ── SPEC-059: qué OT están abiertas en cada máquina ───────────────
+//
+// Ingeniería de Procesos necesita, al terminar un check, las OT abiertas de esa
+// máquina. Pedirlas de `ots` sería carísimo: las reglas no tienen `.indexOn`,
+// así que una consulta filtrada descarga el nodo completo —de 123 a 613 KB por
+// revisión— y Realtime Database cobra por bytes bajados.
+//
+// Así que aquí se publica un resumen por máquina con lo justo para decidir:
+// folio, descripción, estatus y prioridad. Unos 525 bytes por máquina en lugar
+// de cientos de kilobytes, y Procesos lee solo la máquina que acaba de auditar.
+//
+// Se mantiene **por elemento**, en el mismo `update` que ya iba a salir: una OT
+// que cambia mueve una sola ruta. No se reconstruye el índice completo, que
+// sería escribir las 48 máquinas en cada movimiento.
+var STATUS_ABIERTOS = ['abierto','proceso','espera','validar'];
+var _snapIdx = {};   // ruta del índice -> JSON de lo último publicado
+
+// El `equipo` de la OT es el **nombre** de la máquina ('Omega'); el índice va
+// por la **clave** que usa Procesos ('OME1'). El catálogo trae las dos.
+function _claveDeEquipo(nombre){
+  if(!nombre) return '';
+  var m = (DB.maquinas || DEFAULT_MAQUINAS).find(function(x){ return x.nombre === nombre; });
+  return (m && m.clave) ? m.clave : '';
+}
+
+function _indexarAbiertas(upd){
+  var vigentes = {};
+
+  (DB.ots || []).forEach(function(ot){
+    if(!ot || !ot.id) return;
+    var clave = _claveDeEquipo(ot.equipo);
+    // Las OT de seguridad guardan el tipo de riesgo en `equipo`, y las de
+    // infraestructura un área. Ninguna corresponde a una máquina del catálogo:
+    // no entran al índice y no hay nada que corregir.
+    if(!clave) return;
+    if(STATUS_ABIERTOS.indexOf(ot.status) < 0) return;
+
+    var ruta = 'abiertasPorMaquina/' + clave + '/' + ot.id;
+    var resumen = {
+      folio:     ot.folio || '',
+      desc:      String(ot.desc || '').slice(0, 140),
+      status:    ot.status,
+      prioridad: ot.prioridad || 'Normal',
+      fechaAlta: ot.fechaAlta || '',
+      origen:    ot.origen || 'SOLICITUD'
+    };
+    vigentes[ruta] = true;
+    var sj = _js(resumen);
+    if(_snapIdx[ruta] !== sj){ upd[ruta] = resumen; _snapIdx[ruta] = sj; }
+  });
+
+  // Una OT que se cerró, o que cambió de máquina, sale del índice.
+  Object.keys(_snapIdx).forEach(function(ruta){
+    if(!vigentes[ruta]){ upd[ruta] = null; delete _snapIdx[ruta]; }
   });
 }
 
@@ -2339,6 +2400,24 @@ function initFirebase(){
       db.ref('manto_db/folioSig').on('value', function(s){
         if(s.exists()){ DB.folioSig = s.val(); _snap['folioSig'] = _js(DB.folioSig); }
       });
+
+      // SPEC-059: se lee **una vez** lo que ya está publicado en el índice de
+      // OT abiertas. Sin esto, `_snapIdx` arrancaría vacío y pasarían dos
+      // cosas: cada recarga reescribiría el índice completo aunque nada haya
+      // cambiado, y una OT cerrada mientras este aparato estaba apagado se
+      // quedaría en el índice para siempre, porque no habría con qué notarla.
+      //
+      // No es un listener: es una lectura y se acaba. El índice lo escribe esta
+      // app; no necesita enterarse de lo que escriben los demás.
+      db.ref('manto_db/abiertasPorMaquina').once('value', function(s){
+        var porMaquina = s.val() || {};
+        Object.keys(porMaquina).forEach(function(clave){
+          var ots = porMaquina[clave] || {};
+          Object.keys(ots).forEach(function(idOT){
+            _snapIdx['abiertasPorMaquina/' + clave + '/' + idOT] = _js(ots[idOT]);
+          });
+        });
+      }, function(err){ console.warn('Índice de OT abiertas:', err.message); });
 
       // OTs y notificaciones: eventos por elemento. Solo viaja el registro
       // que cambió, no la colección completa.
@@ -2686,6 +2765,40 @@ function armarPersonal(){
       obs:     o.obs || ''
     };
   });
+  publicarNotificarA();
+}
+
+// ── SPEC-059: a quién avisar cuando entra una OT ──────────────────
+//
+// El aviso de una OT nueva lo manda el aparato que la crea, con la lista de
+// nóminas de Mantenimiento activo. Si Ingeniería de Procesos va a levantar OT,
+// necesita esa misma lista, y pedirla a la suite le costaría leer el padrón
+// completo para filtrar un departamento.
+//
+// Aquí se publica ya filtrada: unas pocas decenas de bytes que solo se
+// reescriben cuando alguien entra o sale de Mantenimiento.
+function publicarNotificarA(){
+  if(!(db && _fbConnected)) return;
+  var nominas = getNominasTecnicos().map(String).sort();
+  // Sin personal cargado todavía, publicar una lista vacía dejaría a Procesos
+  // sin a quién avisar. Es mejor conservar la última buena.
+  if(!nominas.length) return;
+  var sj = _js(nominas);
+  if(_snap['notificarA'] === sj) return;
+  _snap['notificarA'] = sj;
+  db.ref('manto_db/notificarA').set(nominas).catch(function(e){
+    console.warn('No se pudo publicar notificarA:', e && e.message);
+  });
+
+  // La dirección de esta app, para que el aviso que mande Procesos abra aquí
+  // al tocarlo. Se publica en lugar de dejarla escrita allá porque va a
+  // cambiar: el hosting se muda a Firebase Hosting cuando el repo se vuelva
+  // privado, y entonces habría que acordarse de corregirla en la otra app.
+  var url = urlDeLaApp();
+  if(_snap['urlApp'] !== url){
+    _snap['urlApp'] = url;
+    db.ref('manto_db/urlApp').set(url).catch(function(){});
+  }
 }
 
 function doLogin(){
@@ -3034,10 +3147,22 @@ function renderSolOTs(filter){
 }
 
 function esPrioridadUrgente(ot){ return ot && (ot.prioridad==='urgente' || ot.prioridad==='maquina-parada'); }
+// ── SPEC-059: distinguir la OT que nació de una auditoría ─────────
+//
+// Importa separarlas de las que levanta un solicitante: son las que miden si el
+// programa de 5S y condiciones sirve de algo. Con este campo se puede saber
+// cuántas OT salieron de auditorías y cuántas se cerraron, en lugar de suponer
+// que el hallazgo se atendió porque se levantó un papel.
+function badgeOrigenOT(ot){
+  if(!ot || ot.origen !== 'AUDITORIA') return '';
+  return '<span class="badge badge-auditoria" style="margin-left:4px">Auditoría</span>';
+}
+
 function otCardSol(ot){
   var urgClass    = esPrioridadUrgente(ot) ? 'urgente-line' : '';
   var urgBadge    = esPrioridadUrgente(ot)
     ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>' : '';
+  urgBadge += badgeOrigenOT(ot);
   var tipoLabel   = ot.tipo==='MTTO-MAQ-PROD' ? 'MAQUINARIA'
     : ot.tipo==='MTTO-INFRAESTRUCTURA' ? 'INFRAESTRUCTURA'
     : ot.tipo==='MTTO-SEGURIDAD'       ? 'SEGURIDAD'
@@ -3155,7 +3280,53 @@ function filtrarEquiposPorNave(){
   }
 }
 
-function crearOT(){
+// ── SPEC-059: apartar un folio sin que dos se lleven el mismo ─────
+//
+// `transaction` se ejecuta en el servidor y se atiende de una en una: si dos
+// teléfonos la piden a la vez, el segundo recibe el valor que dejó el primero.
+// Es lo que el contador en memoria no podía garantizar.
+//
+// Devuelve `{folio, local}`. `local: true` significa que no se pudo apartar en
+// el servidor y se usó el contador de este aparato: la OT se crea igual —es
+// mejor una OT con folio dudoso que una OT perdida— pero queda marcada con
+// `folioLocal` para poder encontrarla si hubo repetido.
+async function apartarFolio(sugerido, reiniciar){
+  function conContadorLocal(){
+    var n = reiniciar ? 1 : (sugerido || 1);
+    DB.folioSig = n + 1;
+    return {folio: String(n).padStart(6,'0'), local: true};
+  }
+
+  if(!(db && _fbConnected)) return conContadorLocal();
+
+  try {
+    var res = await db.ref('manto_db/folioSig').transaction(function(actual){
+      var base = reiniciar ? 1
+               : (typeof actual === 'number' && actual >= 1 ? actual : (sugerido || 1));
+      return base + 1;
+    });
+    if(!res || !res.committed) throw new Error('transacción no confirmada');
+
+    var asignado = res.snapshot.val() - 1;
+    // El contador local y el testigo de sincronización se ponen al día aquí
+    // mismo: si no, `flushDB` creería que el contador cambió y lo reescribiría
+    // encima del que acaba de fijar el servidor.
+    DB.folioSig = asignado + 1;
+    _snap['folioSig'] = _js(DB.folioSig);
+    return {folio: String(asignado).padStart(6,'0'), local: false};
+  } catch(e){
+    console.warn('No se pudo apartar folio en el servidor:', e && e.message);
+    return conContadorLocal();
+  }
+}
+
+// SPEC-059: apartar el folio es un viaje a la red, así que entre el toque y el
+// cambio de pantalla hay una pausa. Sin este candado, un doble toque sobre
+// «Enviar solicitud» crearía dos OT.
+var _creandoOT = false;
+
+async function crearOT(){
+  if(_creandoOT) return;
   var desc = document.getElementById('nueva-desc').value.trim();
   if(!desc){ appAlert('Describe el problema antes de enviar'); return; }
   // Validar que al menos una casilla de riesgo esté marcada para MTTO-SEGURIDAD
@@ -3164,12 +3335,29 @@ function crearOT(){
       .some(function(id){ var el=document.getElementById(id); return el&&el.checked; });
     if(!alguno){ appAlert('Selecciona al menos un tipo de riesgo'); return; }
   }
-  // SPEC-002: Si todas las OTs fueron eliminadas, reiniciar el contador de folio a 1
-  if(!DB.ots || DB.ots.length === 0){
-    DB.folioSig = 1;
+  // SPEC-002: si todas las OTs fueron eliminadas, el contador vuelve a 1. La
+  // decisión se toma aquí y la ejecuta la transacción, para no escribir el
+  // contador dos veces.
+  var reiniciar = !DB.ots || DB.ots.length === 0;
+  // SPEC-059: el folio lo asigna el servidor, no este teléfono.
+  // Antes se leía el contador de memoria, se usaba y se reescribía. Entre leer
+  // y escribir no había nada que impidiera que otro hiciera lo mismo: dos
+  // solicitantes levantando OT en el mismo momento se llevaban el mismo folio.
+  // `apartarFolio` lo resuelve con una transacción, que el servidor atiende de
+  // una en una. Si no hay red, cae de vuelta al contador local —es mejor una OT
+  // con folio dudoso que una OT perdida— y queda marcada para revisar.
+  _creandoOT = true;
+  var btnEnviar = document.querySelector('button[onclick="crearOT()"]');
+  if(btnEnviar){ btnEnviar.disabled = true; btnEnviar.textContent = 'Enviando…'; }
+
+  var apartado;
+  try {
+    apartado = await apartarFolio(DB.folioSig, reiniciar);
+  } finally {
+    _creandoOT = false;
+    if(btnEnviar){ btnEnviar.disabled = false; btnEnviar.textContent = 'Enviar solicitud'; }
   }
-  var id = String(DB.folioSig).padStart(6,'0');
-  DB.folioSig++;
+  var id = apartado.folio;
   var ot = {
     id:         id,
     folio:      '#'+id,
@@ -3197,7 +3385,8 @@ function crearOT(){
     actividades: [],
     refacciones: [],
     comentarios: [],
-    espera:     null
+    espera:     null,
+    folioLocal: apartado.local || undefined
   };
   DB.ots.push(ot);
   saveDB();
@@ -3435,6 +3624,14 @@ function buildDetalleSol(ot){
     +'<div class="field-row"><div class="field-lbl">Equipo</div><div class="field-val">'+ot.equipo+(ot.nave?' — '+ot.nave:'')+(ot.area?' · '+ot.area:'')+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Descripción</div><div class="field-val" style="font-weight:400;font-size:13px">'+ot.desc+'</div></div>'
     +'<div class="field-row"><div class="field-lbl">Fecha de alta</div><div class="field-val">'+fmt(ot.fechaAlta)+'</div></div>'
+    +(ot.origen==='AUDITORIA'
+      ? '<div class="field-row"><div class="field-lbl">Origen</div><div class="field-val">'
+        +'Auditoría de '+(ot.auditoriaTipo==='5S'?'5S y condiciones':'proceso')
+        +(ot.auditoriaFecha?' del '+fmt(ot.auditoriaFecha):'')
+        +(ot.auditor?'<div style="font-size:12px;color:var(--text2);font-weight:400">Levantó: '+ot.auditor+'</div>':'')
+        +(ot.hallazgoTexto?'<div style="font-size:12px;color:var(--text2);font-weight:400;margin-top:3px">Hallazgo: '+ot.hallazgoTexto+'</div>':'')
+        +'</div></div>'
+      : '')
     +'<div class="field-row"><div class="field-lbl">Técnico asignado</div><div class="field-val">'+(ot.tecnico||'Sin asignar')+'</div></div>'
     +acts+refs+comms+validar
     +'<div class="spacer"></div>';
@@ -3582,9 +3779,9 @@ function otCardTec(ot, disponible){
   var topBadge    = disponible
     ? (yaTomada ? statusBadge('proceso') : '<span class="badge" style="background:var(--amber-light);color:var(--amber-dark)">Sin tomar</span>')
     : statusBadge(ot.status);
-  var urgBadge    = esPrioridadUrgente(ot)
+  var urgBadge    = (esPrioridadUrgente(ot)
     ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>'
-    : '';
+    : '') + badgeOrigenOT(ot);
   var prog = ot.avance>0
     ? '<div class="progress-track" style="margin-top:8px"><div class="progress-fill green" style="width:'+ot.avance+'%"></div></div>'
       +'<div style="font-size:11px;color:var(--text3);margin-top:2px">Avance: '+ot.avance+'%</div>'
@@ -5162,6 +5359,7 @@ function otCardSup(ot){
   var urgClass   = esPrioridadUrgente(ot) ? 'urgente-line' : '';
   var urgBadge   = esPrioridadUrgente(ot)
     ? '<span class="badge badge-urgente" style="margin-left:4px">Urgente</span>' : '';
+  urgBadge += badgeOrigenOT(ot);
   var tipoLabel  = ot.tipo==='MTTO-MAQ-PROD' ? 'MAQUINARIA'
     : ot.tipo==='MTTO-INFRAESTRUCTURA' ? 'INFRAESTRUCTURA'
     : ot.tipo==='MTTO-SEGURIDAD'       ? 'SEGURIDAD'

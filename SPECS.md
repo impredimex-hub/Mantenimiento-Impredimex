@@ -1787,6 +1787,143 @@ en lugar de 35.
 
 ---
 
+# SPEC-059 — El folio lo asigna el servidor, y las otras apps pueden levantar OT
+
+**Actor** — Cualquier solicitante de esta app, e Ingeniería de Procesos al
+cerrar un check de condiciones.
+
+## El folio: un bug que ya existía
+
+Así se asignaba:
+
+```
+var id = String(DB.folioSig).padStart(6,'0');
+DB.folioSig++;
+```
+
+`DB.folioSig` es una copia en memoria del contador que vive en Firebase. Cada
+aparato lo lee, lo usa, le suma uno y lo reescribe. Entre leer y escribir no hay
+nada que impida que otro haga lo mismo.
+
+Simulado con tres solicitantes creando al mismo tiempo, el resultado es
+`000042`, `000042`, `000042`: **tres órdenes con el mismo folio**, y el contador
+avanzando uno en lugar de tres. Es raro que coincidan en el mismo segundo, por
+eso no se había visto, pero el riesgo estaba desde el principio y crece con cada
+aparato conectado.
+
+`apartarFolio()` lo resuelve con una **transacción**, que el servidor atiende de
+una en una. Probado con veinte altas simultáneas desde las dos apps: veinte
+folios distintos y contiguos, del `000042` al `000061`.
+
+Un contador ausente, en cero, negativo o con basura adentro devuelve `000001` en
+lugar de romperse.
+
+### Si no hay servidor
+
+Esta app **sí** cae de vuelta al contador local, y la OT queda marcada con
+`folioLocal: true`. Es mejor una OT con folio dudoso que una OT perdida: quien
+la levanta está reportando una falla y no puede quedarse sin registrarla.
+
+Ingeniería de Procesos **no** tiene ese respaldo: si el servidor no confirma, no
+levanta nada y pide que se intente otra vez. Un folio inventado desde allá
+chocaría con una orden real y nadie podría rastrearlo.
+
+### El candado del doble toque
+
+Apartar el folio es un viaje a la red, así que entre el toque y el cambio de
+pantalla hay una pausa que antes no existía. Sin `_creandoOT`, un doble toque
+sobre «Enviar solicitud» crearía dos órdenes. El botón se deshabilita y dice
+«Enviando…» mientras tanto.
+
+## `abiertasPorMaquina` — qué OT están abiertas en cada máquina
+
+Procesos necesita, al terminar un check, las OT abiertas de esa máquina.
+Pedirlas de `ots` sería carísimo: las reglas no tienen `.indexOn`, así que una
+consulta filtrada descarga el nodo completo —de 123 a 613 KB por revisión— y
+Realtime Database cobra por bytes bajados.
+
+Así que esta app publica un resumen por máquina con lo justo para decidir:
+
+```
+manto_db/abiertasPorMaquina/<clave>/<idOT>
+   folio, desc (140 car.), status, prioridad, fechaAlta, origen
+```
+
+Unos 525 bytes por máquina en lugar de cientos de kilobytes, y Procesos lee solo
+la máquina que acaba de auditar.
+
+Se mantiene **por elemento**, dentro del mismo `update` que ya iba a salir: una
+OT que cambia mueve una sola ruta. No se reconstruye el índice completo, que
+sería escribir las 48 máquinas en cada movimiento.
+
+La clave es la de la SPEC-058 (`OME1`), no el nombre, porque es con la que
+pregunta Procesos. El `equipo` de la OT guarda el nombre (`Omega`), así que el
+catálogo hace de traductor.
+
+### Por qué se lee el índice al arrancar
+
+`_snapIdx` arranca vacío en cada carga. Sin leer una vez lo ya publicado
+pasarían dos cosas: cada recarga reescribiría el índice completo aunque nada
+haya cambiado, y una OT cerrada mientras el aparato estaba apagado se quedaría
+en el índice para siempre, porque no habría con qué notarla.
+
+Es una lectura (`once`), no un listener: el índice lo escribe esta app y no
+necesita enterarse de lo que escriben los demás.
+
+### Lo que no entra al índice
+
+Las OT de `MTTO-SEGURIDAD` guardan el tipo de riesgo en `equipo`, y las de
+infraestructura un área. Ninguna corresponde a una máquina del catálogo: no
+entran y no hay nada que corregir.
+
+## `notificarA` y `urlApp`
+
+El aviso de OT nueva lo manda el aparato que la crea. Si Procesos va a levantar
+OT, necesita la lista de nóminas de Mantenimiento activo, y pedirla a la suite
+le costaría leer el padrón completo para filtrar un departamento.
+
+Se publica ya filtrada, junto con la dirección de esta app para que el aviso
+abra aquí al tocarlo. La dirección se publica en lugar de dejarla escrita allá
+porque va a cambiar cuando el hosting se mude a Firebase Hosting.
+
+Si la lista sale vacía no se publica: es mejor conservar la última buena que
+dejar a Procesos sin a quién avisar.
+
+## La OT nacida de una auditoría
+
+Lleva `origen: 'AUDITORIA'` más `auditoriaTipo`, `auditoriaFecha`, `auditor` y
+`hallazgoTexto`. Se distingue con un distintivo en las tres listas —solicitante,
+técnico y supervisor— y el detalle muestra de qué auditoría salió y quién la
+levantó.
+
+Importa separarlas: son las que miden si el programa de 5S y condiciones sirve
+de algo. Con este campo se puede saber cuántas OT nacen de auditorías y cuántas
+de ésas se cierran, en lugar de suponer que el hallazgo se atendió porque se
+levantó un papel.
+
+## Lo que Procesos puede y no puede hacer
+
+Solo levantar. Tomar la orden, asignar técnico, registrar actividades,
+refacciones, pausas y cierre siguen siendo de esta app. Procesos escribe en dos
+rutas —`ots/<folio>` y `abiertasPorMaquina/<clave>/<folio>`— en una sola
+operación atómica, así que no puede quedar una OT que Procesos no vea en el
+índice ni una entrada de índice sin orden detrás.
+
+Levanta siempre con tipo `MTTO-MAQ-PROD`, incluso cuando el hallazgo es de
+seguridad: `MTTO-SEGURIDAD` cambia el significado de `equipo` —en lugar de la
+máquina guarda el tipo de riesgo— y la orden dejaría de poder ligarse a una
+máquina. La urgencia viaja por `prioridad`.
+
+## Pendiente
+
+Las reglas son `".write": "auth != null"`. Procesos se autentica de forma
+anónima, así que puede escribir cualquier ruta de esta base, incluso borrarla.
+No es consecuencia de esta spec —era así desde antes—, pero ahora que escribe de
+verdad conviene acotar las reglas a las rutas que le corresponden. Es un cambio
+aparte.
+
+---
+
 # Anexo A — Modelo de datos en Firebase
 
 ```
@@ -1838,6 +1975,19 @@ manto_db/
 ├── catalogoVer: 1759...  (sello de versión del catálogo — SPEC-058)
 │                          se mueve solo cuando maquinas o zonas cambian; las
 │                          otras apps lo leen antes de bajar las listas
+│
+├── abiertasPorMaquina/   (índice de OT abiertas — SPEC-059)
+│   └── <clave>/<idOT>/   clave de la SPEC-058: OME1, no 'Omega'
+│       ├── folio, desc (140 car.), status, prioridad, fechaAlta, origen
+│                          ~525 bytes por máquina. Procesos lee solo la máquina
+│                          que auditó, en lugar de descargar `ots` completo
+│
+├── notificarA: [...]     (nóminas de Mantenimiento activo — SPEC-059)
+│                          para que Procesos sepa a quién avisar sin leer el
+│                          padrón completo de la suite
+│
+├── urlApp: "https://..." (dirección de esta app — SPEC-059)
+│                          para que el aviso que manda Procesos abra aquí
 │
 └── infraestructura/      (53 áreas, para ubicar OT. No son las zonas de 5S)
 ```
