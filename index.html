@@ -1645,6 +1645,15 @@ input[type=range].green{accent-color:var(--green)}
         <button class="btn btn-sm btn-orange" onclick="abrirFormMaquina(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
       </div>
       <div id="adm-cat-maquinas"></div>
+      <!-- Zonas de planta (SPEC-058) -->
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
+        Zonas de planta
+        <button class="btn btn-sm btn-orange" onclick="abrirFormZona(null)" style="font-size:11px;padding:4px 10px">+ Nueva</button>
+      </div>
+      <div style="padding:6px 14px 8px;font-size:11px;color:var(--text3);line-height:1.4">
+        Áreas que auditan 5S y condiciones. No son equipo de OT: no aparecen al levantar una orden.
+      </div>
+      <div id="adm-cat-zonas"></div>
       <!-- Infraestructura -->
       <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;margin-top:8px">
         Infraestructura
@@ -1840,12 +1849,36 @@ input[type=range].green{accent-color:var(--green)}
       <input class="field-input" type="text" id="maq-form-nombre" placeholder="Ej. FL1, REV3...">
     </div>
     <div class="field-row">
-      <div class="field-lbl">Descripción / nota</div>
+      <div class="field-lbl">Advertencia al levantar OT</div>
       <input class="field-input" type="text" id="maq-form-desc" placeholder="Ej. Indicar qué aire requiere atención">
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">Se muestra con ⚠ en el selector de equipo.</div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Descripción</div>
+      <input class="field-input" type="text" id="maq-form-descripcion" placeholder="Ej. Flexográfica 1">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Familia</div>
+      <input class="field-input" type="text" id="maq-form-familia" placeholder="Ej. Flexografía" list="maq-familias">
+      <datalist id="maq-familias"></datalist>
     </div>
     <div class="field-row">
       <div class="field-lbl">Naves donde aplica</div>
       <div id="maq-form-naves" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">¿La auditan en Procesos?</div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;margin-top:4px">
+        <input type="checkbox" id="maq-form-uso-5s" style="accent-color:var(--orange)">
+        Auditoría de 5S y condiciones</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;margin-top:6px">
+        <input type="checkbox" id="maq-form-uso-proceso" style="accent-color:var(--orange)">
+        Validación de proceso</label>
+      <div class="field-row" style="padding:10px 0 0">
+        <div class="field-lbl">Clave que usa Procesos</div>
+        <input class="field-input" type="text" id="maq-form-clave" placeholder="Ej. FL1">
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">Solo si se audita. Déjala vacía para equipo que únicamente atiende Mantenimiento.</div>
+      </div>
     </div>
     <div class="field-row">
       <div class="field-lbl">Estatus</div>
@@ -1857,6 +1890,43 @@ input[type=range].green{accent-color:var(--green)}
     <div style="padding:16px;display:flex;gap:8px">
       <button class="btn btn-outline" onclick="closeModal('modal-maquina-form')" style="flex:1">Cancelar</button>
       <button class="btn btn-orange" onclick="guardarMaquina()" style="flex:2">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ZONA DE PLANTA (SPEC-058) -->
+<div class="modal-overlay" id="modal-zona-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-zona-titulo">Nueva zona</div>
+    <input type="hidden" id="zona-form-id">
+    <div class="field-row">
+      <div class="field-lbl">Nombre de la zona <span style="color:var(--red)">*</span></div>
+      <input class="field-input" type="text" id="zona-form-nombre" placeholder="Ej. Área de Tintas">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Descripción</div>
+      <input class="field-input" type="text" id="zona-form-descripcion" placeholder="Ej. Preparación y resguardo de tintas">
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Clave que usa Procesos</div>
+      <input class="field-input" type="text" id="zona-form-clave" placeholder="Ej. area-tintas">
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">No la cambies en una zona que ya tenga auditorías: es con la que quedaron guardadas.</div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Naves donde aplica</div>
+      <div id="zona-form-naves" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-lbl">Estatus</div>
+      <select class="field-select" id="zona-form-activo">
+        <option value="1">Activa</option>
+        <option value="0">Baja</option>
+      </select>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-zona-form')" style="flex:1">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarZona()" style="flex:2">Guardar</button>
     </div>
   </div>
 </div>
@@ -1976,6 +2046,7 @@ let DB = {
   tiposServicio: [],
   naves: [],
   maquinas: [],
+  zonas: [],          // SPEC-058: áreas que audita 5S, no son equipo de OT
   infraestructura: [],
   turnos: [],         // SPEC-016: roles de turnos del personal
   preventivos: [],    // SPEC-017: programas mensuales de mantenimiento preventivo
@@ -1995,7 +2066,7 @@ var _migrar = {};
 // sí decide Mantenimiento de cada quien: turno y tipos de orden (SPEC-043).
 // Los catálogos se escriben y se leen completos, así que aquí solo va lo que
 // cambia rara vez y no crece: personal, máquinas, naves, turnos.
-var CATALOGOS_FB  = ['operativo','tiposServicio','naves','maquinas','infraestructura','turnos','preventivos'];
+var CATALOGOS_FB  = ['operativo','tiposServicio','naves','maquinas','zonas','infraestructura','turnos','preventivos'];
 
 // Estas viajan elemento por elemento: al cambiar una, solo se transmite ese
 // registro, no la colección entera.
@@ -2053,10 +2124,20 @@ function flushDB(){
   }
 
   // Catálogos: se escriben completos, pero cambian rara vez
+  var catalogoTocado = false;
   CATALOGOS_FB.forEach(function(k){
     var v = DB[k] || [], sj = _js(v);
-    if(_snap[k] !== sj){ upd[k] = v; _snap[k] = sj; }
+    if(_snap[k] !== sj){
+      upd[k] = v; _snap[k] = sj;
+      if(k === 'maquinas' || k === 'zonas') catalogoTocado = true;
+    }
   });
+
+  // SPEC-058: sello de versión del catálogo que publican máquinas y zonas.
+  // Las otras apps preguntan por este número —unos quince bytes— y solo bajan
+  // las listas completas cuando cambió. Sin esto, cada apertura de Procesos
+  // descargaría los 56 registros para descubrir que son los mismos de ayer.
+  if(catalogoTocado) upd['catalogoVer'] = Date.now();
 
   // OTs y notificaciones: elemento por elemento
   COLECCIONES_FB.forEach(function(col){
@@ -2250,6 +2331,7 @@ function initFirebase(){
           // El turno y los tipos de orden viven aquí, así que al cambiar hay
           // que rehacer DB.personal, que los combina con lo que da la suite.
           if(k === 'operativo') armarPersonal();
+          if(k === 'maquinas') completarCamposCatalogo();
           _renderDebounced();
         }, function(err){ console.warn('Listener ' + k + ':', err.message); });
       });
@@ -2311,7 +2393,7 @@ function initFirebase(){
     // Fallback a localStorage
     var stored = localStorage.getItem('mantoDB');
     if(stored){ try{ DB = JSON.parse(stored); }catch(e){} }
-    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],infraestructura:[],turnos:[],preventivos:[],comidas:[]}; }
+    if(!DB || !DB.ots){ DB = {ots:[],notifs:[],folioSig:1,personal:[],tiposServicio:[],naves:[],maquinas:[],zonas:[],infraestructura:[],turnos:[],preventivos:[],comidas:[]}; }
     initPersonal(); initCatalogos();
   }
 }
@@ -3063,7 +3145,8 @@ function filtrarEquiposPorNave(){
     var maquinas  = (DB.maquinas||DEFAULT_MAQUINAS).filter(function(m){ return m.activo; });
     var filtradas = maquinas.filter(function(m){ return m.naves && m.naves.indexOf(nave)>=0; });
     selEquip.innerHTML = filtradas.map(function(m){
-      var lbl = m.nombre + (m.desc ? ' — ⚠ '+m.desc : '');
+      var lbl = (m.clave && m.clave!==m.nombre ? m.clave+' · ' : '') + m.nombre
+              + (m.desc ? ' — ⚠ '+m.desc : '');
       return '<option value="'+m.nombre+'">'+lbl+'</option>';
     }).join('');
     if(!filtradas.length){
@@ -6986,9 +7069,14 @@ function renderAdmCatalogos(){
           : '<button class="btn btn-sm btn-outline" onclick="activarMaquina(this.dataset.id)" data-id="'+m.id+'" style="padding:3px 8px;font-size:11px">Activar</button>';
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border)">'
           +'<div style="flex:1;min-width:0">'
-            +'<div style="font-size:13px;font-weight:500;color:'+(m.activo?'var(--text)':'var(--text3)')+';'+(m.activo?'':'text-decoration:line-through')+'">'+m.nombre+'</div>'
+            +'<div style="font-size:13px;font-weight:500;color:'+(m.activo?'var(--text)':'var(--text3)')+';'+(m.activo?'':'text-decoration:line-through')+'">'
+              +(m.clave && m.clave!==m.nombre ? '<span style="font-family:ui-monospace,monospace;color:var(--orange)">'+m.clave+'</span> · ' : '')
+              +m.nombre+'</div>'
+            +((m.descripcion||m.familia)?'<div style="font-size:11px;color:var(--text3);margin-top:1px">'+[m.descripcion,m.familia].filter(Boolean).join(' · ')+'</div>':'')
             +(m.desc?'<div style="font-size:11px;color:var(--amber-dark);margin-top:1px">⚠ '+m.desc+'</div>':'')
             +'<span class="badge '+(m.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 6px">'+(m.activo?'Activo':'Baja')+'</span>'
+            +(m.usos&&m.usos.cincoS?'<span class="badge badge-espera" style="font-size:10px;padding:1px 6px;margin-left:3px">5S</span>':'')
+            +(m.usos&&m.usos.proceso?'<span class="badge badge-espera" style="font-size:10px;padding:1px 6px;margin-left:3px">Proceso</span>':'')
           +'</div>'
           +editBtn+stBtn+'</div>';
       }).join('');
@@ -6998,6 +7086,26 @@ function renderAdmCatalogos(){
     if(grupoB.length) htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Naves B16 / B17</div>'+renderMaqLista(grupoB);
     if(otras.length)  htmlM+='<div style="padding:6px 14px 2px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg)">Otras naves</div>'+renderMaqLista(otras);
     elMaq.innerHTML = htmlM||'<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin máquinas</div>';
+  }
+
+  // Render zonas de planta (SPEC-058)
+  var zonas = DB.zonas || DEFAULT_ZONAS;
+  var elZon = document.getElementById('adm-cat-zonas');
+  if(elZon){
+    elZon.innerHTML = zonas.length ? zonas.map(function(z){
+      var edit = '<button class="btn btn-sm btn-outline" onclick="abrirFormZona(this.dataset.id)" data-id="'+z.id+'" style="padding:3px 8px;font-size:11px">Editar</button>';
+      var st = z.activo
+        ? '<button class="btn btn-sm btn-danger" onclick="bajarZona(this.dataset.id)" data-id="'+z.id+'" style="padding:3px 8px;font-size:11px">Baja</button>'
+        : '<button class="btn btn-sm btn-outline" onclick="activarZona(this.dataset.id)" data-id="'+z.id+'" style="padding:3px 8px;font-size:11px">Activar</button>';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border)">'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:500;color:'+(z.activo?'var(--text)':'var(--text3)')+';'+(z.activo?'':'text-decoration:line-through')+'">'+z.nombre+'</div>'
+          +'<div style="font-size:11px;color:var(--text3);margin-top:1px">'
+            +[z.descripcion, (z.naves||[]).join(' / ')].filter(Boolean).join(' · ')+'</div>'
+          +'<span class="badge '+(z.activo?'badge-validar':'badge-espera')+'" style="font-size:10px;padding:1px 6px">'+(z.activo?'Activa':'Baja')+'</span>'
+          +'<span class="badge badge-espera" style="font-size:10px;padding:1px 6px;margin-left:3px">5S</span>'
+        +'</div>'+edit+st+'</div>';
+    }).join('') : '<div style="padding:12px 16px;font-size:13px;color:var(--text3)">Sin zonas</div>';
   }
 
   // Render infraestructura
@@ -7083,7 +7191,18 @@ function abrirFormMaquina(id){
   document.getElementById('maq-form-id').value   = id||'';
   document.getElementById('maq-form-nombre').value = '';
   document.getElementById('maq-form-desc').value   = '';
+  document.getElementById('maq-form-descripcion').value = '';
+  document.getElementById('maq-form-familia').value = '';
+  document.getElementById('maq-form-clave').value   = '';
+  document.getElementById('maq-form-uso-5s').checked = false;
+  document.getElementById('maq-form-uso-proceso').checked = false;
   document.getElementById('maq-form-activo').value  = '1';
+  // Las familias que ya existen, para no escribir 'Flexografia' sin acento y
+  // partir en dos lo que debería ser un solo grupo en Procesos.
+  var fams = {};
+  (DB.maquinas||DEFAULT_MAQUINAS).forEach(function(x){ if(x.familia) fams[x.familia] = true; });
+  document.getElementById('maq-familias').innerHTML =
+    Object.keys(fams).sort().map(function(f){ return '<option value="'+f+'">'; }).join('');
   // Build nave checkboxes
   var navesContainer = document.getElementById('maq-form-naves');
   var maq = id ? DB.maquinas.find(function(m){ return m.id===id; }) : null;
@@ -7096,6 +7215,11 @@ function abrirFormMaquina(id){
   if(maq){
     document.getElementById('maq-form-nombre').value = maq.nombre;
     document.getElementById('maq-form-desc').value   = maq.desc||'';
+    document.getElementById('maq-form-descripcion').value = maq.descripcion||'';
+    document.getElementById('maq-form-familia').value = maq.familia||'';
+    document.getElementById('maq-form-clave').value   = maq.clave||'';
+    document.getElementById('maq-form-uso-5s').checked = !!(maq.usos && maq.usos.cincoS);
+    document.getElementById('maq-form-uso-proceso').checked = !!(maq.usos && maq.usos.proceso);
     document.getElementById('maq-form-activo').value  = maq.activo?'1':'0';
   }
   openModal('modal-maquina-form');
@@ -7107,15 +7231,36 @@ function guardarMaquina(){
   var nombre = document.getElementById('maq-form-nombre').value.trim();
   var desc   = document.getElementById('maq-form-desc').value.trim();
   var activo = document.getElementById('maq-form-activo').value==='1';
+  var descripcion = document.getElementById('maq-form-descripcion').value.trim();
+  var familia = document.getElementById('maq-form-familia').value.trim() || 'Infraestructura';
+  var clave   = document.getElementById('maq-form-clave').value.trim();
+  var uso5S   = document.getElementById('maq-form-uso-5s').checked;
+  var usoProc = document.getElementById('maq-form-uso-proceso').checked;
   var navesEl= document.getElementById('maq-form-naves').querySelectorAll('input[type=checkbox]:checked');
   var naves  = Array.from(navesEl).map(function(c){ return c.value; });
   if(!nombre){ appAlert('El nombre de la máquina no puede estar vacío'); return; }
   if(!naves.length){ appAlert('Selecciona al menos una nave'); return; }
+  // Sin clave, Procesos no tiene con qué pedirla: la máquina quedaría marcada
+  // como auditable y no aparecería en ninguna de sus listas.
+  if((uso5S || usoProc) && !clave){
+    appAlert('Una máquina que se audita necesita su clave de Procesos (ej. FL1).'); return;
+  }
+  // Dos máquinas con la misma clave se confundirían en Procesos: las
+  // auditorías de una se verían como de la otra.
+  var choque = (DB.maquinas||[]).concat(DB.zonas||[]).find(function(m){
+    return m.id !== id && clave && m.clave === clave;
+  });
+  if(choque){ appAlert('La clave "'+clave+'" ya la usa "'+choque.nombre+'".'); return; }
+  var usos = {cincoS:uso5S, proceso:usoProc};
   if(id){
     var maq = DB.maquinas.find(function(m){ return m.id===id; });
-    if(maq){ maq.nombre=nombre; maq.desc=desc; maq.naves=naves; maq.activo=activo; }
+    if(maq){
+      maq.nombre=nombre; maq.desc=desc; maq.naves=naves; maq.activo=activo;
+      maq.descripcion=descripcion; maq.familia=familia; maq.clave=clave; maq.usos=usos;
+    }
   } else {
-    DB.maquinas.push({id:'mq_'+Date.now(), nombre:nombre, desc:desc, naves:naves, activo:true});
+    DB.maquinas.push({id:'mq_'+Date.now(), clave:clave, nombre:nombre, familia:familia,
+                      descripcion:descripcion, naves:naves, desc:desc, usos:usos, activo:true});
   }
   saveDB();
   closeModal('modal-maquina-form');
@@ -7139,6 +7284,72 @@ function activarMaquina(id){
   if(!maq) return;
   maq.activo=true; saveDB(); renderAdmCatalogos(); poblarSelectsNueva();
   appAlert('✓ Máquina activada.');
+}
+
+// ── Zonas de planta (SPEC-058) ────────────────────────────────────
+function abrirFormZona(id){
+  if(!DB.zonas) DB.zonas = JSON.parse(JSON.stringify(DEFAULT_ZONAS));
+  var naves = (DB.naves||DEFAULT_NAVES);
+  var zona  = id ? DB.zonas.find(function(z){ return z.id===id; }) : null;
+  document.getElementById('modal-zona-titulo').textContent = id ? 'Editar zona' : 'Nueva zona';
+  document.getElementById('zona-form-id').value = id||'';
+  document.getElementById('zona-form-nombre').value = zona ? zona.nombre : '';
+  document.getElementById('zona-form-descripcion').value = zona ? (zona.descripcion||'') : '';
+  document.getElementById('zona-form-clave').value = zona ? (zona.clave||'') : '';
+  document.getElementById('zona-form-activo').value = (zona && !zona.activo) ? '0' : '1';
+  document.getElementById('zona-form-naves').innerHTML = naves.map(function(n){
+    var checked = zona && zona.naves && zona.naves.indexOf(n.nombre)>=0 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">'
+      +'<input type="checkbox" value="'+n.nombre+'" '+checked+' style="accent-color:var(--orange)">'
+      +'NAVE '+n.nombre+'</label>';
+  }).join('');
+  openModal('modal-zona-form');
+}
+
+function guardarZona(){
+  if(!DB.zonas) DB.zonas = JSON.parse(JSON.stringify(DEFAULT_ZONAS));
+  var id     = document.getElementById('zona-form-id').value;
+  var nombre = document.getElementById('zona-form-nombre').value.trim();
+  var descripcion = document.getElementById('zona-form-descripcion').value.trim();
+  var clave  = document.getElementById('zona-form-clave').value.trim();
+  var activo = document.getElementById('zona-form-activo').value==='1';
+  var navesEl= document.getElementById('zona-form-naves').querySelectorAll('input[type=checkbox]:checked');
+  var naves  = Array.from(navesEl).map(function(c){ return c.value; });
+  if(!nombre){ appAlert('El nombre de la zona no puede estar vacío'); return; }
+  if(!naves.length){ appAlert('Selecciona al menos una nave'); return; }
+  if(!clave){ appAlert('La zona necesita su clave de Procesos (ej. area-tintas).'); return; }
+  var choque = (DB.maquinas||[]).concat(DB.zonas||[]).find(function(m){
+    return m.id !== id && m.clave === clave;
+  });
+  if(choque){ appAlert('La clave "'+clave+'" ya la usa "'+choque.nombre+'".'); return; }
+  if(id){
+    var z = DB.zonas.find(function(x){ return x.id===id; });
+    if(z){ z.nombre=nombre; z.descripcion=descripcion; z.clave=clave; z.naves=naves; z.activo=activo; }
+  } else {
+    DB.zonas.push({id:'zn_'+Date.now(), clave:clave, nombre:nombre, familia:'Zona',
+                   descripcion:descripcion, naves:naves, activo:true});
+  }
+  saveDB();
+  closeModal('modal-zona-form');
+  renderAdmCatalogos();
+  appAlert('✓ Zona guardada.');
+}
+
+async function bajarZona(id){
+  if(!DB.zonas) DB.zonas = JSON.parse(JSON.stringify(DEFAULT_ZONAS));
+  var z = DB.zonas.find(function(x){ return x.id===id; });
+  if(!z) return;
+  if(!(await appConfirm('¿Dar de baja "'+z.nombre+'"? Dejará de aparecer en las auditorías de 5S.'))) return;
+  z.activo=false; saveDB(); renderAdmCatalogos();
+  appAlert('✓ Zona dada de baja.');
+}
+
+function activarZona(id){
+  if(!DB.zonas) DB.zonas = JSON.parse(JSON.stringify(DEFAULT_ZONAS));
+  var z = DB.zonas.find(function(x){ return x.id===id; });
+  if(!z) return;
+  z.activo=true; saveDB(); renderAdmCatalogos();
+  appAlert('✓ Zona activada.');
 }
 
 function abrirFormInfra(id){
@@ -7328,58 +7539,127 @@ var DEFAULT_INFRAESTRUCTURA = [
 ];
 
 // Grupo A = Naves A1 y A2 | Grupo B = Naves B16 y B17
+// `clave` y `familia` son para los consumidores del catálogo: Procesos ya
+// guardó sus auditorías con 'FL1', así que esa es la llave con la que pregunta.
+// `nombre` NO se puede tocar: las OT guardan la máquina por nombre, no por id,
+// y renombrar 'Omega' a 'OME1' dejaría huérfanas las OT ya levantadas.
+// `desc` tampoco cambia de sentido: es la advertencia que se pinta con ⚠ en el
+// selector de equipo. La descripción legible va en `descripcion`.
 var DEFAULT_MAQUINAS = [
   // ── Naves A1 y A2 ───────────────────────────────────────────────────────
-  {id:'mq01',  nombre:'FL1',                        naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq02',  nombre:'FL2',                        naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq03',  nombre:'FL3',                        naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq04',  nombre:'FL4',                        naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq05',  nombre:'RT5',                        naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq06',  nombre:'RT6',                        naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq07',  nombre:'RT7',                        naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq08',  nombre:'Omega',                      naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq09',  nombre:'LAM1',                       naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq10',  nombre:'Depuradora',                 naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq11',  nombre:'Montadora',                  naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq12',  nombre:'Compresor',                  naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq13',  nombre:'Cortadora de Cores',         naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq14',  nombre:'Tanque pulmón',           naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq15',  nombre:'Aire acondicionado',         naves:['A1','A2'], desc:'Indicar qué aire requiere atención',       activo:true},
-  {id:'mq16',  nombre:'Patín hidráulico',     naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq17',  nombre:'Mesa elevadora',             naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq18',  nombre:'Polipasto',                  naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq19',  nombre:'Lámpara UV tintas',       naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq20',  nombre:'Secador aire',               naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq21',  nombre:'Extractores (1,2,3,4)',      naves:['A1','A2'], desc:'',                                               activo:true},
-  {id:'mq22',  nombre:'Rampa andén',             naves:['A1','A2'], desc:'',                                               activo:true},
+  {id:'mq01', clave:'FL1', nombre:'FL1', familia:'Flexografía', descripcion:'Flexográfica 1', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq02', clave:'FL2', nombre:'FL2', familia:'Flexografía', descripcion:'Flexográfica 2', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq03', clave:'FL3', nombre:'FL3', familia:'Flexografía', descripcion:'Flexográfica 3', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq04', clave:'FL4', nombre:'FL4', familia:'Flexografía', descripcion:'Flexográfica 4', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq05', clave:'RT5', nombre:'RT5', familia:'Rotograbado', descripcion:'Rotograbado 5', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq06', clave:'RT6', nombre:'RT6', familia:'Rotograbado', descripcion:'Rotograbado 6', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq07', clave:'RT7', nombre:'RT7', familia:'Rotograbado', descripcion:'Rotograbado 7', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq08', clave:'OME1', nombre:'Omega', familia:'Suajado', descripcion:'Suajadora', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq09', clave:'LAM1', nombre:'LAM1', familia:'Laminado', descripcion:'Laminadora', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq10', clave:'DEP1', nombre:'Depuradora', familia:'Depuración', descripcion:'Depuradora de impresión', naves:['A1','A2'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq11', clave:'', nombre:'Montadora', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq12', clave:'', nombre:'Compresor', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq13', clave:'', nombre:'Cortadora de Cores', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq14', clave:'', nombre:'Tanque pulmón', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq15', clave:'', nombre:'Aire acondicionado', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'Indicar qué aire requiere atención', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq16', clave:'', nombre:'Patín hidráulico', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq17', clave:'', nombre:'Mesa elevadora', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq18', clave:'', nombre:'Polipasto', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq19', clave:'', nombre:'Lámpara UV tintas', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq20', clave:'', nombre:'Secador aire', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq21', clave:'', nombre:'Extractores (1,2,3,4)', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq22', clave:'', nombre:'Rampa andén', familia:'Infraestructura', descripcion:'', naves:['A1','A2'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
   // ── Naves B16 y B17 ─────────────────────────────────────────────────────
-  {id:'mq23',  nombre:'REF1',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq24',  nombre:'REF2',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq25',  nombre:'REF3',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq26',  nombre:'PEG1',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq27',  nombre:'PEG2',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq28',  nombre:'PEG3',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq29',  nombre:'REV1',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq30',  nombre:'REV2',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq31',  nombre:'REV3',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq32',  nombre:'REV4',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq33',  nombre:'REV5',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq34',  nombre:'REV6',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq35',  nombre:'REV7',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq36',  nombre:'Depuradora acondicionado',   naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq37',  nombre:'COR1',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq38',  nombre:'COR2',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq39',  nombre:'COR3',                       naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq40',  nombre:'Compresor acondicionado',    naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq41',  nombre:'Cortadora de cores acondicionado', naves:['B16','B17'], desc:'',                                       activo:true},
-  {id:'mq42',  nombre:'Secador aire acondicionado', naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq43',  nombre:'Tanque pulmón acondicionado', naves:['B16','B17'], desc:'',                                        activo:true},
-  {id:'mq44',  nombre:'Mesa inspección',         naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq45',  nombre:'Rebobinador',                naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq46',  nombre:'Aires positivos (1,2,3)',    naves:['B16','B17'], desc:'',                                             activo:true},
-  {id:'mq47',  nombre:'Aire acondicionado',         naves:['B16','B17'], desc:'Indicar qué aire requiere atención',    activo:true},
-  {id:'mq48',  nombre:'Rampa andén almacén',  naves:['B16','B17'], desc:'',                                             activo:true}
+  {id:'mq23', clave:'REF1', nombre:'REF1', familia:'Refilado', descripcion:'Refiladora 1', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq24', clave:'REF2', nombre:'REF2', familia:'Refilado', descripcion:'Refiladora 2', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq25', clave:'REF3', nombre:'REF3', familia:'Refilado', descripcion:'Refiladora 3', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq26', clave:'PEG1', nombre:'PEG1', familia:'Pegado', descripcion:'Pegadora 1', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq27', clave:'PEG2', nombre:'PEG2', familia:'Pegado', descripcion:'Pegadora 2', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq28', clave:'PEG3', nombre:'PEG3', familia:'Pegado', descripcion:'Pegadora 3', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq29', clave:'REV1', nombre:'REV1', familia:'Revisión', descripcion:'Revisadora 1', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq30', clave:'REV2', nombre:'REV2', familia:'Revisión', descripcion:'Revisadora 2', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq31', clave:'REV3', nombre:'REV3', familia:'Revisión', descripcion:'Revisadora 3', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq32', clave:'REV4', nombre:'REV4', familia:'Revisión', descripcion:'Revisadora 4', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq33', clave:'REV5', nombre:'REV5', familia:'Revisión', descripcion:'Revisadora 5', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq34', clave:'REV6', nombre:'REV6', familia:'Revisión', descripcion:'Revisadora 6', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq35', clave:'REV7', nombre:'REV7', familia:'Revisión', descripcion:'Revisadora 7', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq36', clave:'DEP2', nombre:'Depuradora acondicionado', familia:'Depuración', descripcion:'Depuradora de etiquetas', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq37', clave:'COR1', nombre:'COR1', familia:'Corte', descripcion:'Cortadora 1', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq38', clave:'COR2', nombre:'COR2', familia:'Corte', descripcion:'Cortadora 2', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq39', clave:'COR3', nombre:'COR3', familia:'Corte', descripcion:'Cortadora 3', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq40', clave:'', nombre:'Compresor acondicionado', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq41', clave:'', nombre:'Cortadora de cores acondicionado', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq42', clave:'', nombre:'Secador aire acondicionado', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq43', clave:'', nombre:'Tanque pulmón acondicionado', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq44', clave:'', nombre:'Mesa inspección', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq45', clave:'', nombre:'Rebobinador', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq46', clave:'', nombre:'Aires positivos (1,2,3)', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq47', clave:'', nombre:'Aire acondicionado', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'Indicar qué aire requiere atención', usos:{cincoS:false, proceso:false}, activo:true},
+  {id:'mq48', clave:'', nombre:'Rampa andén almacén', familia:'Infraestructura', descripcion:'', naves:['B16','B17'], desc:'', usos:{cincoS:false, proceso:false}, activo:true}
 ];
+
+// ══════════════════════════════════════════════════════════════════
+// ZONAS DE PLANTA (SPEC-058)
+// ══════════════════════════════════════════════════════════════════
+// Las auditorías de 5S no solo revisan máquinas: también revisan áreas. Esa
+// lista vivía duplicada en Procesos y aquí no existía, porque Mantenimiento
+// nunca la necesitó: para las OT ya tiene `infraestructura`, que es otra cosa
+// y con otro detalle (53 lugares, hasta vestidores y oficinas).
+//
+// Van en su propia colección, no revueltas con `maquinas`, para que nada de lo
+// que ya funciona cambie: si estuvieran en `maquinas` aparecerían en el
+// selector de equipo al levantar una OT y contarían como máquina en el cálculo
+// de disponibilidad, que es justo la clase de consecuencia que no queremos.
+//
+// `clave` es el identificador con el que Procesos ya guardó sus auditorías de
+// área. Cambiarlo dejaría sin dueño lo ya capturado.
+var DEFAULT_ZONAS = [
+  {id:'zn01', clave:'area-tintas', nombre:'Área de Tintas',             familia:'Zona', descripcion:'Preparación y resguardo de tintas', naves:['A1','A2'],   activo:true},
+  {id:'zn02', clave:'area-banos',  nombre:'Baños de Producción',        familia:'Zona', descripcion:'Sanitarios de piso',                naves:['A1','A2'],   activo:true},
+  {id:'zn03', clave:'area-mp',     nombre:'Almacén Materia Prima',      familia:'Zona', descripcion:'Recibo y resguardo de MP',           naves:['B16','B17'], activo:true},
+  {id:'zn04', clave:'area-pt',     nombre:'Almacén Producto Terminado', familia:'Zona', descripcion:'Resguardo y embarque de PT',         naves:['B16','B17'], activo:true},
+  {id:'zn05', clave:'area-mant',   nombre:'Taller Mantenimiento',       familia:'Zona', descripcion:'Taller y almacén de refacciones',    naves:['A1','A2'],   activo:true},
+  {id:'zn06', clave:'area-prep',   nombre:'Área Pre-prensa',            familia:'Zona', descripcion:'Montaje de clisés y cilindros',      naves:['A1','A2'],   activo:true},
+  {id:'zn07', clave:'area-cal',    nombre:'Laboratorio Calidad',        familia:'Zona', descripcion:'Pruebas y liberación',               naves:['A1','A2'],   activo:true}
+];
+
+// ── Migración de los campos nuevos (SPEC-058) ─────────────────────
+// La instalación que ya corre tiene `maquinas` en Firebase con la forma vieja:
+// sin `clave`, sin `familia`, sin `usos`. Al arrancar, el listener sobreescribe
+// DEFAULT_MAQUINAS con lo que hay en la nube, así que los campos nuevos nunca
+// llegarían solos.
+//
+// Esto los rellena por id, y **solo los que faltan**: lo que alguien haya
+// editado a mano —nombre, naves, advertencia, baja— no se pisa. Es idempotente,
+// así que la segunda pasada no encuentra nada y no vuelve a escribir; por eso
+// no se hace ciclo con el listener que la dispara.
+function completarCamposCatalogo(){
+  if(!DB.maquinas || !DB.maquinas.length) return;
+  var base = {};
+  DEFAULT_MAQUINAS.forEach(function(m){ base[m.id] = m; });
+
+  var cambios = 0;
+  DB.maquinas.forEach(function(m){
+    var ref = base[m.id];
+    if(!ref) return;                       // alta hecha a mano: no hay de dónde
+    if(m.clave === undefined){       m.clave = ref.clave;             cambios++; }
+    if(m.familia === undefined){     m.familia = ref.familia;         cambios++; }
+    if(m.descripcion === undefined){ m.descripcion = ref.descripcion; cambios++; }
+    if(m.usos === undefined){        m.usos = {cincoS:ref.usos.cincoS, proceso:ref.usos.proceso}; cambios++; }
+  });
+
+  // Una máquina dada de alta a mano antes de este cambio no trae los campos y
+  // no está en DEFAULT_MAQUINAS. Se le ponen valores neutros: queda como
+  // equipo que solo le interesa a Mantenimiento, que es lo que era.
+  DB.maquinas.forEach(function(m){
+    if(m.clave === undefined){       m.clave = '';                cambios++; }
+    if(m.familia === undefined){     m.familia = 'Infraestructura'; cambios++; }
+    if(m.descripcion === undefined){ m.descripcion = '';           cambios++; }
+    if(m.usos === undefined){        m.usos = {cincoS:false, proceso:false}; cambios++; }
+  });
+
+  if(cambios) saveDB();
+}
 
 // Inicializar catálogo de personal en DB para TODOS los roles
 function initPersonal(){
@@ -7398,6 +7678,10 @@ function initCatalogos(){
   }
   if(!DB.maquinas || !DB.maquinas.length){
     DB.maquinas = JSON.parse(JSON.stringify(DEFAULT_MAQUINAS));
+    saveDB();
+  }
+  if(!DB.zonas || !DB.zonas.length){
+    DB.zonas = JSON.parse(JSON.stringify(DEFAULT_ZONAS));
     saveDB();
   }
   if(!DB.infraestructura || !DB.infraestructura.length){
