@@ -1049,7 +1049,7 @@ SPEC-022 bloqueaba tomar una orden nueva solo cuando el técnico tenía una **pa
 # SPEC-028 — Ventanas propias en lugar de los diálogos nativos del navegador
 
 ### Problema que resuelve
-Las funciones nativas `alert()`, `confirm()` y `prompt()` del navegador muestran un prefijo con el dominio del sitio (por ejemplo, *"victormorenogarcia05-ux.github.io dice"*), que el navegador agrega como medida de seguridad para que el usuario sepa qué sitio le está hablando. **Ninguna app puede quitar ese prefijo** mientras siga usando esas funciones — no existe opción de CSS ni de JavaScript para ocultarlo. La única forma de eliminarlo es dejar de usar los diálogos nativos y mostrar ventanas propias.
+Las funciones nativas `alert()`, `confirm()` y `prompt()` del navegador muestran un prefijo con el dominio del sitio (por ejemplo, *"impredimex-hub.github.io dice"*), que el navegador agrega como medida de seguridad para que el usuario sepa qué sitio le está hablando. **Ninguna app puede quitar ese prefijo** mientras siga usando esas funciones — no existe opción de CSS ni de JavaScript para ocultarlo. La única forma de eliminarlo es dejar de usar los diálogos nativos y mostrar ventanas propias.
 
 ### Solución
 Se agregó un modal genérico y reutilizable (`#modal-app-dialog`), con el mismo estilo visual que el resto de los modales de la app, y tres funciones que lo controlan:

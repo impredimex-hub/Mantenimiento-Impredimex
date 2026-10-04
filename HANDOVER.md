@@ -26,7 +26,7 @@ Este documento contiene **todo lo que necesitas saber** para tomar el control de
 
 | Servicio | URL | Owner actual |
 |---|---|---|
-| GitHub | github.com/victormorenogarcia05-ux | victormorenogarcia05@gmail.com |
+| GitHub | github.com/impredimex-hub | victormorenogarcia05@gmail.com |
 | Firebase | console.firebase.google.com | victormorenogarcia05@gmail.com |
 | OneSignal | dashboard.onesignal.com | victormorenogarcia05@gmail.com |
 | Cloudflare | dash.cloudflare.com | victormorenogarcia05@gmail.com |
@@ -43,8 +43,8 @@ Este documento contiene **todo lo que necesitas saber** para tomar el control de
 ## 🆔 IDs y URLs clave del proyecto
 
 ### GitHub
-- **Repo:** https://github.com/victormorenogarcia05-ux/Mantenimiento-Impredimex
-- **URL pública:** https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/
+- **Repo:** https://github.com/impredimex-hub/Mantenimiento-Impredimex
+- **URL pública:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
 - **Rama principal:** `main`
 
 ### Firebase
@@ -93,7 +93,7 @@ Si en el futuro necesitas modularizar, considera usar **Vite** como bundler — 
 6. Esperar 30-90 segundos a que GitHub Pages actualice
 
 **Opción B — Localmente:**
-1. Clonar el repo: `git clone https://github.com/victormorenogarcia05-ux/Mantenimiento-Impredimex.git`
+1. Clonar el repo: `git clone https://github.com/impredimex-hub/Mantenimiento-Impredimex.git`
 2. Editar `index.html` con tu editor favorito
 3. Hacer commit y push
 4. Esperar la actualización de GitHub Pages

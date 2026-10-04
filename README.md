@@ -2,7 +2,7 @@
 
 > Sistema de gestión de Órdenes de Trabajo (OT) de mantenimiento industrial
 
-[![GitHub Pages](https://img.shields.io/badge/deployed-GitHub%20Pages-success)](https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/)
+[![GitHub Pages](https://img.shields.io/badge/deployed-GitHub%20Pages-success)](https://impredimex-hub.github.io/Mantenimiento-Impredimex/)
 [![Status](https://img.shields.io/badge/status-en%20producción-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Privado-blue)]()
 
@@ -26,7 +26,7 @@
 
 ## 🚀 Acceso a la aplicación
 
-**URL pública:** https://victormorenogarcia05-ux.github.io/Mantenimiento-Impredimex/
+**URL pública:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
 
 ### Credenciales por rol
 
@@ -108,7 +108,7 @@ Si vas a tomar este proyecto, asegúrate de tener acceso a:
 
 | Servicio | URL | Propósito |
 |---|---|---|
-| GitHub | github.com/victormorenogarcia05-ux/Mantenimiento-Impredimex | Repositorio |
+| GitHub | github.com/impredimex-hub/Mantenimiento-Impredimex | Repositorio |
 | Firebase Console | console.firebase.google.com → impredimex-mantoapp | Base de datos |
 | OneSignal Dashboard | dashboard.onesignal.com | Notificaciones |
 | Cloudflare Dashboard | dash.cloudflare.com | Worker proxy |
