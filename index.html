@@ -2376,6 +2376,14 @@ function initFirebase(){
         _fbConnected = !!snap.val();
         if(_fbConnected){
           setSyncState('connected', 'En línea');
+          // SPEC-059 (corrección): el padrón de la suite suele llegar **antes**
+          // de que esta conexión quede confirmada, y `publicarNotificarA` se
+          // salía sin escribir nada. Como `armarPersonal` solo vuelve a correr
+          // cuando cambia `operativo` —que es casi nunca—, la lista no se
+          // publicaba jamás y Procesos se quedaba sin a quién avisar.
+          // Aquí se publica en cuanto hay con qué; es idempotente, así que una
+          // reconexión no reescribe nada si la lista sigue igual.
+          publicarNotificarA();
         } else {
           setSyncState('offline', 'Sin conexión');
         }

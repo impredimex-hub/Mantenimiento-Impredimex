@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.10.1] — 2026-10-04
+
+### Corregido
+
+- **`notificarA` no se llegaba a publicar**, así que Ingeniería de Procesos
+  levantaba la OT pero no tenía a quién avisar y el equipo no se enteraba.
+
+  `publicarNotificarA()` se llama desde `armarPersonal()`, y empieza saliéndose
+  si la conexión a Firebase todavía no está confirmada. En el arranque el padrón
+  de la suite suele llegar **antes** que esa confirmación, así que se salía sin
+  escribir; y como `armarPersonal()` solo vuelve a correr cuando cambia
+  `operativo` —que es casi nunca—, la lista no se publicaba jamás.
+
+  Ahora también se publica en cuanto la conexión queda lista. Es idempotente, así
+  que una reconexión no reescribe nada si la lista sigue igual.
+
+---
+
 ## [2.10.0] — 2026-10-02
 
 ### Corregido
