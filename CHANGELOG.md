@@ -6,6 +6,54 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.10.2] — 2026-10-04
+
+### Corregido
+
+- **Ninguna OT creada en esta app llegaba a Firebase** desde la versión 2.10.0.
+
+  El campo nuevo se escribía como `folioLocal: apartado.local || undefined`, y en
+  JavaScript `false || undefined` da `undefined`. Como el folio sí se aparta bien
+  del servidor, ese campo quedaba indefinido **siempre**, y Firebase rechaza ese
+  valor tirando la escritura completa:
+
+  ```
+  update failed: values argument contains undefined
+  in property 'manto_db.ots.000315.folioLocal'
+  ```
+
+  La orden aparecía en la pantalla de quien la creó, porque se guarda primero en
+  el aparato, pero no salía de ahí: ningún otro dispositivo la veía.
+
+  Ahora el campo solo existe cuando de verdad hubo que usar el contador local.
+
+- **Una escritura fallida se daba por sincronizada.** `_snap` —el testigo de lo
+  que ya está en la nube— se marcaba **antes** de saber si la escritura
+  funcionaba. Al fallar, ninguna pasada posterior volvía a intentarlo y el dato
+  se quedaba solo en ese aparato, sin aviso.
+
+  Es lo que convirtió el error anterior en pérdida de datos en lugar de un
+  reintento. Ahora, si la escritura falla, los testigos se deshacen y la
+  siguiente pasada vuelve a mandar lo que no llegó. Solo se deshace lo que nadie
+  haya vuelto a cambiar mientras tanto, porque la escritura es asíncrona y puede
+  correr otra pasada en medio.
+
+### Pendiente
+
+- **Las notificaciones push llevan rotas desde que los repos se movieron a
+  `impredimex-hub`.** No es un problema de esta app: el Worker de Cloudflare
+  `mantoapp-push` responde con `Access-Control-Allow-Origin:
+  https://victormorenogarcia05-ux.github.io`, el dominio anterior, así que el
+  navegador bloquea la llamada de las dos apps.
+
+  Pasó desapercibido porque `notifyPush` muestra un aviso local en la pantalla
+  **antes** de llamar al Worker, y ese aviso sí se ve. El push real moría en un
+  `console.warn` que nadie leía.
+
+  Se arregla en el Worker, cambiando ese origen por `https://impredimex-hub.github.io`.
+
+---
+
 ## [2.10.1] — 2026-10-04
 
 ### Corregido

@@ -2119,9 +2119,23 @@ function flushDB(){
   if(!(db && _fbConnected)) return;
   var upd = {};
 
+  // SPEC-059 (corrección): los testigos de sincronización se marcan **antes**
+  // de saber si la escritura funcionó. Si falla, `_snap` ya cree que todo está
+  // en la nube y ninguna pasada posterior lo vuelve a intentar: el dato se
+  // queda solo en este aparato, en silencio.
+  //
+  // Aquí se apunta qué se tocó para poder deshacerlo. Solo se deshace lo que
+  // nadie haya vuelto a cambiar mientras tanto, porque la escritura es
+  // asíncrona y puede correr otra pasada en medio.
+  var tocados = [];
+  function marcar(mapa, clave, valor){
+    tocados.push({ mapa: mapa, clave: clave, antes: mapa[clave], despues: valor });
+    mapa[clave] = valor;
+  }
+
   if(_snap['folioSig'] !== _js(DB.folioSig)){
     upd['folioSig'] = DB.folioSig;
-    _snap['folioSig'] = _js(DB.folioSig);
+    marcar(_snap, 'folioSig', _js(DB.folioSig));
   }
 
   // Catálogos: se escriben completos, pero cambian rara vez
@@ -2129,7 +2143,7 @@ function flushDB(){
   CATALOGOS_FB.forEach(function(k){
     var v = DB[k] || [], sj = _js(v);
     if(_snap[k] !== sj){
-      upd[k] = v; _snap[k] = sj;
+      upd[k] = v; marcar(_snap, k, sj);
       if(k === 'maquinas' || k === 'zonas') catalogoTocado = true;
     }
   });
@@ -2148,20 +2162,26 @@ function flushDB(){
       if(!it || !it.id) return;
       vivos[it.id] = true;
       var sj = _js(it), key = col + '/' + it.id;
-      if(_snap[key] !== sj){ upd[key] = it; _snap[key] = sj; }
+      if(_snap[key] !== sj){ upd[key] = it; marcar(_snap, key, sj); }
     });
     Object.keys(_snap).forEach(function(key){
       if(key.indexOf(col + '/') !== 0) return;
-      if(!vivos[key.slice(col.length+1)]){ upd[key] = null; delete _snap[key]; }
+      if(!vivos[key.slice(col.length+1)]){ upd[key] = null; marcar(_snap, key, undefined); }
     });
   });
 
   // SPEC-059: índice de OT abiertas por máquina, para las otras apps.
-  _indexarAbiertas(upd);
+  _indexarAbiertas(upd, marcar);
 
   if(!Object.keys(upd).length) return;
   db.ref('manto_db').update(upd).catch(function(e){
     console.warn('Firebase save error:', e);
+    // Se deshacen los testigos para que la siguiente pasada vuelva a intentarlo.
+    tocados.forEach(function(t){
+      if(t.mapa[t.clave] !== t.despues) return;   // alguien ya lo cambió
+      if(t.antes === undefined) delete t.mapa[t.clave];
+      else t.mapa[t.clave] = t.antes;
+    });
   });
 }
 
@@ -2190,7 +2210,7 @@ function _claveDeEquipo(nombre){
   return (m && m.clave) ? m.clave : '';
 }
 
-function _indexarAbiertas(upd){
+function _indexarAbiertas(upd, marcar){
   var vigentes = {};
 
   (DB.ots || []).forEach(function(ot){
@@ -2213,12 +2233,12 @@ function _indexarAbiertas(upd){
     };
     vigentes[ruta] = true;
     var sj = _js(resumen);
-    if(_snapIdx[ruta] !== sj){ upd[ruta] = resumen; _snapIdx[ruta] = sj; }
+    if(_snapIdx[ruta] !== sj){ upd[ruta] = resumen; marcar(_snapIdx, ruta, sj); }
   });
 
   // Una OT que se cerró, o que cambió de máquina, sale del índice.
   Object.keys(_snapIdx).forEach(function(ruta){
-    if(!vigentes[ruta]){ upd[ruta] = null; delete _snapIdx[ruta]; }
+    if(!vigentes[ruta]){ upd[ruta] = null; marcar(_snapIdx, ruta, undefined); }
   });
 }
 
@@ -3393,9 +3413,13 @@ async function crearOT(){
     actividades: [],
     refacciones: [],
     comentarios: [],
-    espera:     null,
-    folioLocal: apartado.local || undefined
+    espera:     null
   };
+  // Solo se escribe cuando de verdad hubo que usar el contador local.
+  // Antes era `apartado.local || undefined`, y en JavaScript `false || undefined`
+  // da `undefined`: Firebase rechaza ese valor y tiraba la escritura completa,
+  // así que ninguna OT creada aquí llegaba a la nube.
+  if(apartado.local) ot.folioLocal = true;
   DB.ots.push(ot);
   saveDB();
   document.getElementById('nueva-desc').value = '';
