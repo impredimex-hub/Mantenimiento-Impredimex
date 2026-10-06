@@ -2129,8 +2129,19 @@ function flushDB(){
   // asíncrona y puede correr otra pasada en medio.
   var tocados = [];
   function marcar(mapa, clave, valor){
-    tocados.push({ mapa: mapa, clave: clave, antes: mapa[clave], despues: valor });
-    mapa[clave] = valor;
+    tocados.push({
+      mapa: mapa, clave: clave,
+      antes: mapa[clave],
+      habia: Object.prototype.hasOwnProperty.call(mapa, clave),
+      despues: valor
+    });
+    // Un valor vacío significa «esta ruta ya no existe», así que la clave se
+    // quita en lugar de quedarse apuntando a nada. Si se quedara, el recorrido
+    // que busca rutas muertas la volvería a encontrar en cada guardado y
+    // mandaría otra vez la orden de borrar una OT que ya no está: ruido que se
+    // acumula con cada borrado de la sesión.
+    if(valor === undefined) delete mapa[clave];
+    else mapa[clave] = valor;
   }
 
   if(_snap['folioSig'] !== _js(DB.folioSig)){
@@ -2178,9 +2189,11 @@ function flushDB(){
     console.warn('Firebase save error:', e);
     // Se deshacen los testigos para que la siguiente pasada vuelva a intentarlo.
     tocados.forEach(function(t){
-      if(t.mapa[t.clave] !== t.despues) return;   // alguien ya lo cambió
-      if(t.antes === undefined) delete t.mapa[t.clave];
-      else t.mapa[t.clave] = t.antes;
+      var hayAhora = Object.prototype.hasOwnProperty.call(t.mapa, t.clave);
+      // Si otra pasada volvió a tocar esta ruta mientras tanto, lo suyo manda.
+      if(t.despues === undefined ? hayAhora : t.mapa[t.clave] !== t.despues) return;
+      if(t.habia) t.mapa[t.clave] = t.antes;
+      else delete t.mapa[t.clave];
     });
   });
 }
@@ -7809,10 +7822,13 @@ var DEFAULT_MAQUINAS = [
   {id:'mq29', clave:'REV1', nombre:'REV1', familia:'Revisión', descripcion:'Revisadora 1', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
   {id:'mq30', clave:'REV2', nombre:'REV2', familia:'Revisión', descripcion:'Revisadora 2', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
   {id:'mq31', clave:'REV3', nombre:'REV3', familia:'Revisión', descripcion:'Revisadora 3', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  // REV5 y REV7 no existen en planta: comprobado en piso el 6 de octubre de
+  // 2026. Las revisadoras son 1, 2, 3, 4 y 6. Quedan inactivas y no se borran
+  // porque hay OT levantadas contra REV7 que dejarían de poder leerse.
   {id:'mq32', clave:'REV4', nombre:'REV4', familia:'Revisión', descripcion:'Revisadora 4', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
-  {id:'mq33', clave:'REV5', nombre:'REV5', familia:'Revisión', descripcion:'Revisadora 5', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq33', clave:'REV5', nombre:'REV5', familia:'Revisión', descripcion:'Revisadora 5', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:false},
   {id:'mq34', clave:'REV6', nombre:'REV6', familia:'Revisión', descripcion:'Revisadora 6', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
-  {id:'mq35', clave:'REV7', nombre:'REV7', familia:'Revisión', descripcion:'Revisadora 7', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
+  {id:'mq35', clave:'REV7', nombre:'REV7', familia:'Revisión', descripcion:'Revisadora 7', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:false},
   {id:'mq36', clave:'DEP2', nombre:'Depuradora acondicionado', familia:'Depuración', descripcion:'Depuradora de etiquetas', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
   {id:'mq37', clave:'COR1', nombre:'COR1', familia:'Corte', descripcion:'Cortadora 1', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},
   {id:'mq38', clave:'COR2', nombre:'COR2', familia:'Corte', descripcion:'Cortadora 2', naves:['B16','B17'], desc:'', usos:{cincoS:true, proceso:true}, activo:true},

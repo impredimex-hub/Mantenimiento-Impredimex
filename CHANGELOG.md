@@ -6,6 +6,38 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.10.3] — 2026-10-06
+
+### Corregido
+
+- **Cada borrado de OT se repetía en todos los guardados siguientes.** Al
+  corregir los testigos de sincronización el 4 de octubre, la ruta de una OT
+  borrada se quedaba registrada apuntando a nada en lugar de quitarse. El
+  recorrido que busca rutas muertas la volvía a encontrar en cada guardado y
+  mandaba otra vez la orden de borrar algo que ya no estaba.
+
+  Firebase lo ignoraba, pero son bytes que se pagan y que se acumulan con cada
+  OT borrada en la sesión. Ahora la clave se quita, y si la escritura falla
+  vuelve a ponerse para que el siguiente guardado reintente.
+
+### Cambiado
+
+- **REV5 y REV7 quedan inactivas en el catálogo base.** No existen en planta:
+  comprobado en piso el 6 de octubre de 2026. Las revisadoras son **REV1, REV2,
+  REV3, REV4 y REV6** —la numeración salta—, y REV8 tampoco existe.
+
+  No se borran del catálogo porque hay OT levantadas contra REV7 (#000318,
+  «Instalar estrobo») que dejarían de poder leerse. Inactivas desaparecen de las
+  listas de las dos apps y el historial se conserva.
+
+### Confirmado
+
+- **Las notificaciones push llegan a los teléfonos.** Probado con un técnico el
+  6 de octubre, con la app cerrada. Cierra lo que quedaba abierto del arreglo
+  del Worker.
+
+---
+
 ## [2.10.2] — 2026-10-04
 
 ### Corregido
