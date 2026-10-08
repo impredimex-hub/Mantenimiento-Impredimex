@@ -6,6 +6,33 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.10.4] — 2026-10-08
+
+Solo documentación. El código de la aplicación (`index.html`) no cambia.
+
+### Cambiado
+
+- **`README.md` y `HANDOVER.md` reescritos** con el estado real de la aplicación:
+  inicio de sesión con la suite, sesión anónima en el proyecto propio, permisos
+  desde RRHH y servicios externos con su propietario actual. Seguían
+  describiendo la versión 4, con contraseñas por papel y autenticación anónima
+  como único acceso, y recomendaban implementar algo que ya existe.
+- **`NOTIFICACIONES.md` al día.** Agrega el aviso de «OT en pausa», quita los
+  avisos internos que retiró la SPEC-057 y documenta las OT que levanta
+  Ingeniería de Procesos.
+- **`HANDOVER.md` explica cómo dar acceso a un área nueva** y cómo restablecer
+  una clave, que no se puede hacer con el botón de la consola porque el correo
+  `@impredimex.local` no existe.
+
+### Eliminado
+
+- **Las contraseñas de la versión 4** que seguían escritas en `README.md`,
+  `SPECS.md` y este archivo. Ya no daban acceso a nada, pero confundían.
+- **`CHECKLIST.md`**, la lista de pruebas de la migración a la suite. Esa
+  migración terminó; el procedimiento vigente está en `HANDOVER.md`.
+
+---
+
 ## [2.10.3] — 2026-10-06
 
 ### Corregido
@@ -498,10 +525,9 @@ aplicación cambia por completo y las contraseñas anteriores dejan de servir.
   `DB.personal`, para no tener que tocar las once comparaciones repartidas.
 
 ### Eliminado
-- **Las cuatro contraseñas compartidas** que estaban escritas en el código de un
-  repositorio público: `solicitud`, `mantenimiento`, `administrador` e
-  `IMPREDIMEX`. Cualquiera podía entrar con el papel que quisiera escribiendo la
-  nómina de otra persona.
+- **Las cuatro contraseñas compartidas**, una por papel, que estaban escritas en
+  el código de un repositorio público. Cualquiera podía entrar con el papel que
+  quisiera escribiendo la nómina de otra persona.
 - **La lista de 119 personas escrita en el código**, con sus nombres, puestos y
   departamentos.
 - **Los seis PIN de 4 dígitos que estaban en claro**, dos de los cuales eran el

@@ -68,9 +68,9 @@ Persona con cuenta en la suite y acceso concedido a esta aplicación.
 
 ### Reglas de negocio
 - **Nunca hay contraseñas ni PIN en el código.** Desaparecen las cuatro claves
-  compartidas de la v4 —`solicitud`, `mantenimiento`, `administrador` e
-  `IMPREDIMEX`—, que estaban escritas en un repositorio público y permitían que
-  cualquiera entrara con el papel que quisiera escribiendo la nómina de otro.
+  compartidas de la v4, una por papel, que estaban escritas en un repositorio
+  público y permitían que cualquiera entrara con el papel que quisiera
+  escribiendo la nómina de otro.
 - **El dominio `@impredimex.local` no existe de verdad.** Solo forma un
   identificador único; Firebase no envía correos ni lo verifica.
 - **Tener cuenta no da acceso.** Lo da estar en `apps`. Una persona con cuenta
@@ -578,7 +578,7 @@ Mecánico · Eléctrico · Neumático · Electrónico · Hidráulico · Guardas 
 # SPEC-016 — Módulo de Turnos (rol de turnos del personal)
 
 ### Actor
-Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
+Supervisor / Jefe de Mantenimiento (papel `supervisor`).
 
 ### Ubicación
 Pestaña **"Turnos"** en la barra inferior del supervisor, entre **Técnicos** y **Alertas**.
@@ -654,7 +654,7 @@ El portapapeles guarda una **copia independiente** de la asignación, incluidas 
 # SPEC-017 — Módulo Preventivo (programa mensual de mantenimiento)
 
 ### Actor
-Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
+Supervisor / Jefe de Mantenimiento (papel `supervisor`).
 
 ### Ubicación
 Pestaña **"Preventivo"** en la barra inferior del supervisor, entre **Turnos** y **Alertas**.
@@ -769,7 +769,7 @@ Proyección con 15 OT diarias y 15 usuarios: de **126 GB al mes a 1.4 GB**, y co
 # SPEC-019 — Reorganización del perfil de supervisor
 
 ### Actor
-Supervisor / Jefe de Mantenimiento (contraseña `administrador`).
+Supervisor / Jefe de Mantenimiento (papel `supervisor`).
 
 ### Módulos retirados
 - **Alertas:** eliminado por no aportar información distinta a la que ya muestran las tarjetas de estado y el propio listado de OT
@@ -1293,7 +1293,7 @@ Un botón flotante, arriba del de comedor (SPEC-034), visible únicamente cuando
 Cualquier persona que decida activar el PIN en su dispositivo.
 
 ### Motivación
-Los técnicos compartían una sola contraseña ("mantenimiento") para todos. La v4
+Los técnicos compartían una sola contraseña para todos. La v4
 les dio un PIN propio de 4 dígitos, pero lo hizo mal: los PIN quedaron escritos
 en claro dentro del código de un repositorio público, y dos de ellos eran el
 propio número de nómina de la persona, así que cualquiera podía entrar como
@@ -2033,8 +2033,8 @@ Estos son ajustes al código actual para alinearlo con las specs:
 
 ---
 
-*Documento actualizado el 13 de agosto de 2026 — versión 2.7 (agrega SPEC-022).*
-*A partir de aquí, cualquier cambio a la app debe iniciar actualizando este documento.*
+*Las especificaciones de la SPEC-046 en adelante se agregaron después de los anexos, en el orden en que se incorporaron.*
+*Cualquier cambio a la app debe iniciar actualizando este documento.*
 
 ---
 

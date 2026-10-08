@@ -1,302 +1,295 @@
-# HANDOVER.md — Guía de Transición
+# HANDOVER.md — Guía técnica de mantenimiento
 
-## Documento de transición para nuevo desarrollador
+Lo que necesita saber quien reciba esta aplicación para operarla, corregirla y
+extenderla sin depender de quien la construyó.
 
-Este documento contiene **todo lo que necesitas saber** para tomar el control del proyecto MantoApp si el desarrollador original deja la empresa o el proyecto se transfiere a otro equipo.
-
-**Última actualización:** 27 de junio de 2026
-**Desarrollador original:** Victor Moreno
+**Versión de la aplicación:** 2.10.4
+**Última actualización de este documento:** 8 de octubre de 2026
+**Desarrollo original:** Victor Moreno
 
 ---
 
-## ⚠️ Lectura obligatoria antes de modificar nada
+## Antes de modificar nada
 
 1. Lee este documento completo
 2. Lee [`README.md`](./README.md)
-3. Lee [`SPECS.md`](./SPECS.md) — especificaciones del sistema
-4. Lee [`CHANGELOG.md`](./CHANGELOG.md) — historial de cambios
+3. Lee en [`SPECS.md`](./SPECS.md) al menos SPEC-001, SPEC-042 a SPEC-044,
+   SPEC-058 y SPEC-059, y los anexos A y B
+4. Revisa las últimas entradas de [`CHANGELOG.md`](./CHANGELOG.md)
+
+La aplicación es parte de una suite. **Cualquier cambio que toque inicio de
+sesión, permisos, personal o reglas de Firebase afecta también a RRHH, EPP,
+Ingeniería de Procesos y Control de Procesos.**
 
 ---
 
-## 🔑 Accesos y credenciales
+## Servicios externos y quién los administra
 
-### Cuentas de servicios externos
+Ninguna credencial vive en este repositorio. Las cuentas se entregan por
+separado.
 
-> ⚠️ **IMPORTANTE:** Las credenciales de acceso a las cuentas NO están en este documento por seguridad. Solicítalas al responsable del proyecto o al equipo de IT de IMPREDIMEX.
-
-| Servicio | URL | Owner actual |
+| Servicio | Qué contiene | Cuenta propietaria hoy |
 |---|---|---|
-| GitHub | github.com/impredimex-hub | victormorenogarcia05@gmail.com |
-| Firebase | console.firebase.google.com | victormorenogarcia05@gmail.com |
-| OneSignal | dashboard.onesignal.com | victormorenogarcia05@gmail.com |
-| Cloudflare | dash.cloudflare.com | victormorenogarcia05@gmail.com |
+| GitHub `impredimex-hub` | Código y hospedaje (GitHub Pages) de las cinco apps y el portal | Cuenta de usuario `impredimex-hub` |
+| Firebase `impredimex-suite` | Inicio de sesión y padrón de personal de toda la suite | Cuenta de Google de la suite |
+| Firebase `impredimex-mantoapp` | Base de datos de esta aplicación | Cuenta de Google personal del desarrollador |
+| OneSignal, app «IYS App» | Suscripciones y entrega de notificaciones | Cuenta personal del desarrollador |
+| Cloudflare, worker `mantoapp-push` | Envío seguro del push (guarda la API key de OneSignal) | Cuenta personal del desarrollador |
 
-### Recomendación al recibir el proyecto
-
-1. **Transferir la propiedad** de las cuentas o crear cuentas corporativas de IMPREDIMEX
-2. **Cambiar emails** asociados a cuentas corporativas
-3. **Documentar nuevas credenciales** (sin ponerlas en el repo)
-4. **Habilitar 2FA** en todas las cuentas
+El traspaso de estas cuentas a la empresa se hace con el plan de traspaso que
+acompaña esta entrega. Hasta que se complete, la aplicación depende de cuentas
+personales.
 
 ---
 
-## 🆔 IDs y URLs clave del proyecto
+## Identificadores y direcciones
 
-### GitHub
-- **Repo:** https://github.com/impredimex-hub/Mantenimiento-Impredimex
-- **URL pública:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
-- **Rama principal:** `main`
+**GitHub**
+- Repositorio: https://github.com/impredimex-hub/Mantenimiento-Impredimex
+- Aplicación: https://impredimex-hub.github.io/Mantenimiento-Impredimex/
+- Portal de la suite: https://impredimex-hub.github.io/
+- Rama publicada: `main`, carpeta raíz
 
-### Firebase
-- **Proyecto:** `impredimex-mantoapp`
-- **Realtime Database URL:** `https://impredimex-mantoapp-default-rtdb.firebaseio.com`
-- **Plan:** Spark (gratuito)
+**Firebase — datos de esta app**
+- Proyecto: `impredimex-mantoapp`
+- Realtime Database: `https://impredimex-mantoapp-default-rtdb.firebaseio.com`,
+  nodo raíz `manto_db`
+- Plan: Spark (gratuito)
 
-### OneSignal
-- **App ID:** `1bb0b5c6-1a08-4a5e-a300-715a65a1dcc1`
-- **App Name:** IYS App
-- **REST API Key:** *(guardada en Cloudflare Worker — no exponer en frontend)*
+**Firebase — suite**
+- Proyecto: `impredimex-suite`
+- Firestore, colección `colaboradores` (una ficha por nómina)
+- Authentication: cuentas `<nómina>@impredimex.local`
 
-### Cloudflare
-- **Account ID:** `a722ef314786d4ae10a8aacececbf61c`
-- **Worker URL:** `https://mantoapp-push.victormorenogarcia05.workers.dev/`
-- **Worker name:** `mantoapp-push`
+**OneSignal**
+- App ID: `1bb0b5c6-1a08-4a5e-a300-715a65a1dcc1`
+- La REST API key vive **solo** en el worker de Cloudflare
 
----
-
-## 🏗️ Cómo se construye el proyecto
-
-### NO hay build process
-
-Este proyecto **NO usa Webpack, Vite, npm, ni ningún build tool**. El `index.html` se sirve tal como está desde GitHub Pages.
-
-**Ventajas:**
-- Cero configuración
-- Cero dependencias locales
-- Cualquiera puede editar con un editor de texto
-
-**Desventajas:**
-- No hay minificación
-- No hay tree-shaking
-- No hay code splitting
-
-Si en el futuro necesitas modularizar, considera usar **Vite** como bundler — es el más simple para proyectos vanilla JS.
-
-### Cómo hacer cambios
-
-**Opción A — Desde GitHub web:**
-1. Abrir el repo en github.com
-2. Clic en `index.html`
-3. Clic en el ícono de lápiz (editar)
-4. Modificar el código
-5. Commit
-6. Esperar 30-90 segundos a que GitHub Pages actualice
-
-**Opción B — Localmente:**
-1. Clonar el repo: `git clone https://github.com/impredimex-hub/Mantenimiento-Impredimex.git`
-2. Editar `index.html` con tu editor favorito
-3. Hacer commit y push
-4. Esperar la actualización de GitHub Pages
-
-### Probar cambios localmente
-
-Como el HTML necesita HTTPS para que funcionen las notificaciones push, lo más fácil es:
-- Usar **Live Server** de VS Code
-- O subir un branch a GitHub y crear un GitHub Pages alternativo para staging
+**Cloudflare**
+- Worker: `mantoapp-push`
+- Dirección: `https://mantoapp-push.victormorenogarcia05.workers.dev/`
+- Orígenes permitidos (CORS): `https://impredimex-hub.github.io`
 
 ---
 
-## 🔔 Flujo de notificaciones push (CRÍTICO entender esto)
+## Cómo se publica un cambio
 
-Este es el flujo más complejo del proyecto. **Léelo dos veces.**
+No hay compilación. El `index.html` se sirve tal cual desde GitHub Pages.
+
+**Desde GitHub web:** abrir el archivo, editar con el lápiz, confirmar el
+commit en `main`. GitHub Pages publica en uno o dos minutos.
+
+**Desde una copia local:**
 
 ```
-Usuario hace acción que requiere notificar
-         ↓
-Frontend llama a notifyPush(nominas, title, body)
-         ↓
-fetch POST → mantoapp-push.victormorenogarcia05.workers.dev
-         ↓
-Cloudflare Worker recibe la petición
-         ↓
-Worker hace fetch POST → onesignal.com/api/v1/notifications
-         ↓
-Worker pasa el header Authorization: Basic [REST_API_KEY]
-         ↓
-OneSignal procesa y entrega push a los dispositivos
-con tags que coinciden con las nominas
+git clone https://github.com/impredimex-hub/Mantenimiento-Impredimex.git
+# editar index.html
+git commit -am "Descripción del cambio"
+git push
 ```
 
-### Por qué el Worker es necesario
+Después de publicar, recargar sin caché (Ctrl+Shift+R). En un teléfono con la
+app instalada puede hacer falta cerrarla y abrirla dos veces.
 
-La REST API de OneSignal **NO permite llamadas directas desde el navegador (CORS)**. Por eso se necesita un proxy. El Worker de Cloudflare cumple esa función Y mantiene la API key segura (oculta en el servidor).
+### Probar sin afectar producción
 
-### Cuándo modificar el Worker
+Producción y cualquier copia de prueba **escriben en la misma base**. Una OT de
+prueba es una OT real que los técnicos van a ver: hay que borrarla después
+desde Administración → Gestión de OT.
 
-Si necesitas cambiar la lógica de envío de notificaciones:
-
-1. Ir a Cloudflare Dashboard
-2. Workers & Pages → `mantoapp-push`
-3. Editar código
-4. Deploy
-
-**⚠️ NO pongas la API key en el `index.html`** — solo en el Worker.
+Para probar localmente hace falta servir el archivo por HTTP (por ejemplo, Live
+Server de VS Code). Las notificaciones push no funcionan fuera del dominio
+publicado.
 
 ---
 
-## 🔐 Seguridad
+## Cómo entra una persona
 
-### Reglas actuales de Firebase Realtime Database
+1. Escribe su nómina y su clave. La app arma `<nómina>@impredimex.local` y
+   valida contra Authentication de `impredimex-suite`
+2. Lee su ficha en `colaboradores/<nómina>`: debe estar `ACTIVO` y tener `manto`
+   en `apps`
+3. Toma su papel de `roles.manto`. Sin papel, entra como `solicitante`
+4. Abre una sesión anónima en `impredimex-mantoapp`, que es lo que exigen las
+   reglas de su base
+5. Etiqueta el dispositivo en OneSignal con su nómina y su papel
+
+Si la persona ya inició sesión en el portal o en otra app de la suite, entra
+directo: la sesión se comparte porque todas viven en `impredimex-hub.github.io`.
+
+### Dar acceso a una persona o a un área nueva
+
+1. **Que exista en el padrón.** RRHH la da de alta en su Directorio
+2. **Que tenga cuenta.** Firebase Console → `impredimex-suite` → Authentication →
+   Agregar usuario. Correo `<nómina>@impredimex.local`, clave inicial de 6
+   dígitos que se le entrega a la persona
+3. **Que tenga permiso.** En la app de RRHH, Directorio → icono de llave de la
+   persona → Mantenimiento → elegir el papel. Los papeles de esta app van en
+   minúsculas y el selector ya los escribe bien
+4. **Si es técnico:** por omisión atiende los tres tipos de orden. Para
+   restringirlo, en esta app, Administración → Catálogo de personal, desmarcar
+   los que no le tocan. Con todos desmarcados deja de considerarse disponible
+5. Si el área trabaja en una nave o con equipos que no están en el catálogo,
+   darlos de alta en Administración → Catálogos
+
+Los cambios de papel surten efecto en el siguiente inicio de sesión.
+
+### Restablecer una clave
+
+No hay función en ninguna app para hacerlo, y el botón «Restablecer contraseña»
+de la consola no sirve: manda un correo a `@impredimex.local`, que no existe.
+
+1. Firebase Console → `impredimex-suite` → Authentication → buscar
+   `<nómina>@impredimex.local` → Borrar cuenta
+2. Agregar usuario con el mismo identificador y una clave nueva de 6 dígitos
+
+Ninguna app guarda el identificador interno de la cuenta, así que borrarla y
+crearla otra vez no afecta sus permisos ni su historial: esos viven en su ficha
+de `colaboradores` y en los registros de cada app.
+
+---
+
+## Notificaciones push
+
+```
+Evento en la app
+   ↓
+notifyPush(nóminas, título, texto)
+   ↓
+POST → Worker mantoapp-push (Cloudflare)
+   ↓
+El worker agrega la REST API key y reenvía → OneSignal
+   ↓
+OneSignal entrega a los dispositivos etiquetados con esas nóminas
+```
+
+El worker existe por dos razones: la API de OneSignal no acepta llamadas
+directas desde el navegador, y así la API key nunca llega al código público.
+Ingeniería de Procesos también usa este worker para avisar de las OT que levanta.
+
+Qué evento avisa a quién: [`NOTIFICACIONES.md`](./NOTIFICACIONES.md).
+
+**Si se cambia el dominio de la app**, hay que agregar el nuevo origen a
+`ALLOWED_ORIGINS` en el código del worker. Si no, el navegador bloquea la
+llamada y el push deja de llegar sin que la app muestre ningún error.
+
+**Si se cambia la dirección del worker**, hay que actualizarla en `notifyPush`
+de esta app y en la de Ingeniería de Procesos.
+
+---
+
+## Seguridad
+
+Reglas de la Realtime Database (copia en `database.rules.json`):
 
 ```json
 {
   "rules": {
-    "manto_db": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      ".indexOn": ["status", "folio"]
-    }
+    ".read": "auth != null",
+    ".write": "auth != null"
   }
 }
 ```
 
-**Significa:** Solo usuarios autenticados (incluso anónimamente) pueden leer/escribir. Cualquier usuario que abra la app obtiene auth anónima automáticamente.
+Exigen sesión, pero la sesión es anónima, así que no distinguen entre usuarios.
+Es un riesgo aceptado a conciencia (SPEC-044). Lo que lo cerraría:
 
-### Limitaciones de seguridad actuales
+1. **App Check** con reCAPTCHA Enterprise. El código ya está listo: basta con
+   crear la clave y pegarla en la constante `APPCHECK_SITE_KEY`
+2. **Hacer privado el repositorio.** Requiere mover el hospedaje fuera de
+   GitHub Pages gratuito, por ejemplo a Firebase Hosting
 
-- Las contraseñas de la app son **fijas y públicas** (cualquiera con la URL puede probar contraseñas)
-- La autenticación es anónima — Firebase no sabe quién es cada usuario realmente
-- No hay rate limiting en el Worker
-
-### Si necesitas reforzar la seguridad
-
-Considera:
-1. Implementar **Firebase Auth con email/password** o **custom claims**
-2. Reglas más granulares (ej: solo el creador puede editar su OT)
-3. Agregar **Cloudflare Turnstile** al Worker para evitar abuse
+La configuración de Firebase que aparece en `index.html` es pública por diseño;
+no es un secreto. Lo que protege los datos son las reglas.
 
 ---
 
-## 📊 Modelo de datos
+## Datos
 
-Ver Anexo A de [`SPECS.md`](./SPECS.md) para el modelo completo.
+Modelo completo en el Anexo A de [`SPECS.md`](./SPECS.md). Lo esencial:
 
-### Backup de datos
+- `manto_db/ots` — órdenes de trabajo
+- `manto_db/operativo/<nómina>` — tipos de orden que atiende cada técnico
+- `manto_db/maquinas`, `zonas`, `naves`, `infraestructura`, `tiposServicio` —
+  catálogos. Máquinas y zonas los leen también Ingeniería de Procesos
+- `manto_db/abiertasPorMaquina`, `notificarA`, `urlApp` — índices que lee
+  Ingeniería de Procesos
 
-Firebase Realtime Database NO tiene backup automático en el plan Spark. **Recomendación:**
+**Las OT guardan la máquina por nombre.** Renombrar una máquina deja huérfanas
+sus órdenes anteriores. Para retirarla, se marca inactiva; no se borra.
 
-1. En Firebase Console → Realtime Database → 3 puntos → "Exportar JSON"
-2. Hacerlo manualmente cada semana o automatizarlo con un script
-3. Guardar los backups en Google Drive o similar
+### Respaldo
 
----
+El plan Spark no respalda la base automáticamente.
 
-## 🚨 Troubleshooting común
-
-### "No me llegan las notificaciones"
-
-1. Verificar que el usuario está suscrito en OneSignal Dashboard → Audience → Subscriptions
-2. Verificar que los tags `nomina` y `role` están bien aplicados
-3. Verificar logs en Cloudflare Workers → mantoapp-push → Logs
-4. Verificar que el Worker tiene la REST API Key correcta (no la App ID)
-
-### "La app no carga"
-
-1. Verificar que GitHub Pages está activo: Settings → Pages
-2. Verificar la consola del navegador (F12 → Console) por errores
-3. Verificar reglas de Firebase (no deben requerir auth distinta a anónima)
-
-### "Permission denied en Firebase"
-
-Significa que las reglas de Firebase están bloqueando. Verificar que el código hace `signInAnonymously()` antes de leer/escribir.
-
-### "El folio no se reinicia"
-
-Verificar que el código del fix está presente (líneas con `// SPEC-002:`). Ver [`SPECS.md`](./SPECS.md) → SPEC-002.
+1. Firebase Console → `impredimex-mantoapp` → Realtime Database → menú de tres
+   puntos → Exportar JSON
+2. Hacerlo al menos una vez por semana y guardar el archivo en una unidad de la
+   empresa
 
 ---
 
-## 💰 Costos y límites
+## Problemas comunes
 
-### Plan gratuito actual
+**No llegan las notificaciones**
+1. Confirmar que el permiso de notificaciones está concedido en el dispositivo
+2. OneSignal → Audience → Subscriptions: buscar la nómina en las etiquetas
+3. Cloudflare → `mantoapp-push` → Logs: ver si llegó la petición y qué respondió
+4. Si en la consola del navegador (F12) aparece un error de CORS, el dominio de
+   la app no está en `ALLOWED_ORIGINS` del worker
 
-| Servicio | Límite gratuito | Uso actual estimado |
+**Una persona no puede entrar**
+1. ¿Está `ACTIVO` en el padrón?
+2. ¿Tiene `manto` en `apps`? Revisarlo con el icono de llave en RRHH
+3. ¿Existe su cuenta en Authentication de `impredimex-suite`?
+4. ¿Su papel está en minúsculas? `ADMIN` en mayúsculas no se reconoce
+
+**La app no carga o se queda en blanco**
+1. GitHub → repositorio → Settings → Pages: debe estar activo en `main`
+2. Consola del navegador (F12): buscar el primer error
+3. Recargar sin caché
+
+**«Permission denied» en la consola**
+La sesión anónima en `impredimex-mantoapp` no se abrió. Revisar que el
+proveedor «Anónimo» siga habilitado en Authentication de ese proyecto.
+
+**Una OT aparece en un teléfono pero no en los demás**
+La escritura a Firebase falló. La app reintenta sola en el siguiente guardado;
+si persiste, revisar la consola del navegador de ese teléfono.
+
+---
+
+## Costos y límites
+
+Todo opera en planes gratuitos.
+
+| Servicio | Límite gratuito | Cuándo revisar |
 |---|---|---|
-| GitHub Pages | Ilimitado | < 1% |
-| Firebase Spark | 1GB DB, 10GB transferencia/mes | < 5% |
-| OneSignal | 10,000 suscriptores web | < 1% |
-| Cloudflare Workers | 100,000 requests/día | < 1% |
-
-### Cuándo considerar upgrade
-
-- Firebase: si la base de datos crece más de 800MB → considerar plan Blaze
-- OneSignal: si superas 10,000 suscriptores → planes de pago
-- Cloudflare: si superas 100,000 notificaciones/día → plan Workers Paid ($5/mes)
+| GitHub Pages | Sitios públicos sin costo | Si se quiere repositorio privado |
+| Firebase Spark | 1 GB de base, 10 GB de descarga al mes por proyecto | Revisar el uso mensual en la consola |
+| OneSignal | Notificaciones web sin costo en el plan gratuito | Si se requieren funciones de pago |
+| Cloudflare Workers | 100 000 peticiones al día | Uso actual: decenas al día |
 
 ---
 
-## 🔄 Integración con ERP (futuro)
+## Al recibir el proyecto
 
-Si la empresa decide integrar MantoApp con un ERP comercial:
-
-### Opciones de integración
-
-**Opción 1 — Webhooks de Firebase**
-Configurar Cloud Functions que disparen webhooks al ERP cuando cambien datos. Requiere migrar a plan Blaze.
-
-**Opción 2 — API REST intermedia**
-Crear una capa de API REST (Cloudflare Workers o Node.js) que el ERP pueda consumir. Es la opción más limpia.
-
-**Opción 3 — Sync periódico**
-El ERP consulta directamente Firebase REST API cada X minutos. Más simple pero menos eficiente.
-
-### Lo que el equipo del ERP necesitará
-
-- Acceso de lectura a Firebase (crear cuenta de servicio con permisos limitados)
-- Documentación del modelo de datos (Anexo A de SPECS.md)
-- Endpoints documentados (a crear)
-- Mapeo de campos MantoApp ↔ ERP
+- [ ] Recibir acceso de propietario a los cinco servicios de la tabla de arriba
+- [ ] Activar verificación en dos pasos en cada cuenta
+- [ ] Clonar el repositorio y publicar un cambio menor de prueba
+- [ ] Hacer un respaldo inicial de la base
+- [ ] Probar el flujo completo de una OT con notificaciones, y borrar la OT de
+      prueba
+- [ ] Registrar el primer cambio propio en `CHANGELOG.md`
 
 ---
 
-## 📚 Recursos de aprendizaje
+## Recursos
 
-Si el nuevo desarrollador no conoce el stack:
-
-| Tecnología | Recurso recomendado |
+| Tema | Referencia |
 |---|---|
 | Firebase Realtime Database | https://firebase.google.com/docs/database/web/start |
+| Firebase Authentication | https://firebase.google.com/docs/auth/web/start |
 | OneSignal Web Push | https://documentation.onesignal.com/docs/web-push-quickstart |
 | Cloudflare Workers | https://developers.cloudflare.com/workers/ |
-| JavaScript vanilla | https://javascript.info/ |
-| Git/GitHub | https://docs.github.com/en/get-started |
-
----
-
-## ✅ Checklist de transición
-
-Cuando alguien tome el proyecto, debe completar esta lista:
-
-- [ ] Recibir credenciales de las 4 cuentas (GitHub, Firebase, OneSignal, Cloudflare)
-- [ ] Hacer login y verificar acceso a cada servicio
-- [ ] Clonar el repo y probar editarlo
-- [ ] Hacer un cambio menor de prueba y deployarlo
-- [ ] Verificar que la app pública sigue funcionando
-- [ ] Hacer un backup inicial de la base de datos
-- [ ] Cambiar las credenciales si es necesario
-- [ ] Habilitar 2FA en todas las cuentas
-- [ ] Documentar al menos un cambio en CHANGELOG.md
-- [ ] Probar el flujo completo de OT con notificaciones
-
----
-
-## 📞 Contacto del desarrollador original
-
-**Victor Moreno**
-Email: victormorenogarcia05@gmail.com
-
-> Si necesitas ayuda en la transición, contacta al desarrollador original durante los primeros 30 días post-handover.
-
----
-
-*Documento de handover versión 1.0 — 27 de junio de 2026*
+| GitHub Pages | https://docs.github.com/pages |

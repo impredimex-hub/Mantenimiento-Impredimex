@@ -1,165 +1,131 @@
 # MantoApp Impredimex
 
-> Sistema de gestión de Órdenes de Trabajo (OT) de mantenimiento industrial
+Sistema de gestión de Órdenes de Trabajo (OT) de mantenimiento industrial.
 
-[![GitHub Pages](https://img.shields.io/badge/deployed-GitHub%20Pages-success)](https://impredimex-hub.github.io/Mantenimiento-Impredimex/)
-[![Status](https://img.shields.io/badge/status-en%20producción-brightgreen)]()
-[![License](https://img.shields.io/badge/license-Privado-blue)]()
-
----
-
-## 📋 Descripción
-
-**MantoApp** es una aplicación web para gestionar el ciclo completo de órdenes de trabajo de mantenimiento en planta industrial. Permite a operadores reportar fallas, asignar técnicos, dar seguimiento al avance en tiempo real, y mantener un historial completo con análisis estadísticos para supervisión.
-
-### Características principales
-
-- 🔄 **Sincronización en tiempo real** entre todos los usuarios
-- 🔔 **Notificaciones push** a dispositivos móviles y escritorio
-- 👥 **4 roles diferenciados** (Solicitante, Técnico, Supervisor, Admin)
-- 📱 **Diseño mobile-first** para uso en piso de planta
-- 🌐 **Multi-dispositivo** (Android, iOS, Windows, Linux)
-- 💾 **Sin instalación** — funciona desde el navegador
-- 🆓 **Cero costo de operación** (todos los servicios en plan gratuito)
+**Dirección:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
+**Versión vigente:** 2.10.4 (ver [`CHANGELOG.md`](./CHANGELOG.md))
+**Estado:** en producción
 
 ---
 
-## 🚀 Acceso a la aplicación
+## Descripción
 
-**URL pública:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
+MantoApp gestiona el ciclo completo de una orden de trabajo de mantenimiento en
+planta: el área solicitante reporta la falla, el técnico la toma y registra lo
+que hizo, el solicitante valida el cierre y la supervisión consulta indicadores.
 
-### Credenciales por rol
+Forma parte de la **suite Impredimex**: el inicio de sesión y la lista de
+personal son compartidos con RRHH, EPP, Ingeniería de Procesos y Control de
+Procesos, y se entra desde el portal https://impredimex-hub.github.io/.
 
-| Rol | Contraseña |
-|---|---|
-| Solicitante | `solicitud` |
-| Técnico | `mantenimiento` |
-| Supervisor / Jefe | `administrador` |
-| Administrador | `IMPREDIMEX` |
+### Funciones principales
 
-> **Nota:** La nómina debe estar previamente registrada en el catálogo de personal por un administrador.
+- Sincronización en tiempo real entre todos los dispositivos
+- Notificaciones push a teléfono y escritorio, aunque la app esté cerrada
+- Cuatro papeles: solicitante, técnico, supervisor y administrador
+- Rol de turnos, programa de mantenimiento preventivo e indicadores (MTTR,
+  MTBF, disponibilidad)
+- Catálogo de máquinas y zonas de planta, compartido con Ingeniería de Procesos
+- Diseño para teléfono, pensado para uso en piso de planta
+- Se instala como aplicación desde el navegador; no requiere tienda
 
 ---
 
-## 🏗️ Arquitectura
+## Acceso
+
+Cada persona entra con **su número de nómina y su clave personal** de la suite.
+No existen contraseñas compartidas ni por papel.
+
+Para que alguien pueda entrar se necesitan tres cosas en el proyecto
+`impredimex-suite`:
+
+1. Estar en la colección `colaboradores` con `estatus: "ACTIVO"`
+2. Tener `manto` en su lista `apps`, y su papel en `roles.manto`
+   (`solicitante`, `tecnico`, `supervisor` o `admin`, en minúsculas)
+3. Tener cuenta en Firebase Authentication con el identificador
+   `<nómina>@impredimex.local`
+
+Los permisos se asignan desde la app de RRHH. Ver [`HANDOVER.md`](./HANDOVER.md).
+
+---
+
+## Arquitectura
 
 ```
-┌─────────────────────────────────────────┐
-│   Frontend (index.html en GitHub Pages) │
-│   HTML + CSS + JS vanilla, single file  │
-└──────────────┬──────────────────────────┘
-               │
-        ┌──────┴──────┬──────────────┐
-        ▼             ▼              ▼
-   Firebase RTDB   Cloudflare      OneSignal
-   (datos)         Worker          (push)
-                   (proxy push)
+                 index.html (GitHub Pages)
+                 HTML + CSS + JavaScript, un solo archivo
+                              │
+     ┌────────────────┬───────┴────────┬─────────────────────┐
+     ▼                ▼                ▼                     ▼
+ impredimex-suite  impredimex-mantoapp  Cloudflare Worker   OneSignal
+ Auth + personal   Realtime Database   mantoapp-push        entrega del push
+ (Firestore)       (datos de la app)   (guarda la API key)
+                                            └──────────────►
 ```
-
-### Stack tecnológico
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | HTML5 + CSS3 + JavaScript vanilla (sin frameworks) |
-| Base de datos | Firebase Realtime Database |
-| Autenticación | Firebase Authentication (anónima) |
+| Interfaz | HTML5, CSS3 y JavaScript sin frameworks ni compilación |
+| Datos | Firebase Realtime Database, proyecto `impredimex-mantoapp` |
+| Identidad | Firebase Authentication del proyecto `impredimex-suite`, más una sesión anónima en el proyecto propio para cumplir sus reglas |
 | Notificaciones | OneSignal Web SDK v16 |
-| Proxy seguro | Cloudflare Workers |
-| Hosting | GitHub Pages (HTTPS automático) |
-| Librerías | xlsx (export Excel) |
+| Envío seguro del push | Cloudflare Worker `mantoapp-push` |
+| Hospedaje | GitHub Pages |
+| Exportación | SheetJS (xlsx) |
 
 ---
 
-## 📁 Estructura del repositorio
+## Estructura del repositorio
 
 ```
 Mantenimiento-Impredimex/
-├── index.html              # Aplicación completa (single-file)
-├── OneSignalSDKWorker.js   # Service Worker de notificaciones
-├── README.md               # Este archivo
-├── SPECS.md                # Especificaciones funcionales (SDD)
-├── HANDOVER.md             # Guía de transición/onboarding
-└── CHANGELOG.md            # Historial de cambios
+├── index.html              Aplicación completa
+├── manifest.json           Datos para instalarla como aplicación
+├── OneSignalSDKWorker.js   Service worker de las notificaciones
+├── icon-192.png, icon-512.png, apple-touch-icon.png
+├── database.rules.json     Reglas de la Realtime Database (copia de referencia)
+├── README.md               Este archivo
+├── HANDOVER.md             Guía técnica para quien mantenga la aplicación
+├── SPECS.md                Especificaciones funcionales
+├── NOTIFICACIONES.md       Cuándo se envía cada push y a quién
+└── CHANGELOG.md            Historial de versiones
 ```
 
 ---
 
-## 🔧 Desarrollo
+## Cómo se trabaja
 
-### Metodología
+No hay proceso de compilación: el `index.html` se publica tal cual.
 
-El proyecto sigue **SDD (Spec-Driven Development)** desde junio 2026. Cualquier cambio debe:
+1. Actualizar primero la especificación en `SPECS.md`
+2. Hacer el cambio en `index.html`, referenciando la spec en un comentario
+   (`// SPEC-XXX: …`)
+3. Registrar el cambio en `CHANGELOG.md` (formato Keep a Changelog, versionado
+   semántico)
+4. Subir a la rama `main`. GitHub Pages publica en uno o dos minutos
+5. Recargar sin caché (Ctrl+Shift+R) y probar el flujo afectado
 
-1. Iniciar con la actualización del archivo `SPECS.md`
-2. Implementar el código fiel a la spec
-3. Comentar el código referenciando la spec: `// SPEC-XXX: ...`
-4. Registrar el cambio en `CHANGELOG.md`
-
-### Cómo modificar la app
-
-1. Clonar el repo o editar directamente en GitHub
-2. Modificar `index.html` (toda la app vive ahí)
-3. Hacer commit → GitHub Pages se actualiza automáticamente en 30-90 segundos
-4. Probar en el navegador (limpiar caché con Ctrl+Shift+R)
-
-### Servicios externos requeridos
-
-Si vas a tomar este proyecto, asegúrate de tener acceso a:
-
-| Servicio | URL | Propósito |
-|---|---|---|
-| GitHub | github.com/impredimex-hub/Mantenimiento-Impredimex | Repositorio |
-| Firebase Console | console.firebase.google.com → impredimex-mantoapp | Base de datos |
-| OneSignal Dashboard | dashboard.onesignal.com | Notificaciones |
-| Cloudflare Dashboard | dash.cloudflare.com | Worker proxy |
-
-Ver [HANDOVER.md](./HANDOVER.md) para credenciales y accesos.
+Detalle completo, servicios externos y solución de problemas en
+[`HANDOVER.md`](./HANDOVER.md).
 
 ---
 
-## 📖 Documentación
+## Limitaciones conocidas
 
-| Documento | Propósito |
-|---|---|
-| [`SPECS.md`](./SPECS.md) | Especificaciones funcionales formales (SDD) |
-| [`HANDOVER.md`](./HANDOVER.md) | Guía de transición y onboarding para nuevos desarrolladores |
-| [`CHANGELOG.md`](./CHANGELOG.md) | Historial de cambios y versiones |
-
----
-
-## 🧪 Cómo probar la app
-
-1. Acceder a la URL pública
-2. Iniciar sesión con cualquier rol
-3. Probar el flujo completo:
-   - Crear OT como solicitante
-   - Tomar OT como técnico
-   - Confirmar técnico en máquina
-   - Registrar actividades
-   - Concluir OT
-   - Validar cierre como solicitante
-
-Para más detalle ver [`SPECS.md`](./SPECS.md).
+- La base de datos exige sesión, pero esa sesión es anónima: no distingue entre
+  usuarios. Riesgo aceptado; ver SPEC-044. App Check está preparado en el
+  código y pendiente de configurar en la consola
+- El repositorio es público, y con él la configuración de Firebase
+- No hay recuperación de clave por autoservicio: la restablece un administrador
+- Plan gratuito de Firebase (Spark): sin respaldo automático de la base
 
 ---
 
-## 🐛 Limitaciones conocidas
+## Responsables
 
-- Contraseñas fijas por rol (no hay recuperación)
-- Sin historial de modificaciones por OT
-- iOS requiere subdirectorio específico para push
-- Plan Spark de Firebase tiene límite de 1GB y 10GB transferencia/mes
-
----
-
-## 📞 Contacto
-
-**Desarrollador original:** Victor Moreno
+**Desarrollo original:** Victor Moreno
 **Empresa:** Impresión y Diseño de México S.A. de C.V. (IMPREDIMEX)
-**Año:** 2026
 
----
-
-## 📄 Licencia
+## Licencia
 
 Software privado de uso interno de IMPREDIMEX.
