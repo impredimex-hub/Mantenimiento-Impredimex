@@ -5,7 +5,7 @@
 Cuándo se envía cada notificación push, a quién llega y qué particularidades
 tiene el enrutamiento a lo largo del flujo de una Orden de Trabajo (OT).
 
-**Versión de la aplicación:** 2.11.0
+**Versión de la aplicación:** 2.12.0
 **Última actualización:** 9 de octubre de 2026
 **Referencias:** SPEC-009, SPEC-011, SPEC-047, SPEC-057 y SPEC-059
 

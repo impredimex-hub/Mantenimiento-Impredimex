@@ -5,7 +5,8 @@
  *   1. Abre una sesión anónima en el proyecto impredimex-mantoapp, la misma
  *      puerta que usa la app.
  *   2. Descarga la base completa y verifica que sea un respaldo válido.
- *   3. La guarda en la carpeta CARPETA de Drive.
+ *   3. La guarda en la carpeta CARPETA de Drive, como JSON (para restaurar) y
+ *      como Excel (para consultar).
  *   4. Manda a la papelera los respaldos de esa carpeta con más de
  *      DIAS_CONSERVAR días.
  *   5. Anota el respaldo en `respaldos/drive`, que es lo que lee la app para
@@ -57,17 +58,28 @@ function respaldar() {
     var archivo = carpeta.createFile(Utilities.newBlob(texto, 'application/json', nombre));
     var bytes = archivo.getSize();
 
+    // El Excel es un extra para consultar. Si falla, el JSON —que es el que
+    // restaura— ya quedó guardado y el respaldo sigue siendo válido.
+    var excel = '';
+    try {
+      excel = guardarExcel_(datos, carpeta, nombre.replace(/\.json$/, '')).getName();
+    } catch (e) {
+      console.warn('El JSON se guardó, pero el Excel no: ' + e);
+    }
+
     // La limpieza va después de guardar el nuevo, nunca antes.
     var enPapelera = limpiar_(carpeta);
 
     escribir_(sesion.idToken, 'respaldos/drive', {
       fecha: ahora.getTime(),
       bytes: bytes,
-      archivo: nombre
+      archivo: nombre,
+      excel: excel
     });
 
     console.log('Respaldo guardado: ' + nombre + ' (' + Math.round(bytes / 1024) + ' KB, ' +
-                Object.keys(datos.manto_db.ots).length + ' OT vivas). A la papelera: ' + enPapelera + '.');
+                Object.keys(datos.manto_db.ots).length + ' OT vivas)' +
+                (excel ? ' y ' + excel : '; sin Excel') + '. A la papelera: ' + enPapelera + '.');
   } finally {
     // Sin esto se acumularía una cuenta anónima por noche en Authentication.
     borrarSesion_(sesion.idToken);
@@ -143,6 +155,201 @@ function escribir_(idToken, ruta, valor) {
 function carpeta_() {
   var it = DriveApp.getFoldersByName(CONFIG.CARPETA);
   return it.hasNext() ? it.next() : DriveApp.createFolder(CONFIG.CARPETA);
+}
+
+// Arma el Excel en una hoja de cálculo de Google temporal, la exporta como
+// .xlsx a la carpeta de respaldos y manda la temporal a la papelera.
+function guardarExcel_(datos, carpeta, nombreBase) {
+  var hojas = armarHojasRespaldo(datos, function (iso) {
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? String(iso) : Utilities.formatDate(d, CONFIG.ZONA, 'yyyy-MM-dd HH:mm');
+  });
+  var ss = SpreadsheetApp.create(nombreBase);
+  try {
+    var primera = ss.getSheets()[0];
+    hojas.forEach(function (h, i) {
+      var sh = i === 0 ? primera.setName(h.nombre) : ss.insertSheet(h.nombre);
+      var filas = [h.encabezados].concat(h.filas).map(function (r) {
+        return r.map(function (v) {
+          // Un texto que empieza con = + - @ se tomaría como fórmula: el
+          // apóstrofo inicial lo deja como texto y no aparece en la celda.
+          return (typeof v === 'string' && /^[=+\-@]/.test(v)) ? "'" + v : v;
+        });
+      });
+      sh.getRange(1, 1, filas.length, h.encabezados.length).setValues(filas);
+      sh.getRange(1, 1, 1, h.encabezados.length).setFontWeight('bold');
+      sh.setFrozenRows(1);
+    });
+    SpreadsheetApp.flush();
+    var resp = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + ss.getId() + '/export?format=xlsx', {
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    });
+    if (resp.getResponseCode() !== 200) throw new Error('Exportar a Excel respondió ' + resp.getResponseCode());
+    return carpeta.createFile(resp.getBlob().setName(nombreBase + '.xlsx'));
+  } finally {
+    DriveApp.getFileById(ss.getId()).setTrashed(true);
+  }
+}
+
+// ── SPEC-060: la base convertida en hojas de cálculo ─────────────────────
+// Esta función existe IDÉNTICA en index.html y en respaldo-drive.gs, para que
+// el Excel que descarga el administrador y el que guarda Drive cada noche
+// tengan las mismas hojas y las mismas columnas. Si se cambia una, se cambia
+// la otra.
+//
+// Recibe la base completa, tal como la devuelve la raíz, y una función que
+// convierte una fecha ISO en texto con la hora de la planta. Devuelve una lista
+// de hojas: {nombre, encabezados, filas}. Todas las filas tienen tantas celdas
+// como encabezados.
+//
+// El Excel es para consultar, no para restaurar: lo que va anidado en cada OT
+// (técnicos, actividades, refacciones…) se reparte en hojas ligadas por el
+// folio. Para restaurar se usa el JSON del mismo día.
+function armarHojasRespaldo(datos, fmtFecha) {
+  var md = (datos && datos.manto_db) || {};
+  var arch = (datos && datos.manto_db_archivo) || {};
+
+  function lista(v) {
+    if (!v) return [];
+    var a = Array.isArray(v) ? v : Object.keys(v).map(function (k) { return v[k]; });
+    return a.filter(function (x) { return x && typeof x === 'object'; });
+  }
+  function txt(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number' || typeof v === 'boolean') return v;
+    var s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    // Una celda de Excel admite 32 767 caracteres.
+    return s.length > 30000 ? s.slice(0, 30000) + '…' : s;
+  }
+  function f(iso) { return iso ? fmtFecha(iso) : ''; }
+  function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
+  function horas(ini, fin) {
+    if (!ini || !fin) return '';
+    var ms = Date.parse(fin) - Date.parse(ini);
+    return isFinite(ms) && ms >= 0 ? Math.round(ms / 36e5 * 100) / 100 : '';
+  }
+  function folioNum(o) { return parseInt(String(o.folio || o.id || '').replace(/\D/g, ''), 10) || 0; }
+
+  var ESTATUS = { abierto: 'Abierta', proceso: 'En proceso', espera: 'En espera', validar: 'Pendiente de validación', cerrado: 'Cerrada' };
+  var PRIORIDAD = { normal: 'Normal', urgente: 'Urgente', 'maquina-parada': 'Máquina parada' };
+
+  var ots = lista(md.ots).map(function (o) { return { o: o, archivada: 'No' }; })
+    .concat(lista(arch.ots).map(function (o) { return { o: o, archivada: 'Sí' }; }));
+  ots.sort(function (a, b) { return folioNum(a.o) - folioNum(b.o); });
+
+  var hOT = [], hTec = [], hAct = [], hRef = [], hEsp = [], hPau = [], hCom = [];
+  ots.forEach(function (x) {
+    var o = x.o, folio = txt(o.folio || ('#' + (o.id || '')));
+    var tecs = lista(o.tecnicos), acts = lista(o.actividades), refs = lista(o.refacciones);
+    var costo = refs.reduce(function (s, r) { return s + num(r.qty || 1) * num(r.costo); }, 0);
+    var rech = o.rechazo || {}, esp = o.espera || {};
+    hOT.push([
+      folio, x.archivada, txt(ESTATUS[o.status] || o.status), txt(PRIORIDAD[o.prioridad] || o.prioridad),
+      txt(o.tipo), txt(o.nave), txt(o.equipo), txt(o.area), txt(o.desc),
+      txt(o.solicitante), txt(o.nomina), txt(o.origen || 'SOLICITUD'),
+      f(o.fechaAlta), tecs.map(function (t) { return t.nombre || ''; }).join(', ') || txt(o.tecnico),
+      f(o.fechaTomada), f(o.fechaPrimerContacto), txt(o.tipoProblema), num(o.avance),
+      txt(o.errorOperativo), f(o.fechaCierreMantenimiento), f(o.fechaCierre),
+      txt(rech.motivo), txt(rech.detalle), f(rech.fecha),
+      o.status === 'espera' ? txt(esp.motivo) : '', o.status === 'espera' ? txt(esp.fechaEst) : '',
+      txt(o.auditoriaTipo), f(o.auditoriaFecha), txt(o.auditor), txt(o.hallazgoTexto),
+      o.folioLocal ? 'Sí' : '', acts.length, refs.length, Math.round(costo * 100) / 100
+    ]);
+    var contactos = o.contactosPorTecnico || {};
+    tecs.forEach(function (t, i) {
+      hTec.push([folio, i + 1, txt(t.nombre), txt(t.nomina), txt(t.turno), f(t.fecha),
+                 f(contactos[t.nomina] || (i === 0 ? o.fechaPrimerContacto : '')), f(t.fechaSalida)]);
+    });
+    acts.forEach(function (a) {
+      hAct.push([folio, txt(a.fecha), txt(a.inicio), txt(a.fin), txt(a.tecnico), txt(a.nomina),
+                 txt(a.accion), txt(a.obs), num(a.avance), txt(a.errorOperativo)]);
+    });
+    refs.forEach(function (r) {
+      var q = num(r.qty || 1), c = num(r.costo);
+      hRef.push([folio, txt(r.tipo), txt(r.desc), q, c, Math.round(q * c * 100) / 100]);
+    });
+    lista(o.esperas).forEach(function (e) {
+      hEsp.push([folio, f(e.inicio), f(e.fin), horas(e.inicio, e.fin), txt(e.motivo), txt(e.tecnico), txt(e.nomina)]);
+    });
+    lista(o.pausas).forEach(function (p) {
+      hPau.push([folio, f(p.fecha), txt(p.tecnico), txt(p.nomina), txt(p.folioDestino)]);
+    });
+    lista(o.comentarios).forEach(function (c) {
+      hCom.push([folio, f(c.fecha), txt(c.autor), txt(c.texto)]);
+    });
+  });
+
+  // Catálogos: las columnas salen de los propios registros, para que un campo
+  // nuevo aparezca sin tocar esta función. Una colección guardada por clave
+  // conserva esa clave en la primera columna.
+  function catalogo(nombre, v, claveTitulo) {
+    if (!v) return null;
+    // Firebase devuelve un arreglo con huecos como objeto de claves 0, 1, 2…;
+    // eso sigue siendo una lista, no un catálogo por clave.
+    var porClave = !Array.isArray(v) && !Object.keys(v).every(function (k) { return /^\d+$/.test(k); });
+    var regs = porClave
+      ? Object.keys(v).filter(function (k) { return v[k] && typeof v[k] === 'object'; })
+          .map(function (k) { return { k: k, r: v[k] }; })
+      : lista(v).map(function (r) { return { k: '', r: r }; });
+    if (!regs.length) return null;
+    var cols = [];
+    regs.forEach(function (x) {
+      Object.keys(x.r).forEach(function (c) { if (cols.indexOf(c) < 0) cols.push(c); });
+    });
+    var enc = (porClave ? [claveTitulo || 'clave'] : []).concat(cols);
+    var filas = regs.map(function (x) {
+      var fila = cols.map(function (c) {
+        var val = x.r[c];
+        if (Array.isArray(val)) return val.map(function (e) { return typeof e === 'object' ? JSON.stringify(e) : e; }).join(', ');
+        if (typeof val === 'boolean') return val ? 'Sí' : 'No';
+        return txt(val);
+      });
+      return porClave ? [x.k].concat(fila) : fila;
+    });
+    return { nombre: nombre, encabezados: enc, filas: filas };
+  }
+
+  var vivas = lista(md.ots).length, archivadas = lista(arch.ots).length;
+  var hojas = [
+    { nombre: 'Resumen', encabezados: ['Concepto', 'Valor'], filas: [
+      ['Generado', fmtFecha(new Date().toISOString())],
+      ['OT vivas', vivas],
+      ['OT archivadas', archivadas],
+      ['Técnicos registrados en OT', hTec.length],
+      ['Actividades', hAct.length],
+      ['Refacciones', hRef.length],
+      ['Periodos de espera', hEsp.length],
+      ['Para qué sirve', 'Consulta. Para restaurar la base se usa el archivo JSON del mismo respaldo.']
+    ] },
+    { nombre: 'OT', encabezados: ['Folio', 'Archivada', 'Estatus', 'Prioridad', 'Tipo de servicio', 'Nave', 'Equipo', 'Área',
+      'Descripción', 'Solicitante', 'Nómina solicitante', 'Origen', 'Fecha de alta', 'Técnicos', 'Fecha en que se tomó',
+      'Primer contacto', 'Tipo de problema', 'Avance %', 'Error operativo', 'Concluida por Mantenimiento',
+      'Cierre validado', 'Motivo de rechazo', 'Detalle de rechazo', 'Fecha de rechazo', 'Motivo de espera actual',
+      'Fecha estimada de reanudación', 'Tipo de auditoría', 'Fecha de auditoría', 'Auditor', 'Hallazgo', 'Folio local',
+      'Actividades', 'Refacciones', 'Costo de refacciones'], filas: hOT },
+    { nombre: 'Técnicos por OT', encabezados: ['Folio', 'Orden', 'Técnico', 'Nómina', 'Turno', 'Tomó la OT', 'Primer contacto', 'Se retiró'], filas: hTec },
+    { nombre: 'Actividades', encabezados: ['Folio', 'Fecha', 'Inicio', 'Fin', 'Técnico', 'Nómina', 'Acción', 'Observaciones', 'Avance %', 'Error operativo'], filas: hAct },
+    { nombre: 'Refacciones', encabezados: ['Folio', 'Tipo', 'Descripción', 'Cantidad', 'Costo unitario', 'Importe'], filas: hRef },
+    { nombre: 'Esperas', encabezados: ['Folio', 'Inicio', 'Fin', 'Horas', 'Motivo', 'Técnico', 'Nómina'], filas: hEsp },
+    { nombre: 'Pausas', encabezados: ['Folio', 'Fecha', 'Técnico', 'Nómina', 'Pasó a la OT'], filas: hPau },
+    { nombre: 'Comentarios', encabezados: ['Folio', 'Fecha', 'Autor', 'Texto'], filas: hCom }
+  ];
+  [catalogo('Máquinas', md.maquinas), catalogo('Zonas de planta', md.zonas), catalogo('Naves', md.naves),
+   catalogo('Infraestructura', md.infraestructura), catalogo('Tipos de servicio', md.tiposServicio),
+   catalogo('Técnicos — tipos de OT', md.operativo)]
+    .forEach(function (h) { if (h) hojas.push(h); });
+
+  // Garantiza filas del mismo ancho que sus encabezados: Sheets lo exige.
+  hojas.forEach(function (h) {
+    var n = h.encabezados.length;
+    h.filas = h.filas.map(function (r) {
+      r = r.slice(0, n);
+      while (r.length < n) r.push('');
+      return r;
+    });
+  });
+  return hojas;
 }
 
 // A la papelera de Drive, no borrado definitivo: se recuperan durante 30 días.

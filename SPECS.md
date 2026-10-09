@@ -2536,14 +2536,43 @@ El padrón de personal **no** está aquí: vive en Firestore de
 ### Nombre del archivo
 
 `Respaldo_Mantenimiento_AAAA-MM-DD_HHMM.json`, con la hora de la Ciudad de
-México. El mismo formato en Drive y en la app.
+México. El mismo formato en Drive y en la app, y el Excel con el mismo nombre
+y extensión `.xlsx`.
+
+### Copia en Excel
+
+Además del JSON se genera un Excel **para consultar**, nunca para restaurar.
+Lo que va anidado en cada OT se reparte en hojas ligadas por el folio:
+
+| Hoja | Una fila por |
+|---|---|
+| Resumen | Totales y fecha de generación |
+| OT | Orden de trabajo, vivas y archivadas, con estado, fechas, tiempos y costo |
+| Técnicos por OT | Técnico que intervino en cada OT |
+| Actividades | Actividad registrada |
+| Refacciones | Refacción, con su importe |
+| Esperas | Periodo de espera, con sus horas |
+| Pausas | Técnico que dejó una OT para atender otra |
+| Comentarios | Comentario de la bitácora de la OT |
+| Máquinas, Zonas de planta, Naves, Infraestructura, Tipos de servicio, Técnicos — tipos de OT | Registro del catálogo |
+
+Las columnas de los catálogos salen de los propios registros, así que un campo
+nuevo aparece solo. Las fechas van como `AAAA-MM-DD HH:MM` en la hora de la
+planta.
+
+Rol de turnos, programa preventivo y comedor **no** van en el Excel: siguen
+completos en el JSON.
+
+**Una sola conversión.** La función `armarHojasRespaldo` existe idéntica en
+`index.html` y en `respaldo-drive.gs`, para que los dos Excel tengan las mismas
+hojas y columnas. Si se cambia una, se cambia la otra.
 
 ### Registro del último respaldo
 
 ```
 respaldos/
 ├── app/    {fecha, nomina, nombre, bytes, archivo}   último botón usado
-└── drive/  {fecha, bytes, archivo}                   última corrida del script
+└── drive/  {fecha, bytes, archivo, excel}            última corrida del script
 ```
 
 `fecha` es milisegundos desde 1970. Vive **fuera de `manto_db`** a propósito:
@@ -2556,8 +2585,10 @@ lo descargan.
 2. La pantalla muestra el último respaldo de Drive y el último descargado desde
    la app, cada uno con su fecha y su tamaño.
 3. **Preparar respaldo** lee la base completa una vez.
-4. Al terminar aparece **Guardar archivo**, con el tamaño. Tocarlo descarga el
-   archivo y registra el respaldo en `respaldos/app`.
+4. Al terminar aparecen **Guardar respaldo JSON**, con el tamaño, y
+   **Descargar en Excel**. El JSON descarga el respaldo y lo registra en
+   `respaldos/app`. El Excel solo descarga: no cuenta como respaldo porque no
+   restaura.
 
 Son dos toques y no uno a propósito: los navegadores, sobre todo en el
 teléfono, bloquean una descarga que no viene directamente de un toque, y leer
@@ -2570,7 +2601,10 @@ nadie se enteraría.
    de Firebase Authentication, igual que la app.
 2. Descarga la base completa y verifica que sea JSON válido y que traiga
    `manto_db/ots`. Si no, se detiene sin guardar ni borrar nada.
-3. Guarda el archivo en la carpeta *Respaldos MantoApp* de Drive.
+3. Guarda el JSON en la carpeta *Respaldos MantoApp* de Drive. Después arma el
+   Excel en una hoja de cálculo de Google temporal, lo exporta como `.xlsx` a la
+   misma carpeta y manda la temporal a la papelera. Si el Excel falla, el JSON
+   ya quedó guardado y el respaldo sigue siendo válido.
 4. Manda a la papelera de Drive los respaldos de esa carpeta con más de 90
    días. Desde la papelera se recuperan durante 30 días más.
 5. Escribe `respaldos/drive`.

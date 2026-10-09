@@ -6,6 +6,33 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.12.0] — 2026-10-09
+
+### Agregado
+
+- **Copia del respaldo en Excel** (SPEC-060). El JSON restaura la base pero no
+  se puede leer sin herramientas. El Excel reparte la misma información en
+  hojas para consultarla: OT vivas y archivadas, técnicos por OT, actividades,
+  refacciones con importe, esperas con sus horas, pausas, comentarios y
+  catálogos.
+  - En la app: **Descargar en Excel**, junto a «Guardar respaldo JSON», en
+    Administración → Respaldo de datos.
+  - En Drive: el script guarda cada noche el `.xlsx` junto al `.json`, con el
+    mismo nombre. Si el Excel falla, el JSON igual se guarda.
+- Una descripción que empieza con `=`, `+`, `-` o `@` queda como texto en el
+  Excel, en lugar de convertirse en fórmula.
+
+### Cambiado
+
+- El script de Drive ahora usa Google Sheets para armar el Excel, así que pide
+  un permiso nuevo. **Hay que volver a ejecutar `instalar` a mano una vez**
+  después de pegar la versión nueva; si no, la corrida de la noche falla por
+  falta de autorización.
+- El respaldo diario quedó instalado el 9 de octubre de 2026 en la cuenta de la
+  suite: primer archivo de 773 KB con 332 OT vivas.
+
+---
+
 ## [2.11.0] — 2026-10-09
 
 ### Agregado

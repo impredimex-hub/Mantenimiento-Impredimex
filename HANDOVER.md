@@ -3,7 +3,7 @@
 Lo que necesita saber quien reciba esta aplicación para operarla, corregirla y
 extenderla sin depender de quien la construyó.
 
-**Versión de la aplicación:** 2.11.0
+**Versión de la aplicación:** 2.12.0
 **Última actualización de este documento:** 9 de octubre de 2026
 **Desarrollo original:** Victor Moreno
 
@@ -224,10 +224,12 @@ El plan Spark no respalda la base automáticamente. Hay dos mecanismos:
 
 - **Respaldo diario a Google Drive.** El script `respaldo-drive.gs` de este
   repositorio corre cada noche desde Google Apps Script y guarda la base
-  completa en la carpeta *Respaldos MantoApp* de la cuenta que lo instaló.
-  Conserva 90 días; lo anterior va a la papelera de Drive.
+  completa en la carpeta *Respaldos MantoApp* de la cuenta que lo instaló: un
+  `.json` para restaurar y un `.xlsx` para consultar. Conserva 90 días; lo
+  anterior va a la papelera de Drive. Instalado el 9 de octubre de 2026 en la
+  cuenta de la suite.
 - **Botón en la app.** Administración → Respaldo de datos → Preparar respaldo →
-  Guardar archivo. Descarga la base completa al dispositivo.
+  Guardar respaldo JSON o Descargar en Excel.
 
 El panel del administrador avisa cuando el respaldo más reciente tiene más de 7
 días. Si aparece ese aviso, lo más probable es que el script de Drive haya
@@ -257,6 +259,12 @@ Se hace una sola vez, con la cuenta de Google que guardará los respaldos.
 6. Revisar el registro de ejecución: debe decir «Respaldo guardado» y
    «Instalado». En Drive aparece la carpeta *Respaldos MantoApp* con el primer
    archivo, y en la app el módulo Respaldo de datos muestra la fecha de Drive
+
+**Al actualizar el script** con una versión nueva de `respaldo-drive.gs`:
+pegarla completa sobre la anterior, guardar y volver a ejecutar `instalar`. Si
+la versión nueva usa un servicio de Google que la anterior no usaba, Google pide
+autorizarlo otra vez, y eso solo se puede hacer a mano: la corrida automática de
+la noche fallaría.
 
 Si una corrida falla, Google manda un correo con el error a la cuenta dueña
 del script. Para quitar el respaldo diario, ejecutar `desinstalar`; los

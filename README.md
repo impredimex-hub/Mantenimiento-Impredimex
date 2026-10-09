@@ -3,7 +3,7 @@
 Sistema de gestión de Órdenes de Trabajo (OT) de mantenimiento industrial.
 
 **Dirección:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
-**Versión vigente:** 2.11.0 (ver [`CHANGELOG.md`](./CHANGELOG.md))
+**Versión vigente:** 2.12.0 (ver [`CHANGELOG.md`](./CHANGELOG.md))
 **Estado:** en producción
 
 ---
@@ -25,7 +25,8 @@ Procesos, y se entra desde el portal https://impredimex-hub.github.io/.
 - Cuatro papeles: solicitante, técnico, supervisor y administrador
 - Rol de turnos, programa de mantenimiento preventivo e indicadores (MTTR,
   MTBF, disponibilidad)
-- Respaldo diario de la base a Google Drive y descarga de respaldo bajo demanda
+- Respaldo diario de la base a Google Drive, en JSON y en Excel, y descarga de
+  respaldo bajo demanda
 - Catálogo de máquinas y zonas de planta, compartido con Ingeniería de Procesos
 - Diseño para teléfono, pensado para uso en piso de planta
 - Se instala como aplicación desde el navegador; no requiere tienda
