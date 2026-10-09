@@ -79,6 +79,10 @@ html.con-sesion::after{
   // proyecto impredimex-mantoapp, en Compilación → App Check.
   // Mientras esté vacía, App Check no se activa y la base queda como está hoy.
   const APPCHECK_SITE_KEY = '';
+
+  // SPEC-061: servicio en Cloudflare que entrega la credencial de la base y
+  // envía los avisos push. Ver worker/worker.js.
+  const SERVICIO_MANTO = 'https://mantoapp-push.victormorenogarcia05.workers.dev/';
 </script>
 <!-- Firebase SDKs (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -2065,11 +2069,6 @@ input[type=range].green{accent-color:var(--green)}
 
 <script>
 // ==================== DATA STORE ====================
-const USERS = {
-  solicitante:{nomina:'1869',nombre:'(nombre retirado)',role:'solicitante',turno:1,area:'Rotograbado'},
-  tecnico:{nomina:'2034',nombre:'(nombre retirado)',role:'tecnico',turno:2},
-  supervisor:{nomina:'1001',nombre:'(nombre retirado)',role:'supervisor'}
-};
 function getTecnicos(){
   // Toma del catálogo real: depto MANTENIMIENTO, activos, con rol tecnico o supervisor
   const cat = DB.personal || [];
@@ -2166,6 +2165,34 @@ function _asegurarIds(col){
   });
 }
 
+// ── SPEC-061: qué puede escribir cada papel ───────────────────────
+// Espejo de database.rules.json. Las reglas son las que protegen; esto solo
+// evita mandar lo que van a rechazar. Importa porque `flushDB` sube todo en
+// una sola operación, y una sola ruta rechazada tira la operación completa:
+// sin este filtro, el cambio de un catálogo hecho en un aparato de técnico
+// (por ejemplo, al completar campos de máquinas) impediría que se guardaran
+// también sus OT.
+var ESCRIBEN_CATALOGO = {
+  operativo:       ['admin'],
+  tiposServicio:   ['admin'],
+  naves:           ['admin'],
+  maquinas:        ['admin'],
+  zonas:           ['admin'],
+  infraestructura: ['admin'],
+  turnos:          ['admin','supervisor'],
+  preventivos:     ['admin','supervisor']
+};
+function _puedeEscribir(col, valor){
+  var rol = currentUser && currentUser.role;
+  if(!rol) return false;
+  if(ESCRIBEN_CATALOGO[col]) return ESCRIBEN_CATALOGO[col].indexOf(rol) >= 0;
+  // Borrar una OT es de supervisión; crearla o actualizarla, de cualquiera.
+  if(col === 'ots') return valor !== null || rol === 'admin' || rol === 'supervisor';
+  // El comedor es del personal de Mantenimiento.
+  if(col === 'comidas') return rol !== 'solicitante';
+  return true;
+}
+
 // Escribe únicamente las rutas que cambiaron, en una sola petición.
 function flushDB(){
   if(!(db && _fbConnected)) return;
@@ -2206,6 +2233,9 @@ function flushDB(){
   CATALOGOS_FB.forEach(function(k){
     var v = DB[k] || [], sj = _js(v);
     if(_snap[k] !== sj){
+      // Sin permiso se queda solo en este aparato; el siguiente cambio que
+      // llegue de la nube lo reemplaza.
+      if(!_puedeEscribir(k, v)) return;
       upd[k] = v; marcar(_snap, k, sj);
       if(k === 'maquinas' || k === 'zonas') catalogoTocado = true;
     }
@@ -2225,11 +2255,11 @@ function flushDB(){
       if(!it || !it.id) return;
       vivos[it.id] = true;
       var sj = _js(it), key = col + '/' + it.id;
-      if(_snap[key] !== sj){ upd[key] = it; marcar(_snap, key, sj); }
+      if(_snap[key] !== sj && _puedeEscribir(col, it)){ upd[key] = it; marcar(_snap, key, sj); }
     });
     Object.keys(_snap).forEach(function(key){
       if(key.indexOf(col + '/') !== 0) return;
-      if(!vivos[key.slice(col.length+1)]){ upd[key] = null; marcar(_snap, key, undefined); }
+      if(!vivos[key.slice(col.length+1)] && _puedeEscribir(col, null)){ upd[key] = null; marcar(_snap, key, undefined); }
     });
   });
 
@@ -2326,7 +2356,14 @@ function _renderDebounced(){
 
 function _aplicarHijo(col, key, val){
   if(!val) return;
-  if(/^\d+$/.test(key)) _migrar[col] = true;   // dato legado con índice numérico
+  // Dato legado guardado como arreglo: la clave es la posición (0, 1, 2…) y
+  // no el id. Las OT nuevas tienen folio numérico ('000315') como clave **y**
+  // como id; ésas no son legado. Antes bastaba con que la clave fuera numérica,
+  // y cada aparato reescribía la colección completa a los 2.5 s de abrir.
+  // Se apunta aparte (id → clave) y no dentro del registro, que se sube tal cual.
+  if(/^\d+$/.test(key) && val.id && String(val.id) !== key){
+    (_migrar[col] = _migrar[col] || {})[val.id] = key;
+  }
   if(col === 'ots') _normOT(val);
   if(!val.id) val.id = key;
   if(!Array.isArray(DB[col])) DB[col] = [];
@@ -2395,15 +2432,23 @@ function archivarComidasViejas(){
    quedó en `manto_db/notifs` ya no lo descarga nadie, porque la app dejó de
    escuchar esa colección; se puede borrar desde la consola de Firebase. */
 
-function _migrarColeccion(col){
-  var obj = {};
-  (DB[col]||[]).forEach(function(it){ if(it && it.id) obj[it.id] = it; });
-  if(!Object.keys(obj).length) return;
-  db.ref('manto_db/' + col).set(obj).catch(function(e){
+function _migrarColeccion(col, legado){
+  // Solo un administrador: las reglas no dejan a nadie más borrar OT.
+  if(!currentUser || currentUser.role !== 'admin' || !legado) return;
+  // Se mueve registro por registro, nunca reescribiendo la colección entera:
+  // un `set` sobre toda la colección borraría lo que otro aparato escribió
+  // un instante antes y que aquí todavía no había llegado.
+  var upd = {};
+  Object.keys(legado).forEach(function(id){
+    var it = (DB[col]||[]).find(function(x){ return x && String(x.id) === id; });
+    if(!it) return;
+    upd[col + '/' + legado[id]] = null;   // la posición vieja
+    upd[col + '/' + id] = it;             // el mismo registro, bajo su id
+  });
+  if(!Object.keys(upd).length) return;
+  db.ref('manto_db').update(upd).catch(function(e){
     console.warn('Error migrando ' + col + ':', e);
   });
-  Object.keys(_snap).forEach(function(k){ if(k.indexOf(col + '/') === 0) delete _snap[k]; });
-  (DB[col]||[]).forEach(function(it){ if(it && it.id) _snap[col + '/' + it.id] = _js(it); });
 }
 
 // ── reloadDB: en Firebase el listener ya mantiene DB actualizado,
@@ -2435,15 +2480,99 @@ function setSyncState(state, msg){
   if(lbl) lbl.textContent = msg || '';
 }
 
+// ── SPEC-061: credencial de la base ──────────────────────────────
+//
+// La base de Mantenimiento ya no abre a sesiones anónimas. Con la sesión de
+// la suite se le pide al servicio `SERVICIO_MANTO` una credencial: el servicio
+// comprueba que la persona siga ACTIVA y tenga `manto` en `apps`, y devuelve
+// una credencial con su nómina y su papel. Las reglas de la base deciden con
+// esos dos datos qué puede leer y escribir.
+//
+// La credencial caduca a los 7 días (lo exigen las reglas). Se renueva sola
+// al abrir la app y al volver a ella si ya pasaron 12 horas, así que un
+// cambio de papel o una baja en RRHH se nota en la siguiente apertura.
+var RENOVAR_CREDENCIAL_MS = 12 * 60 * 60 * 1000;
+var _credencialEnCurso = null;
+var _escuchas = [];        // referencias con listener, para poder quitarlos
+var _escuchando = false;
+
+function detenerEscuchas(){
+  _escuchas.forEach(function(r){ try { r.off(); } catch(e){} });
+  _escuchas = [];
+  _escuchando = false;
+  _fbConnected = false;
+}
+
+function _credencialVigente(nomina, rol){
+  var u = firebase.auth().currentUser;
+  if(!u || u.isAnonymous || u.uid !== 'n' + nomina) return Promise.resolve(false);
+  return u.getIdTokenResult().then(function(r){
+    var c = r.claims || {};
+    var edad = Date.now() - Number(c.emitida) * 1000;
+    return c.app === APP_ID && c.rol === rol && isFinite(edad) && edad < RENOVAR_CREDENCIAL_MS;
+  }).catch(function(){ return false; });
+}
+
+/**
+ * Deja puesta la credencial de la persona que tiene la sesión de la suite.
+ * Si la vigente sirve (misma persona, mismo papel, menos de 12 h) no pide otra.
+ * Si el servicio no responde pero hay una credencial de la misma persona, se
+ * sigue con ella: es mejor trabajar que quedarse fuera por una falla de red.
+ */
+function asegurarCredencial(rolEsperado){
+  if(_credencialEnCurso) return _credencialEnCurso;
+  var su = suiteAuth && suiteAuth.currentUser;
+  if(!su) return Promise.reject(new Error('Sin sesión de la suite'));
+  var nomina = (su.email || '').split('@')[0];
+
+  _credencialEnCurso = _credencialVigente(nomina, rolEsperado).then(function(sirve){
+    if(sirve) return;
+    return su.getIdToken().then(function(idToken){
+      return fetch(SERVICIO_MANTO + 'credencial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: idToken, app: APP_ID })
+      });
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(d){
+        if(!r.ok || !d.token){
+          var e = new Error(d.error || ('El servicio de credenciales respondió ' + r.status));
+          // 401/403: la persona no tiene acceso. No se sigue con la vieja.
+          e.esDeAcceso = (r.status === 401 || r.status === 403);
+          throw e;
+        }
+        return firebase.auth().signInWithCustomToken(d.token);
+      });
+    }).catch(function(err){
+      var u = firebase.auth().currentUser;
+      if(!err.esDeAcceso && u && u.uid === 'n' + nomina){
+        console.warn('No se renovó la credencial; se sigue con la vigente:', err);
+        return;
+      }
+      throw err;
+    });
+  }).finally(function(){ _credencialEnCurso = null; });
+  return _credencialEnCurso;
+}
+
+// Al volver a la app después de horas en segundo plano, se revisa la credencial.
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState !== 'visible' || !currentUser) return;
+  asegurarCredencial(currentUser.role).catch(function(e){
+    console.warn('Credencial:', e);
+    if(e && e.esDeAcceso){ appAlert(e.message); logout(); }
+  });
+});
+
 // ── initFirebase: inicializa y escucha cambios en tiempo real ─────
 function initFirebase(){
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
 
-    // SPEC-044: App Check acompaña a la sesión anónima. Ninguna de las dos
-    // distingue entre usuarios; lo que hacen es demostrar que quien pregunta
-    // es esta aplicación y no un extraño con la dirección del proyecto.
-    // Debe activarse antes de la primera lectura de la base.
+    // SPEC-044: App Check demuestra que quien pregunta es esta aplicación y
+    // no un extraño con la dirección del proyecto. La identidad de la persona
+    // la da la credencial de la SPEC-061. Debe activarse antes de la primera
+    // lectura de la base.
     if(APPCHECK_SITE_KEY){
       try { firebase.appCheck().activate(APPCHECK_SITE_KEY, true); }
       catch(e){ console.error('App Check no se pudo activar:', e); }
@@ -2452,11 +2581,11 @@ function initFirebase(){
     db = firebase.database();
     setSyncState('syncing', 'Conectando…');
 
-    // SPEC-001: Esperar a que la autenticacion anonima termine ANTES de leer la BD
-    // Esto evita race condition donde la lectura falla por permission_denied
-    // en dispositivos lentos o primera carga sin cache
+    // SPEC-001 / SPEC-061: la base se lee solo con la credencial de la
+    // persona ya puesta. Antes de eso las reglas rechazan la lectura.
     function startDatabaseListeners(){
       // Monitor conexión
+      _escuchas.push(db.ref('.info/connected'));
       db.ref('.info/connected').on('value', function(snap){
         _fbConnected = !!snap.val();
         if(_fbConnected){
@@ -2478,6 +2607,7 @@ function initFirebase(){
       // Modificar una OT ya no vuelve a descargar personal, máquinas,
       // infraestructura, turnos ni programas preventivos.
       CATALOGOS_FB.forEach(function(k){
+        _escuchas.push(db.ref('manto_db/' + k));
         db.ref('manto_db/' + k).on('value', function(s){
           var v = s.val();
           DB[k] = v ? (Array.isArray(v) ? v : Object.values(v)) : [];
@@ -2490,6 +2620,7 @@ function initFirebase(){
         }, function(err){ console.warn('Listener ' + k + ':', err.message); });
       });
 
+      _escuchas.push(db.ref('manto_db/folioSig'));
       db.ref('manto_db/folioSig').on('value', function(s){
         if(s.exists()){ DB.folioSig = s.val(); _snap['folioSig'] = _js(DB.folioSig); }
       });
@@ -2516,6 +2647,7 @@ function initFirebase(){
       // que cambió, no la colección completa.
       COLECCIONES_FB.forEach(function(col){
         var ref = db.ref('manto_db/' + col);
+        _escuchas.push(ref);
         ref.on('child_added',   function(s){ _aplicarHijo(col, s.key, s.val()); });
         ref.on('child_changed', function(s){ _aplicarHijo(col, s.key, s.val()); });
         ref.on('child_removed', function(s){ _quitarHijo(col, s.key); });
@@ -2531,10 +2663,11 @@ function initFirebase(){
         }
         // Migración de datos guardados con índice numérico
         setTimeout(function(){
-          if(_migrar.ots){     _migrarColeccion('ots');     _migrar.ots = false; }
           // Las comidas guardadas como catálogo llegan con llave numérica
           // (0, 1, 2…); se reescriben indexadas por su id, igual que las OT.
-          if(_migrar.comidas){ _migrarColeccion('comidas'); _migrar.comidas = false; }
+          ['ots','comidas'].forEach(function(col){
+            if(_migrar[col]){ _migrarColeccion(col, _migrar[col]); _migrar[col] = null; }
+          });
           archivarComidasViejas();
         }, 2500);
       }, function(err){
@@ -2545,17 +2678,19 @@ function initFirebase(){
 
     } // fin startDatabaseListeners
 
-    // Disparar el flujo: primero auth anonima, despues iniciar listeners
+    // SPEC-061: los listeners se levantan cuando hay credencial de persona,
+    // y se quitan al cerrar sesión. Una sesión anónima que haya quedado de
+    // versiones anteriores se cierra: ya no abre la base.
     firebase.auth().onAuthStateChanged(function(user){
+      if(user && user.isAnonymous){
+        firebase.auth().signOut().catch(function(){});
+        return;
+      }
       if(user){
-        // Usuario ya autenticado (anonimo o no) — iniciar listeners
-        startDatabaseListeners();
+        if(!_escuchando){ _escuchando = true; startDatabaseListeners(); }
       } else {
-        // Sin usuario — hacer login anonimo
-        firebase.auth().signInAnonymously().catch(function(err){
-          console.warn('Firebase auth error:', err);
-          setSyncState('offline', 'Error de autenticacion');
-        });
+        detenerEscuchas();
+        setSyncState('offline', 'Sin sesión');
       }
     });
 
@@ -2647,15 +2782,21 @@ function notifyPush(toNominas,title,body,tag){
   if(currentUser&&toNominas.indexOf(currentUser.nomina)>=0) showFCMToast(title,body);
   // Enviar push via Cloudflare Worker (que reenvia a OneSignal)
   if(!toNominas.length) return;
-  fetch('https://mantoapp-push.victormorenogarcia05.workers.dev/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      nominas: toNominas.map(function(n){return String(n);}),
-      title: title,
-      message: body,
-      url: urlDeLaApp()
-    })
+  // SPEC-061: el servicio solo envía avisos de alguien con sesión activa.
+  var su = suiteAuth && suiteAuth.currentUser;
+  (su ? su.getIdToken() : Promise.resolve('')).catch(function(){ return ''; }).then(function(t){
+    var cab = { 'Content-Type': 'application/json' };
+    if(t) cab.Authorization = 'Bearer ' + t;
+    return fetch(SERVICIO_MANTO, {
+      method: 'POST',
+      headers: cab,
+      body: JSON.stringify({
+        nominas: toNominas.map(function(n){return String(n);}),
+        title: title,
+        message: body,
+        url: urlDeLaApp()
+      })
+    });
   }).then(function(r){ return r.json(); })
     .then(function(d){ console.log('Push enviado:', d); })
     .catch(function(e){ console.warn('Push error:', e); });
@@ -2932,8 +3073,15 @@ function abrirSesion(user){
 
     // Ausencia de papel equivale al más bajo: nunca se concede por omisión.
     var role = (c.roles || {})[APP_ID] || 'solicitante';
+    if(['solicitante','tecnico','supervisor','admin'].indexOf(role) < 0) role = 'solicitante';
 
-    return cargarPersonalDeSuite().then(function(){
+    // SPEC-061: sin credencial no hay base. Va antes de pintar nada.
+    return asegurarCredencial(role).catch(function(err){
+      var e = new Error(err && err.esDeAcceso ? err.message
+        : 'No se pudo abrir la base de Mantenimiento. Revisa tu conexión e inténtalo otra vez.');
+      e.esDeAcceso = true;
+      throw e;
+    }).then(cargarPersonalDeSuite).then(function(){
       var yo = (DB.personal || []).filter(function(p){ return p.nomina === nomina; })[0] || {};
       currentUser = {
         nomina: nomina,
@@ -2990,6 +3138,10 @@ function logout(){
   // La sesión de la suite también se cierra: si no, el siguiente en usar el
   // dispositivo entraría sin escribir su clave.
   try { if(suiteAuth) suiteAuth.signOut(); } catch(e){}
+  // SPEC-061: también la credencial de la base y la copia local de los datos,
+  // para que el siguiente en usar el equipo no vea nada de esta sesión.
+  try { firebase.auth().signOut(); } catch(e){}
+  try { localStorage.removeItem('mantoDB'); } catch(e){}
   var lb = document.getElementById('fb-logout-btn');
   if(lb) lb.style.display = 'none';
   currentUser=null;
@@ -6172,11 +6324,12 @@ function refrescarEstadoRespaldo(){
       pintarEstadoRespaldo();
     }).catch(function(e){ console.warn('Estado del respaldo:', e.message); });
   }
-  // La lectura exige la sesión anónima. Al restaurar una sesión con F5 el
-  // panel se dibuja antes de que exista, así que se espera a que llegue.
-  if(firebase.auth().currentUser){ leer(); return; }
+  // La lectura exige la credencial de la persona (SPEC-061). Al restaurar una
+  // sesión con F5 el panel se dibuja antes de que exista, así que se espera.
+  var actual = firebase.auth().currentUser;
+  if(actual && !actual.isAnonymous){ leer(); return; }
   var quitar = firebase.auth().onAuthStateChanged(function(u){
-    if(u){ quitar(); leer(); }
+    if(u && !u.isAnonymous){ quitar(); leer(); }
   });
 }
 
@@ -8396,6 +8549,11 @@ var _entrandoConSesionDeSuite = false;
 suiteAuth.onAuthStateChanged(function(user){
   if(user){
     if(currentUser){
+      // Sesión restaurada tras recargar: la credencial también se revisa.
+      asegurarCredencial(currentUser.role).catch(function(e){
+        console.warn('Credencial:', e);
+        if(e && e.esDeAcceso){ appAlert(e.message); logout(); }
+      });
       cargarPersonalDeSuite().then(_renderDebounced).catch(function(e){
         console.warn('No se pudo cargar el personal:', e);
       });

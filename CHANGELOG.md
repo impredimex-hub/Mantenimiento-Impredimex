@@ -6,6 +6,51 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.13.0] — 2026-10-09
+
+### Seguridad
+
+- **Cada persona entra a la base con su propia credencial** (SPEC-061). Hasta
+  ahora la base exigía una sesión anónima que cualquiera podía abrir con la
+  configuración pública del proyecto, y con ella leer, cambiar o borrar todo.
+  Ahora el worker `mantoapp-push` verifica la sesión de la suite, revisa que la
+  persona esté activa y con acceso, y emite una credencial con su nómina y su
+  papel. Caduca a los 7 días y la app la renueva sola.
+- **Reglas por papel** en `database.rules.json`: el solicitante solo crea y
+  actualiza sus propias OT; el técnico atiende cualquiera y registra comedor;
+  supervisión borra y archiva OT y maneja turnos y preventivos; solo el
+  administrador cambia catálogos. Sin credencial, o con una anónima o
+  caducada, no se lee nada.
+- **Ingeniería de Procesos** solo lee las rutas que usa y solo puede crear OT
+  de auditoría a su nombre; ya no puede modificar ni borrar.
+- **El script de respaldo** entra con su propia credencial, que solo lee la
+  base y anota `respaldos/drive`. Necesita la propiedad `RESPALDO_SECRETO`.
+- **El push exige la sesión de quien avisa**, y el worker limita texto,
+  destinatarios y enlace.
+- **Cerrar sesión** borra también la credencial de la base y la copia local de
+  los datos en ese equipo.
+
+### Corregido
+
+- **Cada aparato reescribía todas las OT a los 2.5 s de abrir la app.** La
+  migración de datos legados se activaba con cualquier clave numérica, y los
+  folios lo son. Era un `set` de la colección completa que podía borrar lo que
+  otro aparato acababa de guardar. Ahora solo migra registros cuya clave no
+  coincide con su id, uno por uno, y solo un administrador.
+- Un cambio local a un catálogo en el teléfono de alguien sin permiso ya no
+  impide que se guarden sus OT: se filtra antes de subir.
+
+### Agregado
+
+- `worker/worker.js`: el código del worker, versionado con la app.
+
+### Retirado
+
+- La sesión anónima en `impredimex-mantoapp`.
+- La constante `USERS`, sin uso desde la SPEC-042.
+
+---
+
 ## [2.12.0] — 2026-10-09
 
 ### Agregado

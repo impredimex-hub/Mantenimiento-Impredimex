@@ -7,7 +7,7 @@ tiene el enrutamiento a lo largo del flujo de una Orden de Trabajo (OT).
 
 **Versión de la aplicación:** 2.12.0
 **Última actualización:** 9 de octubre de 2026
-**Referencias:** SPEC-009, SPEC-011, SPEC-047, SPEC-057 y SPEC-059
+**Referencias:** SPEC-009, SPEC-011, SPEC-047, SPEC-057, SPEC-059 y SPEC-061
 
 ---
 
@@ -80,9 +80,14 @@ de Mantenimiento, y el aviso abre esta app con la dirección de `manto_db/urlApp
 - **Si el worker de Cloudflare falla**, la app sigue funcionando y ese push no
   se entrega. El error solo aparece en la consola del navegador.
 - **El worker solo acepta llamadas desde `https://impredimex-hub.github.io`.**
-  Si la app cambia de dominio, hay que agregar el nuevo en `ALLOWED_ORIGINS`
-  del worker antes de publicar.
+  Si la app cambia de dominio, hay que agregar el nuevo en `ORIGENES` del
+  worker antes de publicar.
+- **El worker exige la sesión de quien avisa** (SPEC-061). La app manda su
+  sesión de la suite en la cabecera `Authorization`, y el worker solo reenvía
+  avisos de alguien activo con acceso a Mantenimiento o Procesos. Limita además
+  el tamaño del texto, a 100 destinatarios por aviso y el enlace a
+  `impredimex-hub.github.io`.
 
 ---
 
-*Versión 2.0 del documento — 8 de octubre de 2026*
+*Versión 2.1 del documento — 9 de octubre de 2026*

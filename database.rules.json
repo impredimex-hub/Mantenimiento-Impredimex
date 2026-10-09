@@ -1,6 +1,86 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
+    ".read": "(auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) || (auth != null && auth.token.app === 'respaldo' && auth.token.emitida > now / 1000 - 604800)",
+    ".write": false,
+    "manto_db": {
+      "ots": {
+        "$id": {
+          ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && ((auth.token.rol === 'admin' || auth.token.rol === 'supervisor') || (!data.exists() && newData.child('nomina').val() === auth.token.nomina) || (data.exists() && newData.exists() && (auth.token.rol === 'tecnico' || ((!data.child('nomina').exists() || data.child('nomina').val() === auth.token.nomina) && newData.child('nomina').val() === data.child('nomina').val()))))) || ((auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800) && !data.exists() && newData.child('id').val() === $id && newData.child('origen').val() === 'AUDITORIA' && newData.child('status').val() === 'abierto' && newData.child('nomina').val() === auth.token.nomina)"
+        }
+      },
+      "comidas": {
+        "$id": {
+          ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol !== 'solicitante')"
+        }
+      },
+      "folioSig": {
+        ".read": "(auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        ".write": "(auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) || (auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        ".validate": "newData.isNumber() && newData.val() >= 1"
+      },
+      "abiertasPorMaquina": {
+        ".read": "(auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        "$clave": {
+          "$id": {
+            ".write": "(auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) || ((auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800) && !data.exists() && newData.exists())"
+          }
+        }
+      },
+      "notificarA": {
+        ".read": "(auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        ".write": "(auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800)"
+      },
+      "urlApp": {
+        ".read": "(auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        ".write": "(auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800)"
+      },
+      "catalogoVer": {
+        ".read": "(auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "maquinas": {
+        ".read": "(auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "zonas": {
+        ".read": "(auth != null && auth.token.app === 'procesos' && auth.token.emitida > now / 1000 - 604800)",
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "tiposServicio": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "naves": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "infraestructura": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "operativo": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "turnos": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && (auth.token.rol === 'admin' || auth.token.rol === 'supervisor'))"
+      },
+      "preventivos": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && (auth.token.rol === 'admin' || auth.token.rol === 'supervisor'))"
+      },
+      "notifs": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "personal": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      }
+    },
+    "manto_db_archivo": {
+      ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && (auth.token.rol === 'admin' || auth.token.rol === 'supervisor'))"
+    },
+    "respaldos": {
+      "app": {
+        ".write": "((auth != null && auth.token.app === 'manto' && auth.token.emitida > now / 1000 - 604800) && auth.token.rol === 'admin')"
+      },
+      "drive": {
+        ".write": "(auth != null && auth.token.app === 'respaldo' && auth.token.emitida > now / 1000 - 604800)"
+      }
+    }
   }
 }

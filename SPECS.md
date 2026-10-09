@@ -55,8 +55,8 @@ Persona con cuenta en la suite y acceso concedido a esta aplicación.
 6. Sistema toma el papel de `roles.manto`
 7. Sistema lee los atributos operativos de esa nómina en su propio proyecto
    (turno y tipos de orden que atiende), según la SPEC-043
-8. Sistema abre además una sesión anónima en el proyecto de Mantenimiento, para
-   poder leer y escribir su base (SPEC-044)
+8. Sistema pide al servicio `mantoapp-push` una credencial de la base de
+   Mantenimiento con su nómina y su papel, y entra con ella (SPEC-061)
 9. Sistema etiqueta el dispositivo en OneSignal con `nomina`, `role` y `nombre`
 10. Sistema navega a la pantalla principal del papel correspondiente
 
@@ -1560,6 +1560,11 @@ mantenimiento".
 
 **Estado:** reglas publicadas; **App Check aplazado a conciencia**.
 
+> **Superada por la SPEC-061.** La sesión anónima se sustituye por una
+> credencial por persona, y las reglas distinguen nómina, papel y aplicación.
+> Lo que sigue se conserva como historia de la decisión. App Check sigue siendo
+> una capa adicional posible.
+
 El código de la aplicación ya trae el soporte listo —el SDK cargado y la
 constante `APPCHECK_SITE_KEY` esperando—, así que activarlo después es pegar una
 cadena, sin volver a tocar nada. Lo que se aplazó es la configuración en la
@@ -1914,13 +1919,12 @@ seguridad: `MTTO-SEGURIDAD` cambia el significado de `equipo` —en lugar de la
 máquina guarda el tipo de riesgo— y la orden dejaría de poder ligarse a una
 máquina. La urgencia viaja por `prioridad`.
 
-## Pendiente
+## Acotado en la SPEC-061
 
-Las reglas son `".write": "auth != null"`. Procesos se autentica de forma
-anónima, así que puede escribir cualquier ruta de esta base, incluso borrarla.
-No es consecuencia de esta spec —era así desde antes—, pero ahora que escribe de
-verdad conviene acotar las reglas a las rutas que le corresponden. Es un cambio
-aparte.
+Procesos ya no entra de forma anónima. Con su credencial (`app: 'procesos'`)
+solo lee las rutas que necesita y solo puede **crear** OT de auditoría a nombre
+de quien la levanta, más su entrada en el índice. No puede modificar ni borrar
+órdenes existentes.
 
 ---
 
@@ -2597,8 +2601,10 @@ nadie se enteraría.
 
 ### Flujo principal — Drive
 
-1. El script abre una sesión anónima en `impredimex-mantoapp` por la API REST
-   de Firebase Authentication, igual que la app.
+1. El script pide al servicio `mantoapp-push` la credencial del respaldo,
+   presentando el secreto guardado en las Propiedades del script, y la canjea
+   por una sesión de Firebase (SPEC-061). Esa credencial solo permite leer la
+   base y escribir `respaldos/drive`.
 2. Descarga la base completa y verifica que sea JSON válido y que traiga
    `manto_db/ots`. Si no, se detiene sin guardar ni borrar nada.
 3. Guarda el JSON en la carpeta *Respaldos MantoApp* de Drive. Después arma el
@@ -2608,8 +2614,9 @@ nadie se enteraría.
 4. Manda a la papelera de Drive los respaldos de esa carpeta con más de 90
    días. Desde la papelera se recuperan durante 30 días más.
 5. Escribe `respaldos/drive`.
-6. Borra la cuenta anónima que usó, para que no se acumule una por noche en
-   Authentication.
+
+La cuenta que usa el script es siempre la misma (`respaldo-drive`), así que no
+se acumulan cuentas en Authentication.
 
 ### Aviso por respaldo vencido
 
@@ -2628,8 +2635,9 @@ para vigilar el respaldo de Drive.
 - **Se lee la base una vez por respaldo.** En la medición de septiembre de
   2026 la base pesaba unos 460 KB; un respaldo diario es menos del 1 % de los
   10 GB de descarga al mes del plan gratuito.
-- **El script no conoce ninguna contraseña.** Usa la configuración pública de
-  Firebase y una sesión anónima, la misma puerta que usa la app.
+- **El script no lleva secretos en el código.** El secreto que abre su
+  credencial vive en las Propiedades del script y en el worker, no en el
+  repositorio (SPEC-061).
 - **Si se activa App Check con aplicación obligatoria (SPEC-044), el script
   deja de poder leer la base.** Antes de exigirlo hay que darle al script un
   testigo de depuración de App Check o cambiar su forma de autenticarse. El
@@ -2646,3 +2654,118 @@ para vigilar el respaldo de Drive.
 - **Restaurar:** consola de Firebase → Realtime Database → raíz → menú de tres
   puntos → *Importar JSON*. Reemplaza la base completa por el archivo: conviene
   descargar antes un respaldo del estado actual.
+
+---
+
+## SPEC-061 — Credencial por persona y reglas por papel
+
+**Estado:** implementado en código; la puesta en marcha sigue el orden de abajo.
+
+### Por qué
+
+Hasta la 2.12 la base de Mantenimiento exigía sesión, pero la sesión era
+**anónima** (SPEC-044): cualquiera con la configuración pública del proyecto
+podía abrir una y leer o escribir toda la base desde la consola del navegador,
+incluido borrarla. Las reglas no podían distinguir a un técnico de un extraño,
+ni a un solicitante de un administrador. Procesos y el script de respaldo
+entraban por la misma puerta.
+
+La causa de fondo: la sesión de cada persona vive en el proyecto
+`impredimex-suite`, y las reglas de un proyecto de Firebase no pueden validar
+sesiones de otro.
+
+### Cómo se resuelve
+
+El worker de Cloudflare `mantoapp-push`, que ya existía para los avisos, hace
+de **ventanilla de credenciales** (código en `worker/worker.js`):
+
+1. La app le manda la sesión de la suite (`idToken`) y qué app la pide.
+2. El worker verifica la firma con las llaves públicas de Google, que no haya
+   caducado y que sea del proyecto `impredimex-suite`.
+3. Lee la ficha `colaboradores/<nómina>` **con la propia sesión de la persona**:
+   el worker no tiene permisos propios sobre la suite.
+4. Si la persona está `ACTIVO` y tiene la app en `apps`, firma con la cuenta de
+   servicio de `impredimex-mantoapp` una credencial (*custom token*) con:
+   - `app`: `manto`, `procesos` o `respaldo`
+   - `nomina`
+   - `rol` (solo `manto`): el de `roles.manto`; uno desconocido o ausente
+     entra como `solicitante`
+   - `emitida`: segundos desde 1970 en que se emitió
+5. La app entra a su base con esa credencial. Las reglas de
+   `database.rules.json` deciden con esos datos.
+
+La credencial dura 7 días como máximo: las reglas rechazan una con `emitida`
+de más de 7 días, aunque Firebase siga renovando la sesión en el teléfono. La
+app pide una nueva al abrirse o al volver a primer plano si la vigente tiene
+más de 12 horas, o si cambió el papel. Así, **una baja o un cambio de papel en
+RRHH se refleja en la siguiente apertura**, y a más tardar en 7 días aunque el
+teléfono nunca cierre la app.
+
+### Qué permite cada credencial
+
+| | Leer | Escribir |
+|---|---|---|
+| **Solicitante** | Toda `manto_db` y `manto_db_archivo` | Crear OT a su nombre; actualizar las suyas (y las viejas sin nómina) sin cambiarles el dueño; apartar folio; índice de abiertas; `notificarA`, `urlApp` |
+| **Técnico** | Igual | Lo del solicitante, más actualizar cualquier OT y el comedor |
+| **Supervisor** | Igual | Lo del técnico, más borrar y archivar OT, turnos y preventivos |
+| **Administrador** | Igual | Todo lo anterior, más catálogos (`maquinas`, `zonas`, `naves`, `infraestructura`, `tiposServicio`, `operativo`, `catalogoVer`) y `respaldos/app` |
+| **Procesos** | Solo `catalogoVer`, `maquinas`, `zonas`, `abiertasPorMaquina`, `notificarA`, `urlApp`, `folioSig` | Apartar folio; **crear** una OT de origen `AUDITORIA`, estatus `abierto`, a su propia nómina y con `id` igual a la clave; su entrada en el índice. Nada más |
+| **Respaldo de Drive** | Toda la base | Solo `respaldos/drive` |
+| **Sin credencial, anónima o caducada** | Nada | Nada |
+
+### Reglas de negocio
+
+- **La app filtra antes de guardar lo que su papel no puede escribir**
+  (`_puedeEscribir`). `flushDB` sube todos los cambios en una sola operación, y
+  una sola ruta rechazada tiraría la operación entera: sin el filtro, un ajuste
+  local a un catálogo en el teléfono de un técnico impediría guardar sus OT. Lo
+  filtrado se queda solo en ese aparato hasta que llegue la versión de la nube.
+  **Las reglas son las que protegen**; el filtro solo evita mandar lo que van a
+  rechazar.
+- **Sin credencial no hay base.** Si el servicio no responde al iniciar sesión,
+  la app lo dice y no entra. Si ya había una credencial de la misma persona y
+  solo falla la renovación, se sigue con la vigente.
+- **Una persona sin acceso (baja o sin `manto` en `apps`)** recibe el motivo y
+  no entra; si ya estaba dentro, la renovación la saca.
+- **Cerrar sesión** cierra también la credencial de la base y borra la copia
+  local de los datos, para que el siguiente en usar el equipo no vea nada.
+- **Una sesión anónima de versiones anteriores** se cierra sola al abrir la app.
+- **El push exige sesión.** La app y Procesos mandan su `idToken` de la suite
+  en `Authorization`; el worker solo reenvía a OneSignal avisos de alguien
+  `ACTIVO` con acceso a Mantenimiento o Procesos. Valida además el tamaño del
+  texto, el número de destinatarios y que el enlace sea de
+  `impredimex-hub.github.io`.
+- **Los secretos no están en el repositorio.** La cuenta de servicio, la llave
+  de OneSignal y el secreto del respaldo se pegan directamente en Cloudflare
+  (y el del respaldo, también en las Propiedades del script de Drive).
+
+### Corrección incluida
+
+`_aplicarHijo` marcaba para migrar cualquier colección cuya clave fuera
+numérica. Los folios de OT son numéricos (`000315`), así que **cada aparato
+reescribía la colección completa de OT** a los 2.5 segundos de abrir, con un
+`set` que podía borrar lo que otro aparato acababa de guardar. Ahora solo se
+migra un registro cuya clave no coincide con su `id` (legado guardado como
+arreglo), registro por registro, y solo lo hace un administrador.
+
+### Orden de puesta en marcha
+
+No se puede invertir. Cada paso deja todo funcionando:
+
+1. **Worker nuevo** con los tres secretos y `EXIGIR_SESION = no`. Las versiones
+   publicadas siguen funcionando: los avisos sin sesión se aceptan todavía.
+2. **Publicar** esta versión de Mantenimiento y la de Procesos. Ya entran con
+   credencial; las reglas viejas (`auth != null`) las aceptan.
+3. **Actualizar el script de respaldo**, guardar su secreto en Propiedades del
+   script y ejecutar `instalar`.
+4. **Probar las reglas** en el simulador de la consola de Firebase y
+   **publicarlas**. Guardar antes una copia de las vigentes para regresar en un
+   minuto si algo falla.
+5. **`EXIGIR_SESION = si`** en el worker.
+6. **Deshabilitar el proveedor Anónimo** en Authentication de
+   `impredimex-mantoapp`.
+
+Entre el paso 2 y el 4, un teléfono con la versión vieja en caché sigue
+entrando con sesión anónima; después del 4 ya no lee nada hasta recargar. Por
+eso se deja pasar al menos un día entre ambos.
+

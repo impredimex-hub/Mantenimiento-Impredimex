@@ -61,7 +61,7 @@ Los permisos se asignan desde la app de RRHH. Ver [`HANDOVER.md`](./HANDOVER.md)
      ▼                ▼                ▼                     ▼
  impredimex-suite  impredimex-mantoapp  Cloudflare Worker   OneSignal
  Auth + personal   Realtime Database   mantoapp-push        entrega del push
- (Firestore)       (datos de la app)   (guarda la API key)
+ (Firestore)       (datos de la app)   (credenciales y push)
                                             └──────────────►
 ```
 
@@ -69,9 +69,9 @@ Los permisos se asignan desde la app de RRHH. Ver [`HANDOVER.md`](./HANDOVER.md)
 |---|---|
 | Interfaz | HTML5, CSS3 y JavaScript sin frameworks ni compilación |
 | Datos | Firebase Realtime Database, proyecto `impredimex-mantoapp` |
-| Identidad | Firebase Authentication del proyecto `impredimex-suite`, más una sesión anónima en el proyecto propio para cumplir sus reglas |
+| Identidad | Firebase Authentication del proyecto `impredimex-suite`; el worker emite con esa sesión una credencial por persona para la base propia (SPEC-061) |
 | Notificaciones | OneSignal Web SDK v16 |
-| Envío seguro del push | Cloudflare Worker `mantoapp-push` |
+| Credenciales y envío del push | Cloudflare Worker `mantoapp-push` (código en `worker/`) |
 | Hospedaje | GitHub Pages |
 | Exportación | SheetJS (xlsx) |
 
@@ -85,7 +85,8 @@ Mantenimiento-Impredimex/
 ├── manifest.json           Datos para instalarla como aplicación
 ├── OneSignalSDKWorker.js   Service worker de las notificaciones
 ├── icon-192.png, icon-512.png, apple-touch-icon.png
-├── database.rules.json     Reglas de la Realtime Database (copia de referencia)
+├── database.rules.json     Reglas de la Realtime Database (copia de lo publicado)
+├── worker/worker.js        Código del worker de Cloudflare mantoapp-push
 ├── respaldo-drive.gs       Respaldo diario a Google Drive (Google Apps Script)
 ├── README.md               Este archivo
 ├── HANDOVER.md             Guía técnica para quien mantenga la aplicación
@@ -115,9 +116,9 @@ Detalle completo, servicios externos y solución de problemas en
 
 ## Limitaciones conocidas
 
-- La base de datos exige sesión, pero esa sesión es anónima: no distingue entre
-  usuarios. Riesgo aceptado; ver SPEC-044. App Check está preparado en el
-  código y pendiente de configurar en la consola
+- Cualquier persona con acceso a Mantenimiento puede leer toda su base; lo que
+  cada papel puede escribir sí está acotado (SPEC-061). App Check está
+  preparado en el código y pendiente de configurar en la consola
 - El repositorio es público, y con él la configuración de Firebase
 - No hay recuperación de clave por autoservicio: la restablece un administrador
 - Plan gratuito de Firebase (Spark): sin respaldo automático de Firebase. Lo

@@ -2,8 +2,8 @@
  * Respaldo diario de MantoApp a Google Drive — SPEC-060
  *
  * Corre cada noche desde Google Apps Script, sin servidor y sin costo:
- *   1. Abre una sesión anónima en el proyecto impredimex-mantoapp, la misma
- *      puerta que usa la app.
+ *   1. Pide al servicio mantoapp-push (Cloudflare) la credencial del respaldo,
+ *      que solo permite leer la base y anotar `respaldos/drive` (SPEC-061).
  *   2. Descarga la base completa y verifica que sea un respaldo válido.
  *   3. La guarda en la carpeta CARPETA de Drive, como JSON (para restaurar) y
  *      como Excel (para consultar).
@@ -11,19 +11,22 @@
  *      DIAS_CONSERVAR días.
  *   5. Anota el respaldo en `respaldos/drive`, que es lo que lee la app para
  *      mostrar el último respaldo y avisar si pasan más de 7 días sin uno.
- *   6. Borra la cuenta anónima que usó.
  *
  * Instalación: ver HANDOVER.md, sección «Respaldo». En resumen: pegar este
  * archivo en un proyecto nuevo de script.google.com con la cuenta que guardará
- * los respaldos, ajustar la zona horaria del proyecto y ejecutar `instalar`.
+ * los respaldos, ajustar la zona horaria del proyecto, guardar el secreto del
+ * respaldo en Propiedades del script y ejecutar `instalar`.
  *
- * No contiene contraseñas. La configuración de Firebase es pública por diseño;
- * lo que protege la base son sus reglas.
+ * Este archivo no contiene secretos. El secreto que abre la credencial vive en
+ * Configuración del proyecto → Propiedades del script, con el nombre
+ * RESPALDO_SECRETO, y es el mismo valor guardado en el worker de Cloudflare.
+ * La configuración de Firebase es pública por diseño.
  */
 
 var CONFIG = {
   API_KEY:        'AIzaSyB6ZjPeh9bwY5d2M-ZpxIbEW3ZsLzhAz0M',
   DB_URL:         'https://impredimex-mantoapp-default-rtdb.firebaseio.com',
+  SERVICIO:       'https://mantoapp-push.victormorenogarcia05.workers.dev/',
   CARPETA:        'Respaldos MantoApp',
   DIAS_CONSERVAR: 90,
   HORA:           2,                       // hora del día en que corre (0–23)
@@ -34,56 +37,51 @@ var PREFIJO = 'Respaldo_Mantenimiento_';
 
 /** Hace un respaldo. Es lo que ejecuta el disparador cada noche. */
 function respaldar() {
-  var sesion = abrirSesionAnonima_();
-  try {
-    var resp = UrlFetchApp.fetch(CONFIG.DB_URL + '/.json?auth=' + encodeURIComponent(sesion.idToken),
-                                 { muteHttpExceptions: true });
-    if (resp.getResponseCode() !== 200) {
-      throw new Error('La base respondió ' + resp.getResponseCode() + ': ' + resp.getContentText().slice(0, 300));
-    }
-    var texto = resp.getContentText('UTF-8');
-
-    // Si algo salió mal no se guarda ni se borra nada: un archivo vacío con
-    // fecha de hoy daría la impresión de un respaldo que no existe.
-    var datos;
-    try { datos = JSON.parse(texto); }
-    catch (e) { throw new Error('La respuesta no es JSON válido.'); }
-    if (!datos || !datos.manto_db || !datos.manto_db.ots) {
-      throw new Error('La respuesta no trae manto_db/ots; no parece la base de Mantenimiento.');
-    }
-
-    var ahora = new Date();
-    var nombre = PREFIJO + Utilities.formatDate(ahora, CONFIG.ZONA, 'yyyy-MM-dd_HHmm') + '.json';
-    var carpeta = carpeta_();
-    var archivo = carpeta.createFile(Utilities.newBlob(texto, 'application/json', nombre));
-    var bytes = archivo.getSize();
-
-    // El Excel es un extra para consultar. Si falla, el JSON —que es el que
-    // restaura— ya quedó guardado y el respaldo sigue siendo válido.
-    var excel = '';
-    try {
-      excel = guardarExcel_(datos, carpeta, nombre.replace(/\.json$/, '')).getName();
-    } catch (e) {
-      console.warn('El JSON se guardó, pero el Excel no: ' + e);
-    }
-
-    // La limpieza va después de guardar el nuevo, nunca antes.
-    var enPapelera = limpiar_(carpeta);
-
-    escribir_(sesion.idToken, 'respaldos/drive', {
-      fecha: ahora.getTime(),
-      bytes: bytes,
-      archivo: nombre,
-      excel: excel
-    });
-
-    console.log('Respaldo guardado: ' + nombre + ' (' + Math.round(bytes / 1024) + ' KB, ' +
-                Object.keys(datos.manto_db.ots).length + ' OT vivas)' +
-                (excel ? ' y ' + excel : '; sin Excel') + '. A la papelera: ' + enPapelera + '.');
-  } finally {
-    // Sin esto se acumularía una cuenta anónima por noche en Authentication.
-    borrarSesion_(sesion.idToken);
+  var sesion = abrirSesion_();
+  var resp = UrlFetchApp.fetch(CONFIG.DB_URL + '/.json?auth=' + encodeURIComponent(sesion.idToken),
+                               { muteHttpExceptions: true });
+  if (resp.getResponseCode() !== 200) {
+    throw new Error('La base respondió ' + resp.getResponseCode() + ': ' + resp.getContentText().slice(0, 300));
   }
+  var texto = resp.getContentText('UTF-8');
+
+  // Si algo salió mal no se guarda ni se borra nada: un archivo vacío con
+  // fecha de hoy daría la impresión de un respaldo que no existe.
+  var datos;
+  try { datos = JSON.parse(texto); }
+  catch (e) { throw new Error('La respuesta no es JSON válido.'); }
+  if (!datos || !datos.manto_db || !datos.manto_db.ots) {
+    throw new Error('La respuesta no trae manto_db/ots; no parece la base de Mantenimiento.');
+  }
+
+  var ahora = new Date();
+  var nombre = PREFIJO + Utilities.formatDate(ahora, CONFIG.ZONA, 'yyyy-MM-dd_HHmm') + '.json';
+  var carpeta = carpeta_();
+  var archivo = carpeta.createFile(Utilities.newBlob(texto, 'application/json', nombre));
+  var bytes = archivo.getSize();
+
+  // El Excel es un extra para consultar. Si falla, el JSON —que es el que
+  // restaura— ya quedó guardado y el respaldo sigue siendo válido.
+  var excel = '';
+  try {
+    excel = guardarExcel_(datos, carpeta, nombre.replace(/\.json$/, '')).getName();
+  } catch (e) {
+    console.warn('El JSON se guardó, pero el Excel no: ' + e);
+  }
+
+  // La limpieza va después de guardar el nuevo, nunca antes.
+  var enPapelera = limpiar_(carpeta);
+
+  escribir_(sesion.idToken, 'respaldos/drive', {
+    fecha: ahora.getTime(),
+    bytes: bytes,
+    archivo: nombre,
+    excel: excel
+  });
+
+  console.log('Respaldo guardado: ' + nombre + ' (' + Math.round(bytes / 1024) + ' KB, ' +
+              Object.keys(datos.manto_db.ots).length + ' OT vivas)' +
+              (excel ? ' y ' + excel : '; sin Excel') + '. A la papelera: ' + enPapelera + '.');
 }
 
 /**
@@ -99,6 +97,24 @@ function instalar() {
               Session.getScriptTimeZone() + ').');
 }
 
+/**
+ * Crea el secreto del respaldo y lo guarda en las Propiedades del script. Se
+ * ejecuta una vez; el registro muestra el valor para copiarlo al worker de
+ * Cloudflare como RESPALDO_SECRETO. Si ya existe, no lo cambia: para cambiarlo,
+ * borrar antes la propiedad.
+ */
+function generarSecreto() {
+  var props = PropertiesService.getScriptProperties();
+  var actual = props.getProperty('RESPALDO_SECRETO');
+  if (actual) {
+    console.log('Ya hay un secreto guardado. Valor para el worker: ' + actual);
+    return;
+  }
+  var secreto = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+  props.setProperty('RESPALDO_SECRETO', secreto);
+  console.log('Secreto creado. Cópialo al worker como RESPALDO_SECRETO: ' + secreto);
+}
+
 /** Quita el disparador diario. Los respaldos ya guardados se quedan. */
 function desinstalar() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -108,35 +124,40 @@ function desinstalar() {
 
 // ─── Internos ───────────────────────────────────────────────────────────
 
-function abrirSesionAnonima_() {
-  var resp = UrlFetchApp.fetch(
-    'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + CONFIG.API_KEY, {
+// La credencial se pide con el secreto compartido con el worker. La cuenta que
+// usa (uid `respaldo-drive`) es siempre la misma, así que no se acumulan
+// cuentas en Authentication y no hay nada que borrar al terminar.
+function abrirSesion_() {
+  var secreto = PropertiesService.getScriptProperties().getProperty('RESPALDO_SECRETO');
+  if (!secreto) {
+    throw new Error('Falta RESPALDO_SECRETO en Configuración del proyecto → Propiedades del script.');
+  }
+  var r1 = UrlFetchApp.fetch(CONFIG.SERVICIO + 'credencial-respaldo', {
+    method: 'post',
+    headers: { 'X-Respaldo': secreto },
+    muteHttpExceptions: true
+  });
+  var c1 = {};
+  try { c1 = JSON.parse(r1.getContentText()); } catch (e) {}
+  if (r1.getResponseCode() !== 200 || !c1.token) {
+    throw new Error('El servicio no entregó la credencial del respaldo (' + r1.getResponseCode() + '): ' +
+      (c1.error || r1.getContentText().slice(0, 200)) +
+      '. Revisa que RESPALDO_SECRETO sea igual aquí y en el worker.');
+  }
+  // La credencial se cambia por una sesión de Firebase, igual que en la app.
+  var r2 = UrlFetchApp.fetch(
+    'https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=' + CONFIG.API_KEY, {
       method: 'post',
       contentType: 'application/json',
-      payload: JSON.stringify({ returnSecureToken: true }),
+      payload: JSON.stringify({ token: c1.token, returnSecureToken: true }),
       muteHttpExceptions: true
     });
-  var cuerpo = JSON.parse(resp.getContentText());
-  if (resp.getResponseCode() !== 200 || !cuerpo.idToken) {
-    var msg = (cuerpo.error && cuerpo.error.message) || resp.getContentText().slice(0, 300);
-    throw new Error('No se pudo abrir la sesión anónima: ' + msg +
-      '. Revisa que el proveedor Anónimo siga habilitado en Authentication de impredimex-mantoapp ' +
-      'y que la API key no esté restringida a navegadores.');
+  var c2 = JSON.parse(r2.getContentText());
+  if (r2.getResponseCode() !== 200 || !c2.idToken) {
+    var msg = (c2.error && c2.error.message) || r2.getContentText().slice(0, 300);
+    throw new Error('No se pudo abrir la sesión del respaldo: ' + msg);
   }
-  return cuerpo;
-}
-
-function borrarSesion_(idToken) {
-  try {
-    UrlFetchApp.fetch('https://identitytoolkit.googleapis.com/v1/accounts:delete?key=' + CONFIG.API_KEY, {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify({ idToken: idToken }),
-      muteHttpExceptions: true
-    });
-  } catch (e) {
-    console.warn('No se pudo borrar la sesión anónima: ' + e);
-  }
+  return c2;
 }
 
 function escribir_(idToken, ruta, valor) {
