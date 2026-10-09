@@ -7,7 +7,7 @@ tiene el enrutamiento a lo largo del flujo de una Orden de Trabajo (OT).
 
 **Versión de la aplicación:** 2.12.0
 **Última actualización:** 9 de octubre de 2026
-**Referencias:** SPEC-009, SPEC-011, SPEC-047, SPEC-057, SPEC-059 y SPEC-061
+**Referencias:** SPEC-009, SPEC-011, SPEC-047, SPEC-057, SPEC-059, SPEC-061 y SPEC-062
 
 ---
 
@@ -42,10 +42,17 @@ recuperarlo, pero el estado de la orden sigue visible en su lista.
 | 4 | OT en pausa porque el técnico pasó a otra | Técnico | Solicitante | `OT en pausa` |
 | 5 | OT concluida | Técnico | Solicitante | `OT concluida` |
 | 6 | Cierre rechazado | Solicitante | Todo Mantenimiento | `Cierre rechazado #folio`, con el motivo |
+| 7 | Faltan 2 días para la fecha estimada de una OT en espera | Primer aparato de Mantenimiento que abre la app ese día | Administradores, supervisores, quien la puso en espera y solicitante | `OT #folio por reanudarse` |
+| 8 | Llega (o pasó) la fecha estimada y sigue en espera | Igual | Igual | `OT #folio: hoy se reanuda` o `OT #folio: espera vencida` |
 
 **Sobre el evento 4.** Solo se avisa si la orden quedó sin nadie atendiéndola.
 Si otro técnico sigue en ella, el solicitante no recibe nada porque para él no
 cambió nada.
+
+**Eventos 7 y 8.** Salen una sola vez cada uno por espera, aunque varios
+aparatos abran a la vez. Si la OT se puso en espera con 2 días o menos de
+plazo, solo sale el 8. No aplican a la pausa de fin de semana ni a la pausa por
+atender otra orden. Ver SPEC-062.
 
 **OT levantadas desde Ingeniería de Procesos.** Al cerrar un check de
 condiciones, Procesos puede levantar una OT. Esa app avisa al equipo con la

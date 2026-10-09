@@ -2769,3 +2769,57 @@ Entre el paso 2 y el 4, un teléfono con la versión vieja en caché sigue
 entrando con sesión anónima; después del 4 ya no lee nada hasta recargar. Por
 eso se deja pasar al menos un día entre ambos.
 
+---
+
+## SPEC-062 — Aviso de OT en espera por reanudarse
+
+**Estado:** implementado
+
+### Por qué
+
+Al poner una OT en espera, el técnico anota una fecha estimada de
+reanudación (SPEC-008). Al llegar esa fecha no pasa nada: la OT sigue en
+espera hasta que alguien la mueve, y nadie recibe recordatorio. Las OT en
+espera se quedan olvidadas.
+
+### Qué hace
+
+Se mandan dos avisos push por cada espera con fecha:
+
+| Aviso | Cuándo | Título |
+|---|---|---|
+| Previo | Dos días antes de la fecha estimada | `OT #folio por reanudarse` |
+| Vencimiento | El día de la fecha, o después si sigue en espera | `OT #folio: hoy se reanuda` o `OT #folio: espera vencida` |
+
+**Llegan a:** administradores y supervisores de Mantenimiento activos (papel
+`admin` o `supervisor` en `roles.manto`), quien puso la OT en espera (el
+periodo abierto en `esperas`) y el solicitante (`nomina` de la OT). Sin
+repetidos.
+
+**Solo avisa.** La OT no se reanuda sola; la reactiva un técnico, como hasta
+ahora.
+
+### Reglas de negocio
+
+- **Sale al abrir la app.** No hay servidor que lo dispare a una hora: lo
+  manda el primer aparato del personal de Mantenimiento (técnico, supervisor o
+  administrador) que abre la app ese día. El solicitante no lo dispara.
+- **Una sola vez por aviso**, aunque varios aparatos abran a la vez. Cada aviso
+  se aparta con una transacción en `ots/<id>/espera/avisos/<previo|vence>`; solo
+  el aparato que la gana lo envía.
+- **Si la fecha ya está a 2 días o menos al ponerla en espera**, se omite el
+  aviso previo (`avisos.previo = 'omitido'`): quien la puso en espera lo acaba
+  de decidir. Queda el de vencimiento.
+- **Una espera nueva reinicia los avisos**, porque `espera` se reemplaza
+  completa.
+- **No aplica** a la pausa de fin de semana (SPEC-035), que se reanuda sola, ni
+  a la pausa por atender otra orden, que no lleva fecha.
+
+### Corrección incluida
+
+`revisarFinDeSemana` corría también en el aparato de un solicitante y le hacía
+modificar OT ajenas. Con las reglas de la SPEC-061 eso se rechaza, y el rechazo
+tiraba el guardado completo, incluidas las OT del propio solicitante. Ahora la
+reanudación del lunes solo la hace el personal de Mantenimiento, y el filtro
+de `flushDB` no sube OT ajenas desde el aparato de un solicitante.
+

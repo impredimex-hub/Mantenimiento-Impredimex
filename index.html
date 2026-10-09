@@ -2186,8 +2186,13 @@ function _puedeEscribir(col, valor){
   var rol = currentUser && currentUser.role;
   if(!rol) return false;
   if(ESCRIBEN_CATALOGO[col]) return ESCRIBEN_CATALOGO[col].indexOf(rol) >= 0;
-  // Borrar una OT es de supervisión; crearla o actualizarla, de cualquiera.
-  if(col === 'ots') return valor !== null || rol === 'admin' || rol === 'supervisor';
+  // Borrar una OT es de supervisión. El solicitante solo escribe las suyas
+  // (o las viejas sin nómina); el resto del personal, cualquiera.
+  if(col === 'ots'){
+    if(valor === null) return rol === 'admin' || rol === 'supervisor';
+    if(rol !== 'solicitante') return true;
+    return !valor.nomina || String(valor.nomina) === String(currentUser.nomina);
+  }
   // El comedor es del personal de Mantenimiento.
   if(col === 'comidas') return rol !== 'solicitante';
   return true;
@@ -2460,6 +2465,7 @@ function reloadDB(){
   }
   // Si Firebase está conectado, DB ya es la versión más reciente (listener activo)
   revisarFinDeSemana(); // SPEC-035: reactiva solas las OT cuyo plazo del lunes ya pasó
+  revisarAvisosEspera(); // SPEC-062: aviso de OT en espera por reanudarse
 }
 
 // ── setSyncState: indicador visual de conexión ────────────────────
@@ -2669,6 +2675,7 @@ function initFirebase(){
             if(_migrar[col]){ _migrarColeccion(col, _migrar[col]); _migrar[col] = null; }
           });
           archivarComidasViejas();
+          revisarAvisosEspera();   // SPEC-062
         }, 2500);
       }, function(err){
         setSyncState('offline', 'Error: ' + err.message);
@@ -4922,6 +4929,9 @@ function proximoLunes6am(ahora){
 // desde reloadDB(), que corre en todas las pantallas, así que la primera
 // sesión que se abra después del plazo hace la corrección — sin botón manual.
 function revisarFinDeSemana(){
+  // SPEC-061: el solicitante no puede modificar OT ajenas; si lo intentara,
+  // las reglas rechazarían el guardado completo, incluido lo suyo.
+  if(!currentUser || currentUser.role === 'solicitante') return;
   var ahora = new Date();
   var cambiaron = false;
   (DB.ots||[]).forEach(function(ot){
@@ -4979,6 +4989,86 @@ async function pausarFinSemana(){
   renderTecOTs('todas');
 }
 
+/* ═══════ SPEC-062: AVISO DE OT EN ESPERA POR REANUDARSE ═══════ */
+// Una OT puesta en espera lleva una fecha estimada de reanudación, pero al
+// llegar esa fecha nada pasa: la OT sigue en espera hasta que alguien la
+// mueve, y se queda olvidada. Aquí se avisa dos veces:
+//
+//   - previo:  dos días antes de la fecha estimada
+//   - vence:   el día de la fecha (o después, si nadie abrió la app ese día)
+//
+// Lo manda el primer aparato del personal de Mantenimiento que abre la app
+// ese día; no hay servidor que lo dispare a una hora. El solicitante no lo
+// manda porque las reglas no le dejan marcar OT ajenas.
+//
+// Para que salga una sola vez aunque dos aparatos abran a la vez, cada aviso
+// se «aparta» con una transacción sobre ots/<id>/espera/avisos/<tipo>: solo el
+// aparato que la gana envía el push.
+var DIAS_AVISO_ESPERA = 2;
+var _avisosIntentados = {};
+
+// Días completos de hoy a una fecha 'AAAA-MM-DD' (hora local). Negativo si ya pasó.
+function _diasParaFecha(fechaISO){
+  if(!fechaISO || !/^\d{4}-\d{2}-\d{2}/.test(fechaISO)) return NaN;
+  var p = fechaISO.slice(0,10).split('-');
+  var f = new Date(+p[0], +p[1]-1, +p[2]);
+  var h = new Date(); h = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  return Math.round((f - h) / 864e5);
+}
+
+// Admin y supervisores activos, quien puso la OT en espera y el solicitante.
+function _destinatariosAvisoEspera(ot){
+  var n = (DB.personal||[]).filter(function(p){
+    return p.estatus === 'activo' && (p.rol === 'admin' || p.rol === 'supervisor');
+  }).map(function(p){ return String(p.nomina); });
+  var abiertas = (ot.esperas||[]).filter(function(e){ return e && !e.fin && e.nomina; });
+  if(abiertas.length) n.push(String(abiertas[abiertas.length-1].nomina));
+  if(ot.nomina) n.push(String(ot.nomina));
+  return n.filter(function(x, i){ return x && n.indexOf(x) === i; });
+}
+
+function revisarAvisosEspera(){
+  if(!(db && _fbConnected) || !currentUser || currentUser.role === 'solicitante') return;
+  (DB.ots||[]).forEach(function(ot){
+    if(!ot || ot.status !== 'espera' || !ot.espera || ot.espera.tipo === 'finSemana') return;
+    var dias = _diasParaFecha(ot.espera.fechaEst);
+    if(isNaN(dias)) return;                       // pausa sin fecha
+    var avisos = ot.espera.avisos || {};
+    var tipo = dias <= 0 ? 'vence' : (dias <= DIAS_AVISO_ESPERA ? 'previo' : null);
+    if(!tipo || avisos[tipo]) return;
+    var clave = ot.id + '|' + ot.espera.fechaEst + '|' + tipo;
+    if(_avisosIntentados[clave]) return;
+    _avisosIntentados[clave] = true;
+
+    var ruta = 'manto_db/ots/' + ot.id + '/espera/avisos/' + tipo;
+    var ahora = new Date().toISOString();
+    db.ref(ruta).transaction(function(actual){
+      return actual ? undefined : ahora;          // ya avisó otro aparato: no se toca
+    }).then(function(res){
+      if(!res || !res.committed) return;
+      if(!ot.espera.avisos) ot.espera.avisos = {};
+      ot.espera.avisos[tipo] = ahora;
+      _snap['ots/' + ot.id] = _js(ot);            // ya está en la nube; flushDB no lo reescribe
+      var equipo = ot.equipo ? ' (' + ot.equipo + ')' : '';
+      var titulo, texto;
+      if(tipo === 'previo'){
+        titulo = 'OT ' + ot.folio + ' por reanudarse';
+        texto = 'En espera por ' + (ot.espera.motivo || 'sin motivo') + equipo +
+                '. Fecha estimada de reanudación: ' + fmtDate(ot.espera.fechaEst) + '.';
+      } else {
+        titulo = dias === 0 ? 'OT ' + ot.folio + ': hoy se reanuda' : 'OT ' + ot.folio + ': espera vencida';
+        texto = (dias === 0 ? 'Hoy es la fecha estimada de reanudación' :
+                 'La fecha estimada de reanudación fue el ' + fmtDate(ot.espera.fechaEst)) +
+                equipo + '. Sigue en espera.';
+      }
+      notifyPush(_destinatariosAvisoEspera(ot), titulo, texto, 'espera-' + tipo + '-' + ot.folio);
+    }).catch(function(e){
+      console.warn('Aviso de espera ' + ot.folio + ':', e && e.message);
+      delete _avisosIntentados[clave];            // se reintenta en la siguiente apertura
+    });
+  });
+}
+
 function ponerEnEspera(){
   const chip=document.querySelector('#espera-motivo-chips .chip.selected');
   const motivo=chip?chip.textContent:'Sin especificar';
@@ -4989,6 +5079,9 @@ function ponerEnEspera(){
   const ot=DB.ots.find(o=>o.id===currentOTId);
   ot.status='espera';
   ot.espera={motivo,comentario,fechaEst};
+  // SPEC-062: si la fecha ya está a 2 días o menos, el aviso previo no aporta
+  // nada (quien la puso en espera lo acaba de decidir); queda solo el del día.
+  if(_diasParaFecha(fechaEst) <= DIAS_AVISO_ESPERA) ot.espera.avisos = {previo: 'omitido'};
   // SPEC-013: registrar inicio del periodo de espera para descontarlo del tiempo del técnico
   if(!Array.isArray(ot.esperas)) ot.esperas = [];
   ot.esperas.push({

@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.14.0] — 2026-10-09
+
+### Agregado
+
+- **Aviso de OT en espera por reanudarse** (SPEC-062). Dos días antes de la
+  fecha estimada de reanudación, y otra vez ese día si sigue en espera, llega
+  un push a administradores, supervisores, quien la puso en espera y el
+  solicitante. Lo manda el primer aparato de Mantenimiento que abre la app; una
+  transacción evita que salga repetido.
+
+### Corregido
+
+- El aparato de un solicitante ya no intenta reanudar OT ajenas pausadas por
+  fin de semana ni subir cambios a OT ajenas. Con las reglas por papel eso se
+  rechazaría y tiraría también el guardado de sus propias OT.
+
+---
+
 ## [2.13.0] — 2026-10-09
 
 ### Seguridad
