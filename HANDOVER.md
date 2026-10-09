@@ -3,8 +3,8 @@
 Lo que necesita saber quien reciba esta aplicación para operarla, corregirla y
 extenderla sin depender de quien la construyó.
 
-**Versión de la aplicación:** 2.10.4
-**Última actualización de este documento:** 8 de octubre de 2026
+**Versión de la aplicación:** 2.11.0
+**Última actualización de este documento:** 9 de octubre de 2026
 **Desarrollo original:** Victor Moreno
 
 ---
@@ -218,14 +218,55 @@ Modelo completo en el Anexo A de [`SPECS.md`](./SPECS.md). Lo esencial:
 **Las OT guardan la máquina por nombre.** Renombrar una máquina deja huérfanas
 sus órdenes anteriores. Para retirarla, se marca inactiva; no se borra.
 
-### Respaldo
+### Respaldo (SPEC-060)
 
-El plan Spark no respalda la base automáticamente.
+El plan Spark no respalda la base automáticamente. Hay dos mecanismos:
 
-1. Firebase Console → `impredimex-mantoapp` → Realtime Database → menú de tres
-   puntos → Exportar JSON
-2. Hacerlo al menos una vez por semana y guardar el archivo en una unidad de la
-   empresa
+- **Respaldo diario a Google Drive.** El script `respaldo-drive.gs` de este
+  repositorio corre cada noche desde Google Apps Script y guarda la base
+  completa en la carpeta *Respaldos MantoApp* de la cuenta que lo instaló.
+  Conserva 90 días; lo anterior va a la papelera de Drive.
+- **Botón en la app.** Administración → Respaldo de datos → Preparar respaldo →
+  Guardar archivo. Descarga la base completa al dispositivo.
+
+El panel del administrador avisa cuando el respaldo más reciente tiene más de 7
+días. Si aparece ese aviso, lo más probable es que el script de Drive haya
+dejado de correr.
+
+El archivo es la base tal cual, desde la raíz. Para restaurar: Firebase Console
+→ `impredimex-mantoapp` → Realtime Database → raíz → menú de tres puntos →
+Importar JSON. **Reemplaza toda la base**: descargar antes un respaldo del
+estado actual.
+
+El padrón de personal no está en este respaldo: vive en `impredimex-suite`. Se
+exporta a Excel desde el Directorio de RRHH.
+
+#### Instalar el respaldo diario
+
+Se hace una sola vez, con la cuenta de Google que guardará los respaldos.
+
+1. Entrar a https://script.google.com con esa cuenta → Nuevo proyecto. Ponerle
+   de nombre «Respaldo MantoApp»
+2. Borrar el contenido de `Código.gs` y pegar el de `respaldo-drive.gs`. Guardar
+3. Engrane (Configuración del proyecto) → Zona horaria: «(GMT-06:00) Hora de
+   México — Ciudad de México»
+4. En el editor, elegir la función `instalar` y pulsar Ejecutar
+5. Google pide autorizar el acceso a Drive y a servicios externos. Como el
+   script es propio y no está publicado, muestra «Google no verificó esta app»:
+   Configuración avanzada → Ir a Respaldo MantoApp → Permitir
+6. Revisar el registro de ejecución: debe decir «Respaldo guardado» y
+   «Instalado». En Drive aparece la carpeta *Respaldos MantoApp* con el primer
+   archivo, y en la app el módulo Respaldo de datos muestra la fecha de Drive
+
+Si una corrida falla, Google manda un correo con el error a la cuenta dueña
+del script. Para quitar el respaldo diario, ejecutar `desinstalar`; los
+archivos ya guardados se quedan.
+
+**Si se activa App Check con aplicación obligatoria (SPEC-044)**, el script deja
+de poder leer la base. Hay que resolverlo antes de exigirlo.
+
+**Al traspasar las cuentas a TI**, instalar el script en la cuenta de TI y
+ejecutar `desinstalar` en la cuenta anterior, para que no corran dos.
 
 ---
 
@@ -252,6 +293,14 @@ El plan Spark no respalda la base automáticamente.
 **«Permission denied» en la consola**
 La sesión anónima en `impredimex-mantoapp` no se abrió. Revisar que el
 proveedor «Anónimo» siga habilitado en Authentication de ese proyecto.
+
+**Aparece el aviso de respaldo vencido**
+1. script.google.com → proyecto «Respaldo MantoApp» → Ejecuciones: ver el error
+   de la última corrida
+2. «No se pudo abrir la sesión anónima»: revisar que el proveedor Anónimo siga
+   habilitado en Authentication de `impredimex-mantoapp`
+3. «La base respondió 401»: las reglas o App Check están rechazando al script
+4. Corregido, ejecutar `respaldar` a mano para confirmar
 
 **Una OT aparece en un teléfono pero no en los demás**
 La escritura a Firebase falló. La app reintenta sola en el siguiente guardado;

@@ -1422,6 +1422,9 @@ input[type=range].green{accent-color:var(--green)}
     <div class="scroll-content">
       <div style="padding:16px 14px 8px;font-size:13px;font-weight:500;color:var(--text)">Módulos disponibles</div>
 
+      <!-- SPEC-060: aviso cuando el respaldo más reciente tiene más de 7 días -->
+      <div id="adm-resp-aviso"></div>
+
       <!-- Catálogo de personal -->
       <div style="margin:0 12px 10px">
         <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Administración</div>
@@ -1446,6 +1449,20 @@ input[type=range].green{accent-color:var(--green)}
           <div style="flex:1">
             <div style="font-size:14px;font-weight:500;color:var(--text)">Indicadores de mantenimiento</div>
             <div style="font-size:12px;color:var(--text2);margin-top:2px">MTBF, MTTR, disponibilidad y cumplimiento</div>
+          </div>
+          <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- SPEC-060: Respaldo de datos -->
+      <div style="margin:0 12px 10px">
+        <div class="card" onclick="abrirRespaldo()" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:0">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg style="width:22px;height:22px;stroke:var(--orange);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Respaldo de datos</div>
+            <div id="adm-resp-sub" style="font-size:12px;color:var(--text2);margin-top:2px">Copia de toda la base de Mantenimiento</div>
           </div>
           <svg style="width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
@@ -1617,6 +1634,40 @@ input[type=range].green{accent-color:var(--green)}
       <div class="topbar-title" id="adm-det-titulo">Detalle</div>
     </div>
     <div class="scroll-content" id="adm-detalle-content"></div>
+  </div>
+
+  <!-- SCREEN: SPEC-060 Respaldo de datos -->
+  <div id="adm-respaldo-screen" class="screen">
+    <div class="topbar topbar-orange">
+      <button class="topbar-back" onclick="showScreen('adm-hub');pintarEstadoRespaldo()" aria-label="Volver">
+        <svg style="width:22px;height:22px;stroke:var(--blue-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="topbar-title">Respaldo de datos</div>
+    </div>
+    <div class="scroll-content">
+      <div class="section-head">Últimos respaldos</div>
+      <div class="field-row">
+        <div class="field-lbl">Respaldo diario en Google Drive</div>
+        <div class="field-val" id="adm-resp-drive">Consultando…</div>
+      </div>
+      <div class="field-row">
+        <div class="field-lbl">Descargado desde la app</div>
+        <div class="field-val" id="adm-resp-app">Consultando…</div>
+      </div>
+
+      <div class="section-head" style="margin-top:8px">Descargar un respaldo ahora</div>
+      <div style="padding:12px 16px;font-size:13px;color:var(--text2);line-height:1.5">
+        Descarga una copia de toda la base a este dispositivo, en un archivo JSON.
+        Se puede restaurar desde la consola de Firebase con «Importar JSON».
+        Guárdalo en una unidad de la empresa: contiene todas las órdenes de trabajo
+        con los nombres de quienes las levantaron y atendieron.
+      </div>
+      <div style="padding:0 16px 8px;display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-outline btn-block" id="adm-resp-preparar" onclick="prepararRespaldo()">Preparar respaldo</button>
+        <div id="adm-resp-listo"></div>
+      </div>
+      <div class="spacer"></div>
+    </div>
   </div>
 
   <!-- SCREEN: Catálogo Tipo de Servicio y Nave -->
@@ -6041,6 +6092,201 @@ function injectAdmBackBar(pageId, firstScreenId){
 function returnToAdmin(){
   showPage('page-admin');
   showScreen('adm-hub');
+  pintarEstadoRespaldo();
+}
+
+/* ══════════════════ SPEC-060: RESPALDO DE LA BASE ══════════════════ */
+
+// Días sin respaldo a partir de los cuales el panel del administrador avisa.
+// Con el script de Drive corriendo cada noche el aviso no debería verse nunca:
+// si aparece, casi siempre es porque el script dejó de correr.
+var RESP_DIAS_AVISO = 7;
+var RESP_ZONA = 'America/Mexico_City';
+
+var _respEstado = null;   // lo leído de `respaldos/`; null = todavía no se sabe
+var _respArchivo = null;  // {url, nombre, bytes} preparado y listo para guardar
+
+function _respEsc(t){
+  return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+// Partes de una fecha en la hora de la planta, sin depender de la zona del
+// dispositivo: un teléfono configurado en otra zona pondría otra fecha.
+function _respPartes(d){
+  var p = {};
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: RESP_ZONA, year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', hourCycle:'h23'
+  }).formatToParts(d).forEach(function(x){ p[x.type] = x.value; });
+  return p;
+}
+
+// Respaldo_Mantenimiento_2026-10-09_0215.json — el mismo formato que el script de Drive.
+function _respNombreArchivo(d){
+  var p = _respPartes(d);
+  return 'Respaldo_Mantenimiento_' + p.year + '-' + p.month + '-' + p.day + '_' + p.hour + p.minute + '.json';
+}
+
+function _respFechaLegible(ms){
+  var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var p = _respPartes(new Date(ms));
+  return Number(p.day) + ' ' + meses[Number(p.month) - 1] + ' ' + p.year + ', ' + p.hour + ':' + p.minute;
+}
+
+function _respHace(ms){
+  var min = Math.floor((Date.now() - ms) / 60000);
+  if(min < 60)   return 'hace unos minutos';
+  var h = Math.floor(min / 60);
+  if(h < 24)     return 'hace ' + h + (h === 1 ? ' hora' : ' horas');
+  var d = Math.floor(h / 24);
+  return 'hace ' + d + (d === 1 ? ' día' : ' días');
+}
+
+function _respTamano(bytes){
+  if(!(bytes > 0)) return '';
+  return bytes < 1048576 ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
+                         : (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// El más reciente de los dos registros, venga de Drive o de la app.
+function _respUltimo(){
+  var e = _respEstado || {}, mejor = null;
+  ['drive','app'].forEach(function(k){
+    var r = e[k];
+    if(r && r.fecha && (!mejor || r.fecha > mejor.fecha)) mejor = {origen:k, fecha:r.fecha};
+  });
+  return mejor;
+}
+
+// Lee `respaldos/`, que pesa unos cientos de bytes. Vive fuera de `manto_db`
+// para que la sincronización no lo toque y las otras apps no lo descarguen.
+function refrescarEstadoRespaldo(){
+  if(!db || typeof firebase === 'undefined') return;
+  function leer(){
+    db.ref('respaldos').once('value').then(function(s){
+      _respEstado = s.val() || {};
+      pintarEstadoRespaldo();
+    }).catch(function(e){ console.warn('Estado del respaldo:', e.message); });
+  }
+  // La lectura exige la sesión anónima. Al restaurar una sesión con F5 el
+  // panel se dibuja antes de que exista, así que se espera a que llegue.
+  if(firebase.auth().currentUser){ leer(); return; }
+  var quitar = firebase.auth().onAuthStateChanged(function(u){
+    if(u){ quitar(); leer(); }
+  });
+}
+
+function pintarEstadoRespaldo(){
+  var e = _respEstado, ultimo = _respUltimo();
+
+  // Subtítulo de la tarjeta en el panel
+  var sub = document.getElementById('adm-resp-sub');
+  if(sub && e){
+    sub.textContent = ultimo
+      ? 'Último: ' + _respHace(ultimo.fecha) + (ultimo.origen === 'drive' ? ' · Drive' : ' · desde la app')
+      : 'Sin respaldos registrados';
+  }
+
+  // Aviso de respaldo vencido. Mientras no se sabe el estado no se muestra
+  // nada: un aviso falso al abrir el panel enseña a ignorarlo.
+  var aviso = document.getElementById('adm-resp-aviso');
+  if(aviso){
+    var vencido = e && (!ultimo || Date.now() - ultimo.fecha > RESP_DIAS_AVISO * 864e5);
+    aviso.innerHTML = vencido
+      ? '<div class="alert alert-warn" style="cursor:pointer" onclick="abrirRespaldo()">'
+        + '<div class="alert-icon">⚠</div><div><b>'
+        + (ultimo ? 'El último respaldo es de ' + _respHace(ultimo.fecha) + '.' : 'No hay ningún respaldo registrado.')
+        + '</b> Revisa que el respaldo diario de Drive siga corriendo, o descarga uno ahora.</div></div>'
+      : '';
+  }
+
+  // Detalle en la pantalla del módulo
+  function linea(id, r, conQuien){
+    var el = document.getElementById(id);
+    if(!el) return;
+    if(!e){ el.textContent = 'Consultando…'; return; }
+    if(!r || !r.fecha){ el.innerHTML = '<span style="color:var(--text3)">Sin registro</span>'; return; }
+    el.innerHTML = _respEsc(_respFechaLegible(r.fecha))
+      + ' <span style="color:var(--text3);font-weight:400">· ' + _respEsc(_respHace(r.fecha))
+      + (r.bytes ? ' · ' + _respTamano(r.bytes) : '')
+      + (conQuien && r.nombre ? ' · ' + _respEsc(r.nombre) : '') + '</span>';
+  }
+  linea('adm-resp-drive', e && e.drive, false);
+  linea('adm-resp-app',   e && e.app,   true);
+}
+
+function abrirRespaldo(){
+  showScreen('adm-respaldo-screen');
+  _respDescartarArchivo();
+  pintarEstadoRespaldo();
+  refrescarEstadoRespaldo();
+}
+
+function _respDescartarArchivo(){
+  if(_respArchivo){ try { URL.revokeObjectURL(_respArchivo.url); } catch(e){} }
+  _respArchivo = null;
+  var listo = document.getElementById('adm-resp-listo');
+  if(listo) listo.innerHTML = '';
+}
+
+// Paso 1: leer la base completa, desde la raíz. Son dos pasos y no uno porque
+// los navegadores, sobre todo en el teléfono, bloquean una descarga que no
+// sale directamente de un toque, y la lectura toma un momento.
+async function prepararRespaldo(){
+  var btn = document.getElementById('adm-resp-preparar');
+  if(!(db && _fbConnected)){
+    await appAlert('No hay conexión con la base. Revisa la red e inténtalo de nuevo.', 'Respaldo');
+    return;
+  }
+  _respDescartarArchivo();
+  btn.disabled = true;
+  btn.textContent = 'Leyendo la base…';
+  try {
+    var s = await db.ref('/').once('value');
+    var datos = s.val();
+    // Una base sin `manto_db` no es un respaldo: es una lectura que salió mal.
+    if(!datos || !datos.manto_db) throw new Error('la base llegó vacía');
+    // El archivo es la base tal cual, sin envoltura: así se restaura con
+    // «Importar JSON» en la consola sin tener que editarlo.
+    var blob = new Blob([JSON.stringify(datos)], {type: 'application/json'});
+    var vivas = Object.keys(datos.manto_db.ots || {}).length;
+    var archivadas = Object.keys((datos.manto_db_archivo || {}).ots || {}).length;
+    _respArchivo = { url: URL.createObjectURL(blob), nombre: _respNombreArchivo(new Date()), bytes: blob.size };
+
+    document.getElementById('adm-resp-listo').innerHTML =
+      '<a class="btn btn-primary btn-block" style="text-decoration:none" id="adm-resp-guardar"'
+      + ' href="' + _respArchivo.url + '" download="' + _respEsc(_respArchivo.nombre) + '"'
+      + ' onclick="registrarRespaldoApp()">Guardar archivo (' + _respTamano(_respArchivo.bytes) + ')</a>'
+      + '<div style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.5">'
+      + _respEsc(_respArchivo.nombre) + '<br>'
+      + vivas + ' OT vivas y ' + archivadas + ' archivadas</div>';
+  } catch(e){
+    console.warn('Respaldo:', e);
+    await appAlert('No se pudo leer la base: ' + (e && e.message ? e.message : e) + '. No se descargó nada.', 'Respaldo');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Preparar otro respaldo';
+  }
+}
+
+// Paso 2: el toque en «Guardar archivo» lo descarga el propio navegador; aquí
+// solo se deja constancia de quién respaldó y cuándo.
+function registrarRespaldoApp(){
+  if(!_respArchivo || !currentUser || !db) return;
+  var reg = {
+    fecha:   Date.now(),
+    nomina:  currentUser.nomina,
+    nombre:  currentUser.nombre,
+    bytes:   _respArchivo.bytes,
+    archivo: _respArchivo.nombre
+  };
+  db.ref('respaldos/app').set(reg).then(function(){
+    _respEstado = _respEstado || {};
+    _respEstado.app = reg;
+    pintarEstadoRespaldo();
+  }).catch(function(e){ console.warn('Registro del respaldo:', e.message); });
 }
 
 /* ══════════════════ SPEC-016: MÓDULO DE TURNOS ══════════════════ */
@@ -8023,6 +8269,8 @@ function initAdmin(){
 
   renderPersonal();
   renderAdmPerfil();
+  // SPEC-060: estado del último respaldo, para la tarjeta y el aviso.
+  refrescarEstadoRespaldo();
 }
 
 function setStatusFilter(f){ admStatusFilter=f; renderPersonal(); }

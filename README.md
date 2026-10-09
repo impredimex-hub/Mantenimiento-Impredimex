@@ -3,7 +3,7 @@
 Sistema de gestión de Órdenes de Trabajo (OT) de mantenimiento industrial.
 
 **Dirección:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
-**Versión vigente:** 2.10.4 (ver [`CHANGELOG.md`](./CHANGELOG.md))
+**Versión vigente:** 2.11.0 (ver [`CHANGELOG.md`](./CHANGELOG.md))
 **Estado:** en producción
 
 ---
@@ -25,6 +25,7 @@ Procesos, y se entra desde el portal https://impredimex-hub.github.io/.
 - Cuatro papeles: solicitante, técnico, supervisor y administrador
 - Rol de turnos, programa de mantenimiento preventivo e indicadores (MTTR,
   MTBF, disponibilidad)
+- Respaldo diario de la base a Google Drive y descarga de respaldo bajo demanda
 - Catálogo de máquinas y zonas de planta, compartido con Ingeniería de Procesos
 - Diseño para teléfono, pensado para uso en piso de planta
 - Se instala como aplicación desde el navegador; no requiere tienda
@@ -84,6 +85,7 @@ Mantenimiento-Impredimex/
 ├── OneSignalSDKWorker.js   Service worker de las notificaciones
 ├── icon-192.png, icon-512.png, apple-touch-icon.png
 ├── database.rules.json     Reglas de la Realtime Database (copia de referencia)
+├── respaldo-drive.gs       Respaldo diario a Google Drive (Google Apps Script)
 ├── README.md               Este archivo
 ├── HANDOVER.md             Guía técnica para quien mantenga la aplicación
 ├── SPECS.md                Especificaciones funcionales
@@ -117,7 +119,9 @@ Detalle completo, servicios externos y solución de problemas en
   código y pendiente de configurar en la consola
 - El repositorio es público, y con él la configuración de Firebase
 - No hay recuperación de clave por autoservicio: la restablece un administrador
-- Plan gratuito de Firebase (Spark): sin respaldo automático de la base
+- Plan gratuito de Firebase (Spark): sin respaldo automático de Firebase. Lo
+  cubren el script de respaldo diario a Drive y el botón de respaldo del
+  administrador (SPEC-060)
 
 ---
 

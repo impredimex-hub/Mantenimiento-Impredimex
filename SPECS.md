@@ -2502,3 +2502,113 @@ Firebase cuando se quiera.
 El push es ahora el único aviso en el momento, y no deja registro: quien no lo
 vea no tiene dónde recuperarlo. No se pierde información —el estado sigue en la
 lista de OT—, pero sí el «te avisamos».
+
+---
+
+## SPEC-060 — Respaldo de la base de datos
+
+**Estado:** implementado
+
+### Por qué
+
+El plan gratuito de Firebase no respalda la Realtime Database. El respaldo
+automático existe, pero solo en el plan Blaze. Hasta ahora la única copia era
+la exportación manual desde la consola, que depende de que alguien se acuerde.
+
+Se resuelve con dos piezas que se complementan:
+
+- **Respaldo diario a Google Drive.** Un script de Google Apps Script corre
+  solo cada noche y guarda una copia de la base en una carpeta de Drive. No
+  depende de que nadie tenga la app abierta.
+- **Botón en la app**, para el administrador, que descarga una copia en el
+  momento al dispositivo donde está.
+
+### Qué se respalda
+
+**La base completa, desde la raíz**: `manto_db`, `manto_db_archivo` y
+`respaldos`. El archivo es exactamente lo que devuelve la base, sin envoltura
+ni campos agregados, para que se pueda restaurar tal cual con *Importar JSON*
+en la consola de Firebase.
+
+El padrón de personal **no** está aquí: vive en Firestore de
+`impredimex-suite`. Se respalda exportándolo desde el Directorio de RRHH.
+
+### Nombre del archivo
+
+`Respaldo_Mantenimiento_AAAA-MM-DD_HHMM.json`, con la hora de la Ciudad de
+México. El mismo formato en Drive y en la app.
+
+### Registro del último respaldo
+
+```
+respaldos/
+├── app/    {fecha, nomina, nombre, bytes, archivo}   último botón usado
+└── drive/  {fecha, bytes, archivo}                   última corrida del script
+```
+
+`fecha` es milisegundos desde 1970. Vive **fuera de `manto_db`** a propósito:
+la sincronización de la app no lo toca y las otras aplicaciones de la suite no
+lo descargan.
+
+### Flujo principal — botón
+
+1. Administración → **Respaldo de datos**.
+2. La pantalla muestra el último respaldo de Drive y el último descargado desde
+   la app, cada uno con su fecha y su tamaño.
+3. **Preparar respaldo** lee la base completa una vez.
+4. Al terminar aparece **Guardar archivo**, con el tamaño. Tocarlo descarga el
+   archivo y registra el respaldo en `respaldos/app`.
+
+Son dos toques y no uno a propósito: los navegadores, sobre todo en el
+teléfono, bloquean una descarga que no viene directamente de un toque, y leer
+la base toma un momento. Con un solo botón la descarga a veces no ocurriría y
+nadie se enteraría.
+
+### Flujo principal — Drive
+
+1. El script abre una sesión anónima en `impredimex-mantoapp` por la API REST
+   de Firebase Authentication, igual que la app.
+2. Descarga la base completa y verifica que sea JSON válido y que traiga
+   `manto_db/ots`. Si no, se detiene sin guardar ni borrar nada.
+3. Guarda el archivo en la carpeta *Respaldos MantoApp* de Drive.
+4. Manda a la papelera de Drive los respaldos de esa carpeta con más de 90
+   días. Desde la papelera se recuperan durante 30 días más.
+5. Escribe `respaldos/drive`.
+6. Borra la cuenta anónima que usó, para que no se acumule una por noche en
+   Authentication.
+
+### Aviso por respaldo vencido
+
+En el panel del administrador aparece un aviso cuando **el respaldo más
+reciente, de cualquiera de las dos fuentes, tiene más de 7 días** o no hay
+ninguno registrado.
+
+Con el script corriendo, el aviso no debería verse nunca. Si aparece, lo más
+probable es que el script haya dejado de correr: así el aviso sirve también
+para vigilar el respaldo de Drive.
+
+### Reglas de negocio
+
+- **Solo el administrador** ve el módulo. El archivo contiene toda la
+  operación, incluidos los nombres de quienes levantaron y atendieron cada OT.
+- **Se lee la base una vez por respaldo.** En la medición de septiembre de
+  2026 la base pesaba unos 460 KB; un respaldo diario es menos del 1 % de los
+  10 GB de descarga al mes del plan gratuito.
+- **El script no conoce ninguna contraseña.** Usa la configuración pública de
+  Firebase y una sesión anónima, la misma puerta que usa la app.
+- **Si se activa App Check con aplicación obligatoria (SPEC-044), el script
+  deja de poder leer la base.** Antes de exigirlo hay que darle al script un
+  testigo de depuración de App Check o cambiar su forma de autenticarse. El
+  aviso de respaldo vencido lo haría notar a los 7 días.
+- **Un respaldo fallido no borra nada.** La limpieza de archivos viejos solo
+  corre después de guardar el nuevo.
+
+### Flujos alternativos
+
+- **Sin conexión:** el botón avisa que no se pudo leer la base y no descarga
+  nada.
+- **El script falla:** Google envía un correo a la cuenta dueña del script con
+  el error, y el aviso de 7 días aparece en la app.
+- **Restaurar:** consola de Firebase → Realtime Database → raíz → menú de tres
+  puntos → *Importar JSON*. Reemplaza la base completa por el archivo: conviene
+  descargar antes un respaldo del estado actual.

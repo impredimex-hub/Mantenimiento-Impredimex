@@ -6,6 +6,40 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.11.0] — 2026-10-09
+
+### Agregado
+
+- **Respaldo de la base** (SPEC-060). El plan gratuito de Firebase no respalda
+  la Realtime Database y la única copia dependía de exportarla a mano.
+
+  - **Respaldo diario a Google Drive** con el script `respaldo-drive.gs`, que
+    corre cada noche desde Google Apps Script. Guarda la base completa,
+    conserva 90 días y manda lo anterior a la papelera de Drive. Usa una sesión
+    anónima por la API REST, como la app, y la borra al terminar para que no se
+    acumule una cuenta por noche.
+  - **Módulo «Respaldo de datos»** en el panel del administrador: muestra el
+    último respaldo de Drive y el último descargado desde la app, y descarga
+    una copia en el momento.
+  - **Aviso de respaldo vencido** en el panel cuando el más reciente tiene más
+    de 7 días. Con el script corriendo no debería aparecer; si aparece, el
+    script dejó de correr.
+
+  El archivo es la base tal cual, desde la raíz, sin envoltura: se restaura con
+  «Importar JSON» en la consola. La descarga va en dos toques —preparar y
+  guardar— porque los navegadores del teléfono bloquean una descarga que no sale
+  directamente de un toque.
+
+  El registro del último respaldo vive en `respaldos/`, fuera de `manto_db`, para
+  que la sincronización no lo toque y las otras apps no lo descarguen.
+
+### Pendiente
+
+- Instalar `respaldo-drive.gs` en la cuenta de la suite, siguiendo la sección
+  «Respaldo» de `HANDOVER.md`.
+
+---
+
 ## [2.10.4] — 2026-10-08
 
 Solo documentación. El código de la aplicación (`index.html`) no cambia.
