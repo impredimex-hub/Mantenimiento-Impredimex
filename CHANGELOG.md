@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.15.0] — 2026-10-14
+
+### Agregado
+
+- **El rol de turnos se copia solo a Recursos Humanos** (SPEC-063). Al
+  guardarlo, el servicio lo escribe en la base de RRHH, donde queda de solo
+  lectura; al borrarlo, se quita también de allá. Cada tarjeta dice si ya está
+  en RRHH o si quedó pendiente; los pendientes se reintentan solos. Requiere el
+  secreto `SA_RRHH` en el worker.
+- **Vacaciones y permiso en el rol de turnos.** Quien los tiene no cuenta como
+  técnico en turno.
+
+### Cambiado
+
+- El rol mensual cubre el mes natural (del 1 al último día), igual que en RRHH.
+
+---
+
 ## [2.14.0] — 2026-10-09
 
 ### Agregado

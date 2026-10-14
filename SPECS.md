@@ -2823,3 +2823,64 @@ tiraba el guardado completo, incluidas las OT del propio solicitante. Ahora la
 reanudación del lunes solo la hace el personal de Mantenimiento, y el filtro
 de `flushDB` no sube OT ajenas desde el aparato de un solicitante.
 
+---
+
+## SPEC-063 — El rol de turnos se copia a RRHH
+
+**Estado:** implementado
+
+### Por qué
+
+El supervisor de Mantenimiento capturaba su rol dos veces: aquí, porque la app
+lo usa para saber qué técnicos están en turno (SPEC-020) y cuánto dura su
+comedor (SPEC-034); y en la app de Recursos Humanos, porque allá se cruzan las
+faltas y se revisa quién subió su rol (SPEC-060 de RRHH). Doble trabajo, y
+tarde o temprano los dos roles dejan de coincidir.
+
+### Qué hace
+
+- **Mantenimiento es la fuente.** Al guardar un rol, el servicio
+  `mantoapp-push` lo copia a la colección `rolesTurnos` de RRHH con el
+  documento `manto_<id>`, departamento `MANTENIMIENTO` y `origen:
+  'MANTENIMIENTO'`. También escribe su ficha en `rolesHistorial`, como hace
+  RRHH al guardar.
+- **En RRHH es de solo lectura.** Se ve, se exporta y cuenta para faltas y
+  cumplimiento, pero no se edita. Allí tampoco se ofrece MANTENIMIENTO para
+  crear roles a mano (SPEC-064 de RRHH).
+- **Borrar aquí lo quita allá**, rol y ficha, igual que un borrado a mano en
+  RRHH. La purga automática de roles con más de 30 días (SPEC-019) **no**
+  borra nada en RRHH: allá cada rol se retira solo al vencer y conserva su
+  ficha.
+- **Vacaciones y permiso.** La celda ofrece `VAC` y `PER`, igual que en RRHH.
+  No tienen horario, así que quien las tiene no cuenta como técnico en turno.
+- **Mensual = mes natural.** Al elegir mensual, la fecha de inicio se lleva al
+  día 1 y el rol cubre el mes completo, con el mismo criterio que RRHH. Antes
+  contaba un mes de días a partir de la fecha elegida.
+
+### Traducción
+
+| Mantenimiento | RRHH |
+|---|---|
+| `asignaciones[nómina][fecha] = {t, ini, fin}` | `asignaciones['nómina\|fecha'] = {turno, horaInicio, horaFin}` |
+| `semanal` / `quincenal` / `mensual` | `SEMANAL` / `QUINCENAL` / `MENSUAL` |
+| `G8` | `ADM` (nombre vigente en RRHH) |
+| `fechaCreacion` | `subidoEn` (nunca en el futuro) |
+| `creadoPor`, `creadoPorNomina` | `creadoPorNombre`, `creadoPorNomina` (si falta, la nómina de quien lo envía) |
+
+Las celdas fuera del periodo (quedan al cambiar la fecha de inicio) no se
+copian.
+
+### Seguridad
+
+- `POST /rol-rrhh` exige la sesión de la suite (`Authorization: Bearer`), ficha
+  `ACTIVO`, acceso a `manto` y papel `supervisor` o `admin`.
+- El worker escribe con la cuenta de servicio `SA_RRHH`, no con las reglas de
+  RRHH: sigue funcionando cuando esas reglas se cierren.
+- Valida nóminas, fechas, claves de turno, horas y tamaño (máx. 3,100 celdas).
+
+### Estado del envío
+
+Cada rol anota la versión que llegó: `rrhh = {version: <fechaMod>, en}`. Si
+`version` no coincide con `fechaMod`, la tarjeta dice «Pendiente de enviar a
+RRHH» y se reintenta al abrir la app o el módulo Turnos, como mucho una vez por
+minuto. Solo lo envían aparatos con papel de supervisor o administrador.

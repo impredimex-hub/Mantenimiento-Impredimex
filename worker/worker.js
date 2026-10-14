@@ -20,10 +20,19 @@
  *        POST /   (o /push)          cabecera Authorization: Bearer <idToken>
  *                                    {nominas, title, message, url}
  *
+ *   3. ROL DE TURNOS A RRHH (SPEC-063). Mantenimiento es la fuente de su rol;
+ *      al guardarlo o borrarlo, el worker lo copia a la base de RRHH, donde
+ *      queda de solo lectura. Exige sesión de la suite con papel de
+ *      supervisor o administrador en Mantenimiento.
+ *
+ *        POST /rol-rrhh              cabecera Authorization: Bearer <idToken>
+ *                                    {accion: 'guardar', rol} | {accion: 'borrar', id}
+ *
  * Secretos — Settings → Variables and Secrets, tipo «Secret». Nunca en el código:
  *   SA_MANTOAPP        JSON completo de la cuenta de servicio de impredimex-mantoapp
  *   ONESIGNAL_API_KEY  REST API key de OneSignal
  *   RESPALDO_SECRETO   cadena larga y aleatoria; la misma va en el script de Drive
+ *   SA_RRHH            JSON completo de la cuenta de servicio del proyecto de RRHH
  *
  * Variable — tipo «Text»:
  *   EXIGIR_SESION      "si" exige sesión de la suite para mandar push. "no" acepta
@@ -63,6 +72,7 @@ export default {
       if (ruta === '/credencial') return await credencial(request, env, responder);
       if (ruta === '/credencial-respaldo') return await credencialRespaldo(request, env, responder);
       if (ruta === '/' || ruta === '/push') return await push(request, env, responder);
+      if (ruta === '/rol-rrhh') return await rolRRHH(request, env, responder);
       return responder(404, { error: 'Ruta desconocida' });
     } catch (e) {
       if (e instanceof Rechazo) return responder(e.status, { error: e.message });
@@ -160,6 +170,197 @@ async function push(request, env, responder) {
   });
   const resultado = await r.json().catch(() => ({}));
   return responder(r.status, resultado);
+}
+
+// ─── Rol de turnos a RRHH (SPEC-063) ─────────────────────────────────────
+
+const ROLES_RRHH = 'rolesTurnos';
+const HISTORIAL_RRHH = 'rolesHistorial';
+const DEPTO_MANTO = 'MANTENIMIENTO';
+const PERIODOS = { semanal: 'SEMANAL', quincenal: 'QUINCENAL', mensual: 'MENSUAL' };
+// G8 es el nombre viejo de ADM; RRHH ofrece ADM y solo lee G8.
+const CLAVES = { T1: 'T1', T2: 'T2', T3: 'T3', D12: 'D12', N12: 'N12', G8: 'ADM', LIB: 'LIB', VAC: 'VAC', PER: 'PER' };
+const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const RE_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+const RE_ID = /^[A-Za-z0-9_-]{1,60}$/;
+
+async function rolRRHH(request, env, responder) {
+  const auth = request.headers.get('Authorization') || '';
+  const idToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!idToken) throw new Rechazo(401, 'Falta la sesión de la suite');
+  const sesion = await verificarSesionSuite(idToken);
+  const ficha = await leerFicha(sesion.nomina, idToken);
+  if (ficha.estatus !== 'ACTIVO') throw new Rechazo(403, 'La cuenta está dada de baja');
+  if (!ficha.apps.includes('manto')) throw new Rechazo(403, 'Sin acceso a Mantenimiento');
+  if (ficha.roles.manto !== 'supervisor' && ficha.roles.manto !== 'admin') {
+    throw new Rechazo(403, 'Solo supervisión de Mantenimiento programa el rol');
+  }
+  if (!env.SA_RRHH) throw new Rechazo(503, 'Falta configurar el enlace con RRHH');
+
+  const { accion, rol, id } = await leerJson(request);
+  if (accion === 'borrar') {
+    if (typeof id !== 'string' || !RE_ID.test(id)) throw new Rechazo(400, 'id inválido');
+    const docId = 'manto_' + id;
+    // Borrado a mano: el rol estaba mal, así que su ficha de historial se va
+    // también, igual que cuando se borra en RRHH.
+    await firestoreRRHH(env, [
+      { delete: rutaRRHH(env, ROLES_RRHH, docId) },
+      { delete: rutaRRHH(env, HISTORIAL_RRHH, docId) }
+    ]);
+    return responder(200, { ok: true, id: docId });
+  }
+  if (accion !== 'guardar') throw new Rechazo(400, 'accion debe ser guardar o borrar');
+
+  const r = validarRol(rol);
+  const docId = 'manto_' + r.id;
+  const comun = {
+    nombre: r.nombre,
+    departamento: DEPTO_MANTO,
+    periodo: r.periodo,
+    fechaInicio: r.fechaInicio,
+    creadoPorNomina: r.creadoPorNomina || sesion.nomina,
+    creadoPorNombre: r.creadoPor,
+    subidoEn: new Date(r.subidoEn)
+  };
+  await firestoreRRHH(env, [
+    {
+      update: { name: rutaRRHH(env, ROLES_RRHH, docId), fields: aFirestore({
+        ...comun, id: docId, asignaciones: r.asignaciones,
+        // Marca de origen: RRHH lo muestra de solo lectura.
+        origen: 'MANTENIMIENTO', enviadoPorNomina: sesion.nomina
+      }) },
+      updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }]
+    },
+    {
+      update: { name: rutaRRHH(env, HISTORIAL_RRHH, docId), fields: aFirestore({
+        ...comun, id: docId, fechaFin: r.fechaFin
+      }) },
+      updateTransforms: [{ fieldPath: 'actualizadoEn', setToServerValue: 'REQUEST_TIME' }]
+    }
+  ]);
+  return responder(200, { ok: true, id: docId });
+}
+
+/** Revisa y traduce el rol de Mantenimiento al formato de RRHH. */
+function validarRol(rol) {
+  if (!rol || typeof rol !== 'object') throw new Rechazo(400, 'rol requerido');
+  const id = String(rol.id || '');
+  if (!RE_ID.test(id)) throw new Rechazo(400, 'id inválido');
+  const periodo = PERIODOS[rol.periodo || 'semanal'];
+  if (!periodo) throw new Rechazo(400, 'periodo inválido');
+  if (!RE_FECHA.test(String(rol.fechaInicio || ''))) throw new Rechazo(400, 'fechaInicio inválida');
+  const dias = diasDelPeriodo(rol.fechaInicio, periodo);
+  const enPeriodo = new Set(dias);
+
+  const asignaciones = {};
+  let n = 0;
+  const fuente = rol.asignaciones && typeof rol.asignaciones === 'object' ? rol.asignaciones : {};
+  for (const nomina of Object.keys(fuente)) {
+    if (!/^\d{1,8}$/.test(nomina)) throw new Rechazo(400, 'Nómina inválida');
+    const porFecha = fuente[nomina] || {};
+    for (const fecha of Object.keys(porFecha)) {
+      // Celdas fuera del periodo (de cuando se cambió la fecha de inicio) no
+      // se muestran en ninguna de las dos apps; no se copian.
+      if (!enPeriodo.has(fecha)) continue;
+      const a = porFecha[fecha] || {};
+      const turno = CLAVES[a.t];
+      if (!turno) throw new Rechazo(400, 'Turno desconocido: ' + a.t);
+      const celda = { turno };
+      if (turno === 'LIB') {
+        if (RE_HORA.test(a.ini || '')) celda.horaInicio = a.ini;
+        if (RE_HORA.test(a.fin || '')) celda.horaFin = a.fin;
+      }
+      asignaciones[nomina + '|' + fecha] = celda;
+      if (++n > 3100) throw new Rechazo(400, 'Rol demasiado grande');
+    }
+  }
+
+  const creado = Date.parse(rol.fechaCreacion || '');
+  return {
+    id, periodo, asignaciones,
+    fechaInicio: dias[0],
+    fechaFin: dias[dias.length - 1],
+    nombre: String(rol.nombre || '').slice(0, 120) || 'Rol de Mantenimiento',
+    creadoPor: String(rol.creadoPor || '').slice(0, 120),
+    creadoPorNomina: /^\d{1,8}$/.test(String(rol.creadoPorNomina || '')) ? String(rol.creadoPorNomina) : '',
+    // Cuándo se subió: lo que Mantenimiento registró al crearlo. Nunca en el
+    // futuro, para que nadie lo adelante y parezca subido a tiempo.
+    subidoEn: Number.isFinite(creado) ? Math.min(creado, Date.now()) : Date.now()
+  };
+}
+
+/** Mismo criterio que RRHH: el mensual es el mes natural de la fecha de inicio. */
+function diasDelPeriodo(inicio, periodo) {
+  const [a, m, d] = inicio.split('-').map(Number);
+  const pad = (x) => String(x).padStart(2, '0');
+  const iso = (f) => `${f.getUTCFullYear()}-${pad(f.getUTCMonth() + 1)}-${pad(f.getUTCDate())}`;
+  if (periodo === 'MENSUAL') {
+    const ultimo = new Date(Date.UTC(a, m, 0)).getUTCDate();
+    return Array.from({ length: ultimo }, (_, i) => `${a}-${pad(m)}-${pad(i + 1)}`);
+  }
+  const n = periodo === 'QUINCENAL' ? 14 : 7;
+  return Array.from({ length: n }, (_, i) => iso(new Date(Date.UTC(a, m - 1, d + i))));
+}
+
+let _rrhh = null;
+
+/** Cuenta de servicio de RRHH y un token de acceso a Firestore, guardado mientras vale. */
+async function accesoRRHH(env) {
+  if (_rrhh && Date.now() < _rrhh.hasta) return _rrhh;
+  const sa = JSON.parse(env.SA_RRHH);
+  const der = bytes64(sa.private_key.replace(/-----[^-]+-----/g, '').replace(/\s+/g, ''), false);
+  const llave = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const ahora = Math.floor(Date.now() / 1000);
+  const cab = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const cuerpo = base64url(JSON.stringify({
+    iss: sa.client_email, scope: 'https://www.googleapis.com/auth/datastore',
+    aud: 'https://oauth2.googleapis.com/token', iat: ahora, exp: ahora + 3600
+  }));
+  const firma = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', llave, new TextEncoder().encode(cab + '.' + cuerpo));
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion='
+      + cab + '.' + cuerpo + '.' + base64url(new Uint8Array(firma))
+  });
+  if (!r.ok) throw new Error('Google no entregó acceso a RRHH: ' + r.status);
+  const { access_token, expires_in } = await r.json();
+  _rrhh = { proyecto: sa.project_id, token: access_token, hasta: Date.now() + (Number(expires_in || 3600) - 120) * 1000 };
+  return _rrhh;
+}
+
+function rutaRRHH(env, coleccion, id) {
+  const sa = JSON.parse(env.SA_RRHH);
+  return `projects/${sa.project_id}/databases/(default)/documents/${coleccion}/${id}`;
+}
+
+/** Aplica varias escrituras de golpe: o entran todas o ninguna. */
+async function firestoreRRHH(env, writes) {
+  const { proyecto, token } = await accesoRRHH(env);
+  const r = await fetch(`https://firestore.googleapis.com/v1/projects/${proyecto}/databases/(default)/documents:commit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ writes })
+  });
+  if (!r.ok) {
+    console.error('Firestore de RRHH respondió', r.status, await r.text().catch(() => ''));
+    throw new Rechazo(502, 'RRHH no aceptó el rol');
+  }
+}
+
+/** Objeto plano → campos de Firestore REST. */
+function aFirestore(obj) {
+  const valor = (v) => {
+    if (v instanceof Date) return { timestampValue: v.toISOString() };
+    if (typeof v === 'string') return { stringValue: v };
+    if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (v === null || v === undefined) return { nullValue: null };
+    return { mapValue: { fields: aFirestore(v) } };
+  };
+  const out = {};
+  Object.keys(obj).forEach((k) => { out[k] = valor(obj[k]); });
+  return out;
 }
 
 // ─── Sesión de la suite ──────────────────────────────────────────────────

@@ -536,6 +536,10 @@ input[type=range].green{accent-color:var(--green)}
 .turno-grid .tg-dom{color:var(--red)}
 .turno-sel{width:100%;min-width:96px;border:1px solid var(--border);border-radius:6px;padding:4px 5px;font-size:11px;background:var(--surface);color:var(--text);font-family:inherit}
 .turno-sel.has-val{background:var(--blue-light);border-color:var(--blue);font-weight:600}
+.turno-sel.aus{background:var(--amber-light);border-color:var(--amber);color:var(--amber-dark)}
+.turno-rrhh{display:inline-block;font-size:10px;font-weight:600;margin:6px 0 0 6px;padding:2px 8px;border-radius:20px}
+.turno-rrhh.ok{background:var(--green-light);color:var(--green-dark)}
+.turno-rrhh.pend{background:var(--amber-light);color:var(--amber-dark)}
 .turno-libre{font-size:10px;color:var(--blue);margin-top:2px;display:block;font-weight:600}
 .turno-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin:0 12px 10px;cursor:pointer}
 .turno-card:active{transform:scale(.99)}
@@ -2676,6 +2680,7 @@ function initFirebase(){
           });
           archivarComidasViejas();
           revisarAvisosEspera();   // SPEC-062
+          enviarPendientesRRHH();  // SPEC-063
         }, 2500);
       }, function(err){
         setSyncState('offline', 'Error: ' + err.message);
@@ -6746,7 +6751,11 @@ var CAT_TURNOS = [
   {id:'D12', label:'06:00 – 18:00', corto:'06–18',     ini:360,  fin:1080},
   {id:'N12', label:'18:00 – 06:00', corto:'18–06',     ini:1080, fin:360},
   {id:'G8',  label:'08:00 – 18:00', corto:'08–18',     ini:480,  fin:1080},
-  {id:'LIB', label:'Horario libre', corto:'Libre'}
+  {id:'LIB', label:'Horario libre', corto:'Libre'},
+  // SPEC-063: ausencias justificadas, igual que en RRHH. No son jornada: sin
+  // ini/fin, así que quien las tiene nunca cuenta como técnico en turno.
+  {id:'VAC', label:'Vacaciones', corto:'Vacaciones', ausencia:true},
+  {id:'PER', label:'Permiso',    corto:'Permiso',    ausencia:true}
 ];
 var DIAS_SEM = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 var currentRolId = null;
@@ -6773,6 +6782,9 @@ function diasDelPeriodo(inicioISO, periodo){
   var n = 7;
   if(periodo==='quincenal') n = 14;
   else if(periodo==='mensual'){
+    // SPEC-063: el mes natural de la fecha de inicio, del 1 al último día,
+    // con el mismo criterio que RRHH para que el rol copiado cubra lo mismo.
+    d = new Date(d.getFullYear(), d.getMonth(), 1);
     n = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   }
   for(var i=0;i<n;i++){
@@ -7111,8 +7123,9 @@ function avisarSiNoHayTecnicoLibre(nuevaOT, fecha){
   return true;
 }
 
-function renderTurnos(){
+function renderTurnos(sinEnviar){
   purgarTurnosAntiguos();
+  if(!sinEnviar) enviarPendientesRRHH();
   var cont = document.getElementById('sup-turnos-content');
   if(!cont) return;
   var roles = (DB.turnos||[]).slice().sort(function(a,b){
@@ -7124,7 +7137,8 @@ function renderTurnos(){
     + '<button class="btn btn-green btn-block" onclick="nuevoRolTurnos()">+ Nuevo rol de turnos</button>'
     + '</div>'
     + '<div style="padding:0 16px 8px;font-size:10px;color:var(--text3);line-height:1.5">'
-    + 'Se conserva el histórico del último mes. Los roles terminados hace más de 30 días se eliminan automáticamente.'
+    + 'Se conserva el histórico del último mes. Los roles terminados hace más de 30 días se eliminan automáticamente. '
+    + 'Al guardar, el rol se copia solo a Recursos Humanos; allá se ve pero no se edita.'
     + '</div>';
 
   // SPEC-020: avisar si hay roles que cubren las mismas fechas
@@ -7155,6 +7169,7 @@ function renderTurnos(){
       + '<div class="turno-card-s">'+fmtDate(r.fechaInicio)+' — '+fmtDate(fin)+'</div>'
       + '<div class="turno-card-s">'+nPer+' persona'+(nPer===1?'':'s')+' con turno asignado</div>'
       + '<span class="turno-badge">'+periodoLabel(r.periodo)+'</span>'
+      + estadoRRHHHtml(r)
       + '</div>';
   });
   html += '</div>';
@@ -7172,6 +7187,7 @@ function nuevoRolTurnos(){
     fechaInicio: iso,
     asignaciones: {},
     creadoPor: currentUser ? currentUser.nombre : '',
+    creadoPorNomina: currentUser ? String(currentUser.nomina||'') : '',
     fechaCreacion: new Date().toISOString()
   };
   if(!Array.isArray(DB.turnos)) DB.turnos = [];
@@ -7250,7 +7266,8 @@ function renderTurnoEditor(){
     dias.forEach(function(d){
       var a = (rol.asignaciones[p.nomina]||{})[d.iso] || null;
       var val = a && a.t ? a.t : '';
-      html += '<td><select class="turno-sel'+(val?' has-val':'')+'" onchange="setAsignacion(\''+p.nomina+'\',\''+d.iso+'\',this.value)">'
+      var cat = catTurnoById(val);
+      html += '<td><select class="turno-sel'+(val?' has-val':'')+(cat&&cat.ausencia?' aus':'')+'" onchange="setAsignacion(\''+p.nomina+'\',\''+d.iso+'\',this.value)">'
         + '<option value=""'+(val===''?' selected':'')+'>—</option>';
       CAT_TURNOS.forEach(function(c){
         html += '<option value="'+c.id+'"'+(val===c.id?' selected':'')+'>'+c.corto+'</option>';
@@ -7280,6 +7297,8 @@ function setRolCampo(campo, valor){
   var rol = getRolActual();
   if(!rol) return;
   rol[campo] = valor;
+  // SPEC-063: el mensual es el mes natural; la fecha de inicio se lleva al día 1.
+  if(rol.periodo==='mensual' && rol.fechaInicio) rol.fechaInicio = rol.fechaInicio.slice(0,8)+'01';
   if(campo==='periodo' || campo==='fechaInicio') renderTurnoEditor();
 }
 
@@ -7369,9 +7388,14 @@ function guardarRolTurnos(){
   rol.fechaMod = new Date().toISOString();
   rol.modificadoPor = currentUser ? currentUser.nombre : '';
   saveDB();
-  appAlert('✓ Rol de turnos guardado.');
   showScreen('sup-turnos');
   renderTurnos();
+  enviarRolRRHH(rol).then(function(){
+    appAlert('✓ Rol de turnos guardado y enviado a Recursos Humanos.');
+  }).catch(function(e){
+    appAlert('✓ Rol de turnos guardado.\n\nNo se pudo enviar a Recursos Humanos ('+e.message+'). '
+      + 'Se reintenta solo la próxima vez que abras Turnos.');
+  }).then(renderTurnosSiVisible);
 }
 
 async function eliminarRolTurnos(){
@@ -7383,6 +7407,99 @@ async function eliminarRolTurnos(){
   saveDB();
   showScreen('sup-turnos');
   renderTurnos();
+  // SPEC-063: si ya estaba en RRHH, se quita también de allá.
+  if(rol.rrhh){
+    llamarRRHH({accion:'borrar', id:rol.id}).catch(function(e){
+      appAlert('El rol se eliminó aquí, pero no se pudo quitar de Recursos Humanos ('+e.message+'). '
+        + 'Un administrador de RRHH puede borrarlo desde allá.');
+    });
+  }
+}
+
+/* ═══════ SPEC-063: EL ROL DE TURNOS SE COPIA A RRHH ═══════ */
+
+// Mantenimiento es la fuente de su rol. Al guardarlo, el servicio lo copia a
+// la base de Recursos Humanos, donde queda de solo lectura. En el rol se
+// anota qué versión llegó (`rrhh.version` = su `fechaMod`); uno guardado sin
+// conexión, o que falló, se reintenta al abrir Turnos o la app.
+var _enviandoRRHH = false;
+
+function puedeProgramarTurnos(){
+  var r = currentUser && currentUser.role;
+  return r === 'admin' || r === 'supervisor';
+}
+
+function pendienteRRHH(rol){
+  return !!(rol && rol.fechaMod && (!rol.rrhh || rol.rrhh.version !== rol.fechaMod));
+}
+
+function estadoRRHHHtml(rol){
+  if(!rol.fechaMod) return '';
+  if(!pendienteRRHH(rol)) return '<span class="turno-rrhh ok">✓ En RRHH</span>';
+  return '<span class="turno-rrhh pend">Pendiente de enviar a RRHH</span>';
+}
+
+// Solo repinta: no dispara otro envío (si no, un envío fallido repintaría,
+// el repintado reintentaría y así sin fin).
+function renderTurnosSiVisible(){
+  var el = document.getElementById('sup-turnos');
+  if(el && el.classList.contains('active')) renderTurnos(true);
+}
+
+function llamarRRHH(cuerpo){
+  var su = suiteAuth && suiteAuth.currentUser;
+  if(!su) return Promise.reject(new Error('sin sesión'));
+  return su.getIdToken().then(function(t){
+    return fetch(SERVICIO_MANTO.replace(/\/$/, '') + '/rol-rrhh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
+      body: JSON.stringify(cuerpo)
+    });
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){
+      if(!r.ok) throw new Error(d.error || ('error ' + r.status));
+      return d;
+    });
+  }, function(e){
+    throw new Error(navigator.onLine === false ? 'sin conexión' : (e.message || 'sin conexión'));
+  });
+}
+
+var _enviosRRHH = {};   // id|versión → envío en curso, para no mandarlo dos veces
+
+function enviarRolRRHH(rol){
+  if(!puedeProgramarTurnos()) return Promise.resolve();
+  var version = rol.fechaMod;
+  var llave = rol.id + '|' + version;
+  if(_enviosRRHH[llave]) return _enviosRRHH[llave];
+  var envio = llamarRRHH({accion:'guardar', rol:rol}).then(function(){
+    // Pudo cambiar mientras viajaba: solo se marca la versión que se mandó.
+    var vivo = (DB.turnos||[]).find(function(r){ return r.id===rol.id; });
+    if(!vivo) return;
+    vivo.rrhh = {version: version, en: new Date().toISOString()};
+    saveDB();
+  });
+  _enviosRRHH[llave] = envio;
+  envio.then(function(){ delete _enviosRRHH[llave]; }, function(){ delete _enviosRRHH[llave]; });
+  return envio;
+}
+
+var _ultimoReintentoRRHH = 0;
+
+function enviarPendientesRRHH(){
+  if(_enviandoRRHH || !puedeProgramarTurnos()) return;
+  // Un reintento por minuto como mucho, aunque se entre y salga de Turnos.
+  if(Date.now() - _ultimoReintentoRRHH < 60000) return;
+  var pend = (DB.turnos||[]).filter(pendienteRRHH);
+  if(!pend.length) return;
+  _ultimoReintentoRRHH = Date.now();
+  _enviandoRRHH = true;
+  pend.reduce(function(p, rol){
+    return p.then(function(){ return enviarRolRRHH(rol).catch(function(e){ console.warn('Rol a RRHH:', e.message); }); });
+  }, Promise.resolve()).then(function(){
+    _enviandoRRHH = false;
+    renderTurnosSiVisible();
+  });
 }
 
 function exportarRolTurnos(){

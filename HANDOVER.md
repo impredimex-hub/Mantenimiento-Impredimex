@@ -3,7 +3,7 @@
 Lo que necesita saber quien reciba esta aplicación para operarla, corregirla y
 extenderla sin depender de quien la construyó.
 
-**Versión de la aplicación:** 2.14.0
+**Versión de la aplicación:** 2.15.0
 **Última actualización de este documento:** 9 de octubre de 2026
 **Desarrollo original:** Victor Moreno
 
@@ -210,6 +210,7 @@ Variables and Secrets). Ninguno está en el repositorio:
 | `SA_MANTOAPP` | Secret | JSON completo de una cuenta de servicio de `impredimex-mantoapp` (Firebase → Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada) |
 | `ONESIGNAL_API_KEY` | Secret | REST API key de OneSignal |
 | `RESPALDO_SECRETO` | Secret | Cadena larga y aleatoria. La misma va en las Propiedades del script de respaldo |
+| `SA_RRHH` | Secret | JSON completo de una cuenta de servicio del proyecto de Firebase de RRHH (mismo camino que `SA_MANTOAPP`, pero en el proyecto de RRHH). Lo usa la copia del rol de turnos (SPEC-063) |
 | `EXIGIR_SESION` | Text | `si`: el push exige sesión. `no`: acepta avisos sin sesión (solo durante una transición) |
 
 **Si se filtra la cuenta de servicio** (por ejemplo, alguien vio el JSON):
@@ -217,6 +218,10 @@ Google Cloud → IAM → Cuentas de servicio → la de `firebase-adminsdk` → C
 borrar la clave filtrada, generar una nueva y pegarla en `SA_MANTOAPP`. Las
 credenciales ya emitidas dejan de renovarse en una hora y la app pide otra
 sola.
+
+**Si se filtra `SA_RRHH`**: lo mismo, en el proyecto de RRHH. Mientras falte,
+los roles de turnos se siguen guardando en Mantenimiento y quedan como
+«Pendiente de enviar a RRHH»; se envían solos cuando vuelve.
 
 **Si se filtra `RESPALDO_SECRETO`**: generar otro, pegarlo en el worker y en
 las Propiedades del script.
