@@ -3,7 +3,7 @@
 Lo que necesita saber quien reciba esta aplicación para operarla, corregirla y
 extenderla sin depender de quien la construyó.
 
-**Versión de la aplicación:** 2.15.0
+**Versión de la aplicación:** 2.15.1
 **Última actualización de este documento:** 9 de octubre de 2026
 **Desarrollo original:** Victor Moreno
 

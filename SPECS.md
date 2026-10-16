@@ -2884,3 +2884,21 @@ Cada rol anota la versión que llegó: `rrhh = {version: <fechaMod>, en}`. Si
 `version` no coincide con `fechaMod`, la tarjeta dice «Pendiente de enviar a
 RRHH» y se reintenta al abrir la app o el módulo Turnos, como mucho una vez por
 minuto. Solo lo envían aparatos con papel de supervisor o administrador.
+
+---
+
+## SPEC-064 — Categoría de la zona en Procesos
+
+**Estado:** implementado
+
+En Procesos cada zona de trabajo es su propia categoría, con su propia lista de
+verificación de 5S (SPEC-029 de Procesos). El formulario de zona suma un campo
+opcional **«Categoría en Procesos»** (`zonas[].categoria`):
+
+- **Vacío:** la zona es su propia categoría, con su nombre.
+- **Igual en varias zonas:** Procesos las revisa juntas, con una sola lista
+  (por ejemplo «Almacenes» para Materia Prima y Producto Terminado).
+
+El campo sugiere las categorías ya usadas. Guardar una zona mueve
+`catalogoVer`, así que Procesos baja el cambio en su siguiente apertura.
+

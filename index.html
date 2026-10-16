@@ -1975,6 +1975,12 @@ input[type=range].green{accent-color:var(--green)}
       <div style="font-size:11px;color:var(--text3);margin-top:3px">No la cambies en una zona que ya tenga auditorías: es con la que quedaron guardadas.</div>
     </div>
     <div class="field-row">
+      <div class="field-lbl">Categoría en Procesos</div>
+      <input class="field-input" type="text" id="zona-form-categoria" placeholder="Vacío = la zona es su propia categoría" list="zona-categorias">
+      <datalist id="zona-categorias"></datalist>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">Cada categoría tiene su propia lista de verificación. Escribe la misma en varias zonas solo si se revisan juntas con las mismas preguntas (ej. «Almacenes»).</div>
+    </div>
+    <div class="field-row">
       <div class="field-lbl">Naves donde aplica</div>
       <div id="zona-form-naves" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
     </div>
@@ -8347,6 +8353,12 @@ function abrirFormZona(id){
   document.getElementById('zona-form-nombre').value = zona ? zona.nombre : '';
   document.getElementById('zona-form-descripcion').value = zona ? (zona.descripcion||'') : '';
   document.getElementById('zona-form-clave').value = zona ? (zona.clave||'') : '';
+  // SPEC-064: categorías ya usadas, para no escribir la misma de dos formas.
+  document.getElementById('zona-form-categoria').value = zona ? (zona.categoria||'') : '';
+  var cats = {};
+  (DB.zonas||[]).forEach(function(z){ if(z.categoria) cats[z.categoria] = true; });
+  document.getElementById('zona-categorias').innerHTML =
+    Object.keys(cats).sort().map(function(c){ return '<option value="'+c.replace(/"/g,'&quot;')+'">'; }).join('');
   document.getElementById('zona-form-activo').value = (zona && !zona.activo) ? '0' : '1';
   document.getElementById('zona-form-naves').innerHTML = naves.map(function(n){
     var checked = zona && zona.naves && zona.naves.indexOf(n.nombre)>=0 ? 'checked' : '';
@@ -8363,6 +8375,7 @@ function guardarZona(){
   var nombre = document.getElementById('zona-form-nombre').value.trim();
   var descripcion = document.getElementById('zona-form-descripcion').value.trim();
   var clave  = document.getElementById('zona-form-clave').value.trim();
+  var categoria = document.getElementById('zona-form-categoria').value.trim();
   var activo = document.getElementById('zona-form-activo').value==='1';
   var navesEl= document.getElementById('zona-form-naves').querySelectorAll('input[type=checkbox]:checked');
   var naves  = Array.from(navesEl).map(function(c){ return c.value; });
@@ -8375,9 +8388,9 @@ function guardarZona(){
   if(choque){ appAlert('La clave "'+clave+'" ya la usa "'+choque.nombre+'".'); return; }
   if(id){
     var z = DB.zonas.find(function(x){ return x.id===id; });
-    if(z){ z.nombre=nombre; z.descripcion=descripcion; z.clave=clave; z.naves=naves; z.activo=activo; }
+    if(z){ z.nombre=nombre; z.descripcion=descripcion; z.clave=clave; z.naves=naves; z.activo=activo; z.categoria=categoria; }
   } else {
-    DB.zonas.push({id:'zn_'+Date.now(), clave:clave, nombre:nombre, familia:'Zona',
+    DB.zonas.push({id:'zn_'+Date.now(), clave:clave, nombre:nombre, familia:'Zona', categoria:categoria,
                    descripcion:descripcion, naves:naves, activo:true});
   }
   saveDB();

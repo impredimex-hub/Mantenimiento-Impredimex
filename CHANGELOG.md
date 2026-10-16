@@ -6,6 +6,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.15.1] — 2026-10-16
+
+### Agregado
+
+- **Categoría en Procesos** en el formulario de zona (SPEC-064). Vacía, la zona
+  es su propia categoría con su lista de 5S; igual en varias, se revisan juntas.
+
+---
+
 ## [2.15.0] — 2026-10-14
 
 ### Agregado
