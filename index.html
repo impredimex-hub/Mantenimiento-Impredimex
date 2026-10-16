@@ -4277,10 +4277,23 @@ function tecnicosUnicos(ot){
 // SPEC-022: OT que este técnico pausó y que sigue sin que nadie la atienda.
 // Mientras exista, no puede tomar órdenes nuevas: debe retomarla, salvo que
 // otro técnico la tome antes.
+// SPEC-065: ¿la espera actual de la OT es la pausa por atender otra orden?
+// Una OT que se pausó alguna vez y luego se puso en espera por proveedor,
+// refacción o fin de semana ya no está pausada: tiene fecha y motivo propios,
+// y quien la pausó puede tomar otras órdenes mientras tanto.
+function _esperaEsPausa(ot){
+  var e = ot && ot.espera;
+  if(!e) return false;
+  if(e.tipo) return e.tipo === 'pausa';
+  // Pausas guardadas antes de que existiera `tipo`.
+  return /^Técnico reasignado a la OT/.test(e.motivo||'');
+}
+
 function otPausadaPendiente(nombre){
   if(!nombre) return null;
   return (DB.ots||[]).find(function(ot){
     if(!ot || ot.status!=='espera') return false;
+    if(!_esperaEsPausa(ot)) return false;
     if(!Array.isArray(ot.pausas) || !ot.pausas.length) return false;
     var ult = ot.pausas[ot.pausas.length-1];
     if(!_mismoNombre(ult.tecnico, nombre)) return false;
@@ -4295,6 +4308,7 @@ function otPausadaPendiente(nombre){
 function otsPausadasHuerfanas(){
   return (DB.ots||[]).filter(function(ot){
     if(!ot || ot.status!=='espera') return false;
+    if(!_esperaEsPausa(ot)) return false;   // SPEC-065
     if(!Array.isArray(ot.pausas) || !ot.pausas.length) return false;
     return !(ot.tecnicos||[]).some(function(t){ return t && !t.fechaSalida; });
   });
@@ -4541,7 +4555,7 @@ async function confirmarPausarYTomar(idDestino){
     // 2) Estado en espera, con el motivo de la pausa — solo si nadie sigue
     var motivo = 'Técnico reasignado a la OT '+destino.folio;
     actual.status = 'espera';
-    actual.espera = {motivo:motivo, comentario:'Pausa por atención de otra orden.', fechaEst:''};
+    actual.espera = {motivo:motivo, comentario:'Pausa por atención de otra orden.', fechaEst:'', tipo:'pausa'};
 
     // 3) SPEC-013: periodo de espera para descontarlo del tiempo
     if(!Array.isArray(actual.esperas)) actual.esperas = [];

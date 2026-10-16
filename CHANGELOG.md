@@ -6,6 +6,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.15.2] — 2026-10-16
+
+### Corregido
+
+- **Un técnico quedaba bloqueado por una OT en espera con fecha** (SPEC-065).
+  Si una OT se pausó y después se puso en espera por proveedor o refacción,
+  la app seguía diciendo «Tienes pausada la OT» y no lo dejaba tomar otras.
+  Ahora solo bloquea la pausa por atender otra orden.
+
+---
+
 ## [2.15.1] — 2026-10-16
 
 ### Agregado

@@ -2902,3 +2902,27 @@ opcional **«Categoría en Procesos»** (`zonas[].categoria`):
 El campo sugiere las categorías ya usadas. Guardar una zona mueve
 `catalogoVer`, así que Procesos baja el cambio en su siguiente apertura.
 
+---
+
+## SPEC-065 — Una OT en espera con fecha ya no cuenta como pausada
+
+**Estado:** implementado
+
+### Por qué
+
+Un técnico no podía tomar órdenes nuevas: la app decía «Tienes pausada la OT
+#000287». Esa OT se había pausado antes para atender otra (SPEC-021), pero
+después se puso **en espera por proveedor** con fecha de reanudación
+(SPEC-008). La regla de la SPEC-022 miraba solo si la OT estaba en espera y si
+alguna vez tuvo una pausa de ese técnico, sin importar el motivo de la espera
+actual.
+
+### Qué hace
+
+- Solo bloquea la espera que **es la pausa**: `espera.tipo === 'pausa'`. Las
+  pausas guardadas antes de esta versión se reconocen por su motivo («Técnico
+  reasignado a la OT…»).
+- Una espera por proveedor, refacción u otro motivo con fecha, o la de fin de
+  semana, no bloquea al técnico ni aparece entre las pausadas sin atender.
+- Al pausar se guarda `tipo: 'pausa'` en la espera.
+
