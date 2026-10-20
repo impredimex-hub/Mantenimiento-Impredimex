@@ -6,6 +6,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.15.3] — 2026-10-20
+
+### Cambiado
+
+- **La OT que nace de una auditoría queda a nombre del supervisor auditado**
+  (SPEC-066), que le da seguimiento. Quien la levantó queda registrado. Hay
+  que publicar las reglas nuevas en Firebase.
+
+---
+
 ## [2.15.2] — 2026-10-16
 
 ### Corregido

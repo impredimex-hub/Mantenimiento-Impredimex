@@ -2926,3 +2926,19 @@ actual.
   semana, no bloquea al técnico ni aparece entre las pausadas sin atender.
 - Al pausar se guarda `tipo: 'pausa'` en la espera.
 
+---
+
+## SPEC-066 — OT de auditoría a nombre del supervisor auditado
+
+**Estado:** implementado
+
+Una OT que nace de una auditoría de Procesos queda a nombre del **supervisor
+auditado** (`solicitante`, `nomina`), que es quien le da seguimiento y valida
+el cierre. Quien la levantó queda en `levantadaPor` (su nómina) y `auditor`
+(su nombre, que ya se mostraba como «Levantó»).
+
+Regla de `ots/$id` para la credencial de Procesos: además de lo de la
+SPEC-061, `levantadaPor` debe ser la nómina de la credencial y `nomina` una
+nómina válida. Una OT sin `levantadaPor` (versiones anteriores de Procesos)
+solo se acepta a nombre de quien la levanta.
+
