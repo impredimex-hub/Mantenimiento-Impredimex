@@ -6,6 +6,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.16.0] — 2026-11-03
+
+### Agregado
+
+- **Órdenes por área** (SPEC-067): filtro junto a «Tipo de servicio» en la
+  lista de OT del solicitante y del administrador, con botón de Excel que
+  exporta lo filtrado, con su área.
+
+---
+
 ## [2.15.3] — 2026-10-20
 
 ### Cambiado

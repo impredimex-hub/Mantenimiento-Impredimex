@@ -764,6 +764,14 @@ input[type=range].green{accent-color:var(--green)}
             <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
             <option value="MTTO-SEGURIDAD">Seguridad</option>
           </select></div>
+        <!-- SPEC-067: órdenes por área, con su Excel -->
+        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Órdenes por área</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="sf-select sf-area" id="sol-f-area" onchange="renderSolOTs()"><option value="">Todas</option></select>
+            <button type="button" class="mt-redondo mt-redondo-excel" style="flex-shrink:0" onclick="exportarOTsFiltradas('sol')" title="Exportar a Excel lo que se ve" aria-label="Exportar a Excel">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+            </button>
+          </div></div>
       </div>
       <div class="filter-chips-row"><button class="badge badge-proceso" onclick="setStatusFilter('todas','solicitante')" style="cursor:pointer;flex-shrink:0">Todas</button><button class="badge badge-abierto" onclick="setStatusFilter('abierto','solicitante')" style="cursor:pointer;flex-shrink:0">Abiertas</button><button class="badge badge-espera" onclick="setStatusFilter('espera','solicitante')" style="cursor:pointer;flex-shrink:0">En espera</button><button class="badge badge-validar" onclick="setStatusFilter('validar','solicitante')" style="cursor:pointer;flex-shrink:0">Validar</button><button class="badge badge-cerrado" onclick="setStatusFilter('cerrado','solicitante')" style="cursor:pointer;flex-shrink:0">Cerradas</button></div>
     </div>
@@ -1752,6 +1760,14 @@ input[type=range].green{accent-color:var(--green)}
             <option value="MTTO-INFRAESTRUCTURA">Infraestructura</option>
             <option value="MTTO-SEGURIDAD">Seguridad</option>
           </select></div>
+        <!-- SPEC-067: órdenes por área, con su Excel -->
+        <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Órdenes por área</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="sf-select sf-area" id="adm-f-area" onchange="renderAdmOTs()"><option value="">Todas</option></select>
+            <button type="button" class="mt-redondo mt-redondo-excel" style="flex-shrink:0" onclick="exportarOTsFiltradas('adm')" title="Exportar a Excel lo que se ve" aria-label="Exportar a Excel">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+            </button>
+          </div></div>
       </div>
     </div>
     <div class="scroll-content">
@@ -3364,14 +3380,58 @@ function setStatusFilter(f, role){
   else if(role==='supervisor'){ supFiltrosAplicados = true; renderSupOTs(); }
 }
 
+/* ═══════ SPEC-067: ÓRDENES POR ÁREA ═══════ */
+
+// Áreas del filtro, en el orden que se pidió. Coinciden con la `familia` del
+// catálogo de máquinas; Infraestructura junta además las OT de ese tipo.
+var AREAS_OT = ['Rotograbado','Flexografía','Digital','Laminado','Infraestructura',
+                'Refilado','Pegado','Revisión','Corte','Depuración'];
+var _listaVisible = {};
+
+// Área de una OT: la familia de su equipo en el catálogo. Una OT de
+// infraestructura cuyo equipo no está en máquinas (techo, aire, etc.) es
+// Infraestructura.
+function areaDeOT(ot){
+  if(!ot) return '';
+  var eq = _normNombre(ot.equipo);
+  var m = (DB.maquinas||DEFAULT_MAQUINAS).find(function(x){
+    return x && (_normNombre(x.nombre) === eq || (x.clave && _normNombre(x.clave) === eq));
+  });
+  if(m && m.familia) return m.familia;
+  if(ot.tipo === 'MTTO-INFRAESTRUCTURA') return 'Infraestructura';
+  return '';
+}
+
+function llenarFiltrosArea(){
+  document.querySelectorAll('select.sf-area').forEach(function(sel){
+    if(sel.options.length > 1) return;
+    AREAS_OT.forEach(function(a){
+      var o = document.createElement('option'); o.value = a; o.textContent = a; sel.appendChild(o);
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', llenarFiltrosArea);
+
+// Exporta a Excel exactamente lo que la lista muestra, con su área.
+function exportarOTsFiltradas(prefix){
+  if(prefix==='sol') renderSolOTs(); else if(prefix==='adm') renderAdmOTs();
+  var lista = _listaVisible[prefix] || [];
+  if(!lista.length){ appAlert('No hay órdenes con estos filtros para exportar.'); return; }
+  var area = (document.getElementById(prefix+'-f-area')||{}).value||'';
+  exportarExcelOTs(lista, area);
+}
+
 // Apply search panel filters to an OT array
 function applySearchFilters(ots, prefix){
+  llenarFiltrosArea();
   var folio    = (document.getElementById(prefix+'-f-folio')    ||{}).value||'';
   var fecha    = (document.getElementById(prefix+'-f-fecha')    ||{}).value||'';
   var prioridad= (document.getElementById(prefix+'-f-prioridad')||{}).value||'';
   var tipo     = (document.getElementById(prefix+'-f-tipo')     ||{}).value||'';
   var estado   = (document.getElementById(prefix+'-f-estado')   ||{}).value||'';
+  var area     = (document.getElementById(prefix+'-f-area')     ||{}).value||'';
   return ots.filter(function(ot){
+    if(area      && _normNombre(areaDeOT(ot)) !== _normNombre(area)) return false;
     if(folio     && ot.folio.toLowerCase().indexOf(folio.toLowerCase())<0) return false;
     if(fecha     && (!ot.fechaAlta || ot.fechaAlta.split('T')[0]!==fecha)) return false;
     if(prioridad && ot.prioridad !== prioridad) return false;
@@ -3401,6 +3461,7 @@ function renderSolOTs(filter){
   let ots = getMyOTs('solicitante');
   if(statusF!=='todas') ots=ots.filter(function(o){ return o.status===statusF; });
   ots = applySearchFilters(ots, 'sol');
+  _listaVisible.sol = ots;   // SPEC-067: lo que exporta su botón de Excel
   const el=document.getElementById('sol-ot-list');
   if(!ots.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">No tienes OT en este estado</div></div>`;
@@ -5251,9 +5312,10 @@ function diffSecs2(isoA, isoB){
   return Math.max(0, Math.floor((new Date(isoB)-new Date(isoA))/1000));
 }
 
-function exportarExcelOTs(){
+// SPEC-067: sin argumentos exporta todas; con `lista`, solo esas (lo filtrado).
+function exportarExcelOTs(lista, etiqueta){
   reloadDB();
-  var ots = DB.ots || [];
+  var ots = Array.isArray(lista) ? lista : (DB.ots || []);
   if(!ots.length){ appAlert('No hay OT para exportar.'); return; }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -5520,6 +5582,12 @@ function exportarExcelOTs(){
 
   }); // end ots.forEach
 
+  // SPEC-067: el área de cada OT, como última columna para no mover las demás.
+  var areaPorFolio = {};
+  ots.forEach(function(o){ areaPorFolio[o.folio] = areaDeOT(o); });
+  headers.push('Área');
+  rows.forEach(function(r){ r.push(areaPorFolio[r[0]] || ''); });
+
   // ── Construir libro ───────────────────────────────────────────────────────
   var wb = XLSX.utils.book_new();
   var wsData = [headers].concat(rows);
@@ -5527,6 +5595,8 @@ function exportarExcelOTs(){
 
   // Anchos de columna
   var colW = [10,18,16,16,28,14,10,12,14,40,24,22, 10,28,14,20,18,18, 16,50,30,10,14, 26,26,26, 22,16,22,16];
+  while(colW.length < headers.length - 1) colW.push(16);
+  colW.push(18); // Área
   ws['!cols'] = colW.map(function(w){ return {wch:w}; });
 
   // Fila 1 congelada
@@ -5612,6 +5682,7 @@ function exportarExcelOTs(){
 
   var wsSumData = [
     ['Reporte de Órdenes de Trabajo — Mantenimiento IMPREDIMEX'],
+    [etiqueta ? 'Área: '+etiqueta : (Array.isArray(lista) ? 'Órdenes filtradas en pantalla' : 'Todas las órdenes')],
     ['Generado: '+fLocal(now.toISOString())+' '+hLocal(now.toISOString())],
     [''],
     ['Resumen ejecutivo', ''],
@@ -5628,12 +5699,13 @@ function exportarExcelOTs(){
   var wsSum = XLSX.utils.aoa_to_sheet(wsSumData);
   wsSum['!cols'] = [{wch:40},{wch:16}];
   if(wsSum['A1']) wsSum['A1'].s={font:{bold:true,sz:13,name:'Arial',color:{rgb:'3C3489'}}};
-  if(wsSum['A4']) wsSum['A4'].s={font:{bold:true,sz:11,name:'Arial'}};
+  if(wsSum['A5']) wsSum['A5'].s={font:{bold:true,sz:11,name:'Arial'}};
   XLSX.utils.book_append_sheet(wb, wsSum, 'Resumen');
 
   // ── Descargar ─────────────────────────────────────────────────────────────
   var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  XLSX.writeFile(wb, 'OT_Mantenimiento_IMPREDIMEX_'+stamp+'.xlsx', {bookType:'xlsx', type:'binary', cellStyles:true});
+  var sufijo = etiqueta ? '_' + _normNombre(etiqueta).replace(/[^A-Z0-9]+/g,'_') : '';
+  XLSX.writeFile(wb, 'OT_Mantenimiento_IMPREDIMEX'+sufijo+'_'+stamp+'.xlsx', {bookType:'xlsx', type:'binary', cellStyles:true});
 }
 
 // SPEC-019: el listado del supervisor no muestra nada hasta que se aplican
@@ -8003,6 +8075,7 @@ function renderAdmOTs(){
   reloadDB();
   var ots = [...(DB.ots||[])].sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
   ots = applySearchFilters(ots, 'adm');
+  _listaVisible.adm = ots;   // SPEC-067
   var el = document.getElementById('adm-ots-list');
   if(!el) return;
   if(!ots.length){

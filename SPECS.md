@@ -2942,3 +2942,26 @@ SPEC-061, `levantadaPor` debe ser la nómina de la credencial y `nomina` una
 nómina válida. Una OT sin `levantadaPor` (versiones anteriores de Procesos)
 solo se acepta a nombre de quien la levanta.
 
+---
+
+## SPEC-067 — Órdenes por área, con su Excel
+
+**Estado:** implementado
+
+En la lista de OT del solicitante («Mis OT») y en la del administrador, junto a
+«Tipo de servicio», un filtro **«Órdenes por área»** con Rotograbado,
+Flexografía, Digital, Laminado, Infraestructura, Refilado, Pegado, Revisión,
+Corte y Depuración (`AREAS_OT`), y a su lado el botón redondo de Excel.
+
+- **Área de una OT** (`areaDeOT`): la `familia` de su equipo en el catálogo de
+  máquinas, comparando por nombre o clave sin acentos ni mayúsculas. Una OT de
+  tipo infraestructura cuyo equipo no es una máquina cuenta como
+  Infraestructura. Una OT de otra familia (por ejemplo Suajado) solo aparece
+  con «Todas».
+- **El Excel exporta lo que se ve**: la lista con todos sus filtros puestos
+  (estatus, fecha, prioridad, tipo y área). Usa el mismo reporte de
+  `exportarExcelOTs` —una fila por técnico, refacciones, tiempos— con una
+  columna **Área** al final y el área en el nombre del archivo y en la hoja de
+  resumen. Sin argumentos, `exportarExcelOTs` sigue exportando todas, como en
+  la pantalla del supervisor.
+
