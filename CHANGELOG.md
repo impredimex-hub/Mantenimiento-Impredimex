@@ -12,7 +12,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Órdenes por área** (SPEC-067): filtro junto a «Tipo de servicio» en la
   lista de OT del solicitante y del administrador, con botón de Excel que
-  exporta lo filtrado, con su área.
+  exporta lo filtrado, con su área. Al elegir un área se ven todas sus OT,
+  las haya levantado quien sea; las ajenas solo se consultan.
 
 ---
 

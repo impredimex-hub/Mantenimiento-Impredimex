@@ -3458,16 +3458,24 @@ function renderSolOTs(filter){
   reloadDB();
   if(filter) currentFilter=filter;
   var statusF = currentFilter||'todas';
-  let ots = getMyOTs('solicitante');
+  // SPEC-067: con un área elegida se ven todas las OT de esa área, sin
+  // importar quién las levantó; sin área, solo las propias, como siempre.
+  var porArea = !!((document.getElementById('sol-f-area')||{}).value);
+  let ots = porArea ? (DB.ots||[]).slice() : getMyOTs('solicitante');
   if(statusF!=='todas') ots=ots.filter(function(o){ return o.status===statusF; });
   ots = applySearchFilters(ots, 'sol');
   _listaVisible.sol = ots;   // SPEC-067: lo que exporta su botón de Excel
   const el=document.getElementById('sol-ot-list');
+  var aviso = porArea
+    ? '<div style="margin:0 0 10px;padding:8px 12px;border-radius:10px;background:var(--blue-light);color:var(--blue-dark);font-size:12px;line-height:1.4">'
+      + '<b>'+ots.length+(ots.length===1?' orden':' órdenes')+' de '+document.getElementById('sol-f-area').value+'</b>, de cualquier solicitante.'
+      + '</div>'
+    : '';
   if(!ots.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">No tienes OT en este estado</div></div>`;
+    el.innerHTML=aviso+`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">${porArea?'No hay OT de esa área con estos filtros':'No tienes OT en este estado'}</div></div>`;
     return;
   }
-  el.innerHTML=ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSol(ot)).join('');
+  el.innerHTML=aviso+ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSol(ot)).join('');
 }
 
 function esPrioridadUrgente(ot){ return ot && (ot.prioridad==='urgente' || ot.prioridad==='maquina-parada'); }
@@ -3519,6 +3527,8 @@ function otCardSol(ot){
     +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--border);padding-top:8px">'
       +fila('Descripción:', ot.desc)
+      // SPEC-067: en la vista por área salen OT de otros; se dice de quién.
+      +(currentUser && ot.nomina && String(ot.nomina)!==String(currentUser.nomina) ? fila('Solicitante:', ot.solicitante||ot.nomina) : '')
       +fila('Tipo de servicio:', tipoLabel)
       +fila('Nave / Equipo:', naveEquipo)
       +fila('Técnico:', tecnicoStr)
@@ -3828,6 +3838,9 @@ function verOTSol(id){
 }
 
 function buildDetalleSol(ot){
+  // SPEC-067: en la vista por área se abren OT de otros solo para consultar;
+  // confirmar contacto, validar o rechazar es de quien la solicitó (o admin).
+  var esMia = !!currentUser && (String(ot.nomina||'')===String(currentUser.nomina) || currentUser.role==='admin');
   var steps=[
     {label:'Abierta',        done:true},
     {label:'Tomada',         done:!!ot.tecnico},
@@ -3869,7 +3882,7 @@ function buildDetalleSol(ot){
       var confTt = contactos2[tt.nomina] || (ii===0 && !!ot.fechaPrimerContacto);
       if(!confTt){ tecSinConf = tt; break; }
     }
-    if(tecSinConf){
+    if(tecSinConf && esMia){
       // Show confirm button
       primerContactoBox =
         '<div class="validate-box" style="background:var(--blue-light);border:1.5px solid var(--blue)">'
@@ -3935,7 +3948,13 @@ function buildDetalleSol(ot){
 
   // ── Validar / rechazar ──────────────────────────────────────────────────
   var validar = '';
-  if(ot.status==='validar'){
+  // SPEC-067: valida quien la solicitó (o un administrador). En la vista por
+  // área se pueden abrir OT de otros, pero solo para consultarlas.
+  if(ot.status==='validar' && !esMia){
+    validar = '<div class="validate-box"><div class="validate-title">Pendiente de validación</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-top:4px">La valida quien la solicitó: '+(ot.solicitante||ot.nomina||'—')+'.</div></div>';
+  }
+  if(ot.status==='validar' && esMia){
     validar = '<div class="validate-box">'
       +'<div class="validate-title">El técnico marcó esta OT como concluida</div>'
       +(ot.errorOperativo?'<div class="alert alert-warn" style="margin:8px 0;border-left:3px solid var(--red)"><div class="alert-icon">⚠</div><div><strong>Error operativo:</strong> '+ot.errorOperativo+'</div></div>':'')
