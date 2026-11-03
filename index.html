@@ -767,7 +767,7 @@ input[type=range].green{accent-color:var(--green)}
         <!-- SPEC-067: órdenes por área, con su Excel -->
         <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Órdenes por área</span>
           <div style="display:flex;gap:8px;align-items:center">
-            <select class="sf-select sf-area" id="sol-f-area" onchange="renderSolOTs()"><option value="">Todas</option></select>
+            <select class="sf-select sf-area" id="sol-f-area" title="Solo para el Excel: exporta todas las órdenes del área"><option value="">Todas</option></select>
             <button type="button" class="mt-redondo mt-redondo-excel" style="flex-shrink:0" onclick="exportarOTsFiltradas('sol')" title="Exportar a Excel lo que se ve" aria-label="Exportar a Excel">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
             </button>
@@ -1763,7 +1763,7 @@ input[type=range].green{accent-color:var(--green)}
         <!-- SPEC-067: órdenes por área, con su Excel -->
         <div class="sf-cell" style="grid-column:1/-1"><span class="sf-label">Órdenes por área</span>
           <div style="display:flex;gap:8px;align-items:center">
-            <select class="sf-select sf-area" id="adm-f-area" onchange="renderAdmOTs()"><option value="">Todas</option></select>
+            <select class="sf-select sf-area" id="adm-f-area" title="Solo para el Excel: exporta todas las órdenes del área"><option value="">Todas</option></select>
             <button type="button" class="mt-redondo mt-redondo-excel" style="flex-shrink:0" onclick="exportarOTsFiltradas('adm')" title="Exportar a Excel lo que se ve" aria-label="Exportar a Excel">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
             </button>
@@ -3386,7 +3386,6 @@ function setStatusFilter(f, role){
 // catálogo de máquinas; Infraestructura junta además las OT de ese tipo.
 var AREAS_OT = ['Rotograbado','Flexografía','Digital','Laminado','Infraestructura',
                 'Refilado','Pegado','Revisión','Corte','Depuración'];
-var _listaVisible = {};
 
 // Área de una OT: la familia de su equipo en el catálogo. Una OT de
 // infraestructura cuyo equipo no está en máquinas (techo, aire, etc.) es
@@ -3412,24 +3411,31 @@ function llenarFiltrosArea(){
 }
 document.addEventListener('DOMContentLoaded', llenarFiltrosArea);
 
-// Exporta a Excel exactamente lo que la lista muestra, con su área.
+// El Excel de «Órdenes por área»: todas las OT del área elegida, las haya
+// levantado quien sea, con los demás filtros de la pantalla (fecha,
+// prioridad, tipo y estatus). La lista de la pantalla no cambia: el área es
+// solo para el Excel.
 function exportarOTsFiltradas(prefix){
-  if(prefix==='sol') renderSolOTs(); else if(prefix==='adm') renderAdmOTs();
-  var lista = _listaVisible[prefix] || [];
-  if(!lista.length){ appAlert('No hay órdenes con estos filtros para exportar.'); return; }
+  reloadDB();
+  var ots = (DB.ots||[]).slice();
+  var statusF = prefix==='sol' ? (currentFilter||'todas') : 'todas';
+  if(statusF!=='todas') ots = ots.filter(function(o){ return o.status===statusF; });
+  ots = applySearchFilters(ots, prefix, true);
   var area = (document.getElementById(prefix+'-f-area')||{}).value||'';
-  exportarExcelOTs(lista, area);
+  if(!ots.length){ appAlert('No hay órdenes'+(area?' de '+area:'')+' con estos filtros para exportar.'); return; }
+  exportarExcelOTs(ots, area || 'Todas las áreas');
 }
 
 // Apply search panel filters to an OT array
-function applySearchFilters(ots, prefix){
+// `conArea`: el filtro de área solo aplica al Excel (SPEC-067), no a la lista.
+function applySearchFilters(ots, prefix, conArea){
   llenarFiltrosArea();
   var folio    = (document.getElementById(prefix+'-f-folio')    ||{}).value||'';
   var fecha    = (document.getElementById(prefix+'-f-fecha')    ||{}).value||'';
   var prioridad= (document.getElementById(prefix+'-f-prioridad')||{}).value||'';
   var tipo     = (document.getElementById(prefix+'-f-tipo')     ||{}).value||'';
   var estado   = (document.getElementById(prefix+'-f-estado')   ||{}).value||'';
-  var area     = (document.getElementById(prefix+'-f-area')     ||{}).value||'';
+  var area     = conArea ? ((document.getElementById(prefix+'-f-area')||{}).value||'') : '';
   return ots.filter(function(ot){
     if(area      && _normNombre(areaDeOT(ot)) !== _normNombre(area)) return false;
     if(folio     && ot.folio.toLowerCase().indexOf(folio.toLowerCase())<0) return false;
@@ -3458,24 +3464,15 @@ function renderSolOTs(filter){
   reloadDB();
   if(filter) currentFilter=filter;
   var statusF = currentFilter||'todas';
-  // SPEC-067: con un área elegida se ven todas las OT de esa área, sin
-  // importar quién las levantó; sin área, solo las propias, como siempre.
-  var porArea = !!((document.getElementById('sol-f-area')||{}).value);
-  let ots = porArea ? (DB.ots||[]).slice() : getMyOTs('solicitante');
+  let ots = getMyOTs('solicitante');
   if(statusF!=='todas') ots=ots.filter(function(o){ return o.status===statusF; });
   ots = applySearchFilters(ots, 'sol');
-  _listaVisible.sol = ots;   // SPEC-067: lo que exporta su botón de Excel
   const el=document.getElementById('sol-ot-list');
-  var aviso = porArea
-    ? '<div style="margin:0 0 10px;padding:8px 12px;border-radius:10px;background:var(--blue-light);color:var(--blue-dark);font-size:12px;line-height:1.4">'
-      + '<b>'+ots.length+(ots.length===1?' orden':' órdenes')+' de '+document.getElementById('sol-f-area').value+'</b>, de cualquier solicitante.'
-      + '</div>'
-    : '';
   if(!ots.length){
-    el.innerHTML=aviso+`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">${porArea?'No hay OT de esa área con estos filtros':'No tienes OT en este estado'}</div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes</div><div class="empty-sub">No tienes OT en este estado</div></div>`;
     return;
   }
-  el.innerHTML=aviso+ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSol(ot)).join('');
+  el.innerHTML=ots.sort((a,b)=>new Date(b.fechaAlta)-new Date(a.fechaAlta)).map(ot=>otCardSol(ot)).join('');
 }
 
 function esPrioridadUrgente(ot){ return ot && (ot.prioridad==='urgente' || ot.prioridad==='maquina-parada'); }
@@ -3527,8 +3524,6 @@ function otCardSol(ot){
     +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--border);padding-top:8px">'
       +fila('Descripción:', ot.desc)
-      // SPEC-067: en la vista por área salen OT de otros; se dice de quién.
-      +(currentUser && ot.nomina && String(ot.nomina)!==String(currentUser.nomina) ? fila('Solicitante:', ot.solicitante||ot.nomina) : '')
       +fila('Tipo de servicio:', tipoLabel)
       +fila('Nave / Equipo:', naveEquipo)
       +fila('Técnico:', tecnicoStr)
@@ -8094,7 +8089,6 @@ function renderAdmOTs(){
   reloadDB();
   var ots = [...(DB.ots||[])].sort(function(a,b){ return new Date(b.fechaAlta)-new Date(a.fechaAlta); });
   ots = applySearchFilters(ots, 'adm');
-  _listaVisible.adm = ots;   // SPEC-067
   var el = document.getElementById('adm-ots-list');
   if(!el) return;
   if(!ots.length){

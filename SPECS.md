@@ -2958,15 +2958,17 @@ Corte y Depuración (`AREAS_OT`), y a su lado el botón redondo de Excel.
   tipo infraestructura cuyo equipo no es una máquina cuenta como
   Infraestructura. Una OT de otra familia (por ejemplo Suajado) solo aparece
   con «Todas».
-- **Con un área elegida, el solicitante ve todas las OT de esa área**, sin
-  importar quién las levantó, con un aviso del total y el solicitante en cada
-  tarjeta ajena. Sin área, «Mis OT» sigue mostrando solo las suyas. Las OT
-  ajenas se abren solo para consultar: confirmar el primer contacto, validar o
-  rechazar sigue siendo de quien la solicitó (o de un administrador).
-- **El Excel exporta lo que se ve**: la lista con todos sus filtros puestos
-  (estatus, fecha, prioridad, tipo y área). Usa el mismo reporte de
-  `exportarExcelOTs` —una fila por técnico, refacciones, tiempos— con una
-  columna **Área** al final y el área en el nombre del archivo y en la hoja de
-  resumen. Sin argumentos, `exportarExcelOTs` sigue exportando todas, como en
-  la pantalla del supervisor.
+- **El área es solo para el Excel.** La lista de la pantalla no cambia:
+  «Mis OT» sigue mostrando solo las órdenes propias y la del administrador,
+  todas.
+- **El Excel trae todas las OT del área elegida, las haya levantado quien
+  sea**, con los demás filtros de la pantalla (fecha, prioridad, tipo y, en
+  «Mis OT», el estatus). Sin área elegida, todas las áreas. Usa el mismo
+  reporte de `exportarExcelOTs` —una fila por técnico, refacciones, tiempos—
+  con una columna **Área** al final y el área en el nombre del archivo y en la
+  hoja de resumen. Sin argumentos, `exportarExcelOTs` sigue exportando todas,
+  como en la pantalla del supervisor.
+- El detalle de una OT ajena (si se llegara a abrir) no ofrece confirmar
+  contacto, validar ni rechazar: eso es de quien la solicitó o de un
+  administrador.
 
