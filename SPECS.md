@@ -2972,3 +2972,36 @@ Corte y Depuración (`AREAS_OT`), y a su lado el botón redondo de Excel.
   contacto, validar ni rechazar: eso es de quien la solicitó o de un
   administrador.
 
+---
+
+## SPEC-068 — El folio nunca vuelve a empezar
+
+**Estado:** implementado
+
+### Qué pasó
+
+Después de la OT #000851 los folios volvieron a empezar en #000001 (12/11/2026).
+La regla de la SPEC-002 decía: «si no hay OT, el contador vuelve a 1». La
+decisión la tomaba el teléfono con lo que tenía cargado, y un teléfono recién
+iniciado —sin las OT descargadas todavía— creía que no había ninguna y mandaba
+reiniciar el contador del servidor.
+
+### Qué hace ahora
+
+- **Se retira el reinicio a 1.** El contador del servidor (`folioSig`) solo
+  sube.
+- Al apartar un folio, el servidor toma el mayor entre su contador y el folio
+  más alto que el aparato conoce (`_maxFolioConocido`, por el folio visible).
+- Antes de usar un folio se revisa que no exista ya `manto_db/ots/<folio>`; si
+  existe, se toma el siguiente. Una OT nueva nunca pisa a otra.
+- Al cargar los datos (`repararContadorFolio`), si el contador está por debajo
+  del folio más alto, se sube. Así se corrigió solo el contador después del
+  incidente, y Procesos, que usa el mismo contador, deja de repetir.
+- Sin conexión, el contador local tampoco baja del folio más alto conocido.
+
+### Lo que quedó
+
+Las OT creadas del 12/11 al 17/11/2026 tienen folios #000001 en adelante que
+ya habían usado OT anteriores con otro `id` interno, así que no se pisaron:
+conviven dos OT con el mismo folio visible.
+

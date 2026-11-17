@@ -2703,6 +2703,7 @@ function initFirebase(){
           archivarComidasViejas();
           revisarAvisosEspera();   // SPEC-062
           enviarPendientesRRHH();  // SPEC-063
+          repararContadorFolio();  // SPEC-068
         }, 2500);
       }, function(err){
         setSyncState('offline', 'Error: ' + err.message);
@@ -3619,9 +3620,31 @@ function filtrarEquiposPorNave(){
 // el servidor y se usó el contador de este aparato: la OT se crea igual —es
 // mejor una OT con folio dudoso que una OT perdida— pero queda marcada con
 // `folioLocal` para poder encontrarla si hubo repetido.
-async function apartarFolio(sugerido, reiniciar){
+// SPEC-068: el folio más alto que se conoce en las OT cargadas. Se toma del
+// folio visible («#000851»); el `id` solo si es numérico, porque OT viejas
+// tienen ids de otro formato.
+function _maxFolioConocido(){
+  var m = 0;
+  (DB.ots||[]).forEach(function(o){
+    if(!o) return;
+    var t = String(o.folio||'').replace(/^#/,'');
+    if(!/^\d{1,7}$/.test(t)) t = /^\d{1,7}$/.test(String(o.id||'')) ? String(o.id) : '';
+    var n = t ? parseInt(t,10) : 0;
+    if(n > m) m = n;
+  });
+  return m;
+}
+
+// SPEC-068: el contador nunca baja. Antes, si este aparato todavía no tenía
+// las OT cargadas (recién iniciada la sesión), creía que no había ninguna y
+// mandaba reiniciar el contador a 1: así se repitieron los folios desde el
+// #000001 después del #000851. Ahora el servidor toma el mayor entre su
+// contador y el folio más alto que este aparato conoce, y antes de usar un
+// folio revisa que no exista ya una OT con él, para no pisarla.
+async function apartarFolio(sugerido){
+  var minimo = Math.max(_maxFolioConocido() + 1, sugerido || 1);
   function conContadorLocal(){
-    var n = reiniciar ? 1 : (sugerido || 1);
+    var n = minimo;
     DB.folioSig = n + 1;
     return {folio: String(n).padStart(6,'0'), local: true};
   }
@@ -3629,24 +3652,50 @@ async function apartarFolio(sugerido, reiniciar){
   if(!(db && _fbConnected)) return conContadorLocal();
 
   try {
-    var res = await db.ref('manto_db/folioSig').transaction(function(actual){
-      var base = reiniciar ? 1
-               : (typeof actual === 'number' && actual >= 1 ? actual : (sugerido || 1));
-      return base + 1;
-    });
-    if(!res || !res.committed) throw new Error('transacción no confirmada');
+    for(var intento = 0; intento < 6; intento++){
+      var res = await db.ref('manto_db/folioSig').transaction(function(actual){
+        var base = Math.max(typeof actual === 'number' && actual >= 1 ? actual : 1, minimo);
+        return base + 1;
+      });
+      if(!res || !res.committed) throw new Error('transacción no confirmada');
 
-    var asignado = res.snapshot.val() - 1;
-    // El contador local y el testigo de sincronización se ponen al día aquí
-    // mismo: si no, `flushDB` creería que el contador cambió y lo reescribiría
-    // encima del que acaba de fijar el servidor.
-    DB.folioSig = asignado + 1;
-    _snap['folioSig'] = _js(DB.folioSig);
-    return {folio: String(asignado).padStart(6,'0'), local: false};
+      var asignado = res.snapshot.val() - 1;
+      // El contador local y el testigo de sincronización se ponen al día aquí
+      // mismo: si no, `flushDB` creería que el contador cambió y lo reescribiría
+      // encima del que acaba de fijar el servidor.
+      DB.folioSig = asignado + 1;
+      _snap['folioSig'] = _js(DB.folioSig);
+      var folio = String(asignado).padStart(6,'0');
+
+      // No pisar una OT que ya exista con ese folio.
+      var ocupado = false;
+      try { ocupado = (await db.ref('manto_db/ots/' + folio).once('value')).exists(); }
+      catch(e){ ocupado = false; }
+      if(!ocupado) return {folio: folio, local: false};
+      minimo = asignado + 1;
+    }
+    throw new Error('no se encontró un folio libre');
   } catch(e){
     console.warn('No se pudo apartar folio en el servidor:', e && e.message);
     return conContadorLocal();
   }
+}
+
+// SPEC-068: al cargar los datos, si el contador quedó por debajo del folio más
+// alto que existe, se sube. Así también la app de Procesos, que lee el mismo
+// contador, deja de repetir folios.
+function repararContadorFolio(){
+  if(!(db && _fbConnected)) return;
+  var max = _maxFolioConocido();
+  if(!max || (typeof DB.folioSig === 'number' && DB.folioSig > max)) return;
+  db.ref('manto_db/folioSig').transaction(function(actual){
+    var a = typeof actual === 'number' && actual >= 1 ? actual : 1;
+    return a > max ? undefined : max + 1;   // undefined = no cambiar
+  }).then(function(res){
+    if(res && res.committed && res.snapshot.exists()){
+      DB.folioSig = res.snapshot.val(); _snap['folioSig'] = _js(DB.folioSig);
+    }
+  }).catch(function(e){ console.warn('Contador de folio:', e && e.message); });
 }
 
 // SPEC-059: apartar el folio es un viaje a la red, así que entre el toque y el
@@ -3664,10 +3713,7 @@ async function crearOT(){
       .some(function(id){ var el=document.getElementById(id); return el&&el.checked; });
     if(!alguno){ appAlert('Selecciona al menos un tipo de riesgo'); return; }
   }
-  // SPEC-002: si todas las OTs fueron eliminadas, el contador vuelve a 1. La
-  // decisión se toma aquí y la ejecuta la transacción, para no escribir el
-  // contador dos veces.
-  var reiniciar = !DB.ots || DB.ots.length === 0;
+  // SPEC-068: el contador ya no se reinicia a 1 desde aquí (ver apartarFolio).
   // SPEC-059: el folio lo asigna el servidor, no este teléfono.
   // Antes se leía el contador de memoria, se usaba y se reescribía. Entre leer
   // y escribir no había nada que impidiera que otro hiciera lo mismo: dos
@@ -3681,7 +3727,7 @@ async function crearOT(){
 
   var apartado;
   try {
-    apartado = await apartarFolio(DB.folioSig, reiniciar);
+    apartado = await apartarFolio(DB.folioSig);
   } finally {
     _creandoOT = false;
     if(btnEnviar){ btnEnviar.disabled = false; btnEnviar.textContent = 'Enviar solicitud'; }

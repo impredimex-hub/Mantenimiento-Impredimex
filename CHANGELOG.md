@@ -6,6 +6,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.16.1] — 2026-11-17
+
+### Corregido
+
+- **Los folios volvieron a empezar en #000001 después del #000851**
+  (SPEC-068). Un teléfono que aún no cargaba las OT creía que no había ninguna
+  y reiniciaba el contador. Ahora el contador nunca baja, se repara solo al
+  abrir la app y ninguna OT nueva pisa a una existente.
+
+---
+
 ## [2.16.0] — 2026-11-03
 
 ### Agregado
