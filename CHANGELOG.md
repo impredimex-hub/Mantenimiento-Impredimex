@@ -6,6 +6,22 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.18.0] — 2026-11-17
+
+### Agregado
+
+- **Pestañas por estatus en el Excel de OT** (SPEC-070): En espera, Abierta,
+  En proceso y Pendiente de validación. «En espera» suma «Fecha est» y
+  «Motivo»; la fecha se marca en rojo si ya llegó y en amarillo si faltan de 1
+  a 6 días.
+
+### Cambiado
+
+- La librería de Excel ahora escribe colores y bordes: el encabezado morado y
+  el color alternado por OT ya aparecen en el archivo.
+
+---
+
 ## [2.17.0] — 2026-11-17
 
 ### Agregado

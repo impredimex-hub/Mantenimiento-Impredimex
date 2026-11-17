@@ -97,7 +97,9 @@ html.con-sesion::after{
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   function oneSignalPush(fn){ window.OneSignalDeferred.push(fn); }
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- SPEC-070: xlsx-js-style es SheetJS que sí escribe estilos (colores, bordes);
+     la versión comunitaria los ignoraba. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <!-- Jost, solo para el logotipo del encabezado. Si no carga, el respaldo del
      sistema conserva el mismo peso y espaciado: cambia la letra, no el acomodo. -->
@@ -5506,6 +5508,8 @@ function exportarExcelOTs(lista, etiqueta){
 
   // ── Generar filas: una por técnico que intervino ──────────────────────────
   var rows = [];
+  var rowOts = [];   // SPEC-070: la OT de cada fila, para las pestañas por estatus
+  function pushFila(ot, fila){ rows.push(fila); rowOts.push(ot); }
 
   ots.forEach(function(ot){
     var fechaSol = fLocal(ot.fechaAlta);
@@ -5520,7 +5524,7 @@ function exportarExcelOTs(lista, etiqueta){
 
     if(!tecs.length){
       // OT sin técnico todavía — una fila con columnas de técnico en blanco
-      rows.push([
+      pushFila(ot, [
         ot.folio, status, fechaSol, horaSol,
         ot.solicitante, ot.nomina,
         ot.equipo, ot.nave, ot.tipoProblema||'', ot.desc, ot.tipo, prioridad,
@@ -5628,7 +5632,7 @@ function exportarExcelOTs(lista, etiqueta){
         tValidacion = toHHMMSS(vSecs);
       }
 
-      rows.push([
+      pushFila(ot, [
         ot.folio,
         status,
         fechaSol,
@@ -5667,7 +5671,7 @@ function exportarExcelOTs(lista, etiqueta){
     // ── Filas adicionales: una por refacción ─────────────────────────────
     if(ot.refacciones && ot.refacciones.length){
       ot.refacciones.forEach(function(ref){
-        rows.push([
+        pushFila(ot, [
           ot.folio,
           stLabel[ot.status]||ot.status,
           fLocal(ot.fechaAlta),
@@ -5714,86 +5718,112 @@ function exportarExcelOTs(lista, etiqueta){
 
   // ── Construir libro ───────────────────────────────────────────────────────
   var wb = XLSX.utils.book_new();
-  var wsData = [headers].concat(rows);
-  var ws = XLSX.utils.aoa_to_sheet(wsData);
+  var hoyD = new Date(); hoyD = new Date(hoyD.getFullYear(), hoyD.getMonth(), hoyD.getDate());
 
-  // Anchos de columna
-  var colW = [10,18,16,16,28,14,10,12,14,40,24,22, 10,28,14,20,18,18, 16,50,30,10,14, 26,26,26, 22,16,22,16];
-  while(colW.length < headers.length - 1) colW.push(16);
-  colW.push(18); // Área
-  ws['!cols'] = colW.map(function(w){ return {wch:w}; });
+  // Anchos por encabezado; los que no estén aquí, 16.
+  var ANCHO = {'OT':10,'Estatus':18,'Fecha de solicitud':16,'Hora de solicitud':16,'Solicitante':28,
+    'Nómina Solicitante':14,'Equipo':10,'Nave':12,'Tipo de problema':14,'Descripción de la falla':40,
+    'Fecha est':13,'Motivo':40,'Tipo de mantenimiento':24,'Prioridad':22,'Nú de técnico en la OT':10,
+    'Técnico':28,'Nómina Técnico':14,'Turno':20,'Fecha en que toma orden':18,'Hora en que toma orden':18,
+    'Hora de primer contacto':16,'Actividades':50,'Refacciones':30,'Cant. Ref.':10,'Precio':14,'Área':18};
 
-  // Fila 1 congelada
-  ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2', activePane:'bottomLeft', state:'frozen'};
+  // SPEC-070: arma una hoja con el mismo formato para cualquier grupo de filas.
+  // `marcarFechaEst(r, c, cell)` deja que una hoja pinte celdas propias.
+  function hojaOTs(hdrs, filas, marcarFechaEst){
+    var ws = XLSX.utils.aoa_to_sheet([hdrs].concat(filas));
+    ws['!cols'] = hdrs.map(function(h){ return {wch: ANCHO[h] || (/HH:MM:SS/.test(h) ? 26 : 16)}; });
+    ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2', activePane:'bottomLeft', state:'frozen'};
+    var range = XLSX.utils.decode_range(ws['!ref']);
 
-  // Estilos
-  var range = XLSX.utils.decode_range(ws['!ref']);
-
-  // Encabezado — fondo morado
-  for(var c=range.s.c; c<=range.e.c; c++){
-    var hcell = ws[XLSX.utils.encode_cell({r:0,c:c})];
-    if(!hcell) continue;
-    hcell.s = {
-      font:      {bold:true, color:{rgb:'FFFFFF'}, name:'Arial', sz:10},
-      fill:      {fgColor:{rgb:'3C3489'}, patternType:'solid'},
-      alignment: {horizontal:'center', vertical:'center', wrapText:true},
-      border:    {bottom:{style:'medium',color:{rgb:'FFFFFF'}}}
-    };
-  }
-
-  // ── Filas de datos con color por OT alternado ───────────────────────────
-  // Cada grupo de filas de la misma OT comparte el mismo color de fondo
-  // para distinguir visualmente qué filas pertenecen a la misma OT.
-  var otColorMap = {};
-  var colorA = 'FFFFFF'; // blanco
-  var colorB = 'EEEDFE'; // lila claro
-  var colorToggle = false;
-  var lastFolio = null;
-
-  rows.forEach(function(row){ // pre-build color map
-    var folio = row[0];
-    if(folio !== lastFolio){
-      colorToggle = !colorToggle;
-      otColorMap[folio] = colorToggle ? colorA : colorB;
-      lastFolio = folio;
-    }
-  });
-
-  // Fila de separación entre OTs — línea más gruesa
-  var prevFolio2 = null;
-  for(var r=1; r<=range.e.r; r++){
-    var rowFolio = rows[r-1] ? rows[r-1][0] : null;
-    var bg = otColorMap[rowFolio] || 'FFFFFF';
-    var isFirstOfGroup = rowFolio !== prevFolio2;
-    prevFolio2 = rowFolio;
-
-    for(var c2=range.s.c; c2<=range.e.c; c2++){
-      var addr = XLSX.utils.encode_cell({r:r, c:c2});
-      var dc = ws[addr];
-      if(!dc){ ws[addr]={t:'s',v:''}; dc=ws[addr]; }
-      var isTimeCol = c2 >= 23 && c2 <= 25;
-      var isNumCol  = c2 === 12; // N° técnico
-      dc.s = {
-        font:      {name:'Arial', sz:10, bold: isFirstOfGroup && c2===0},
-        fill:      {fgColor:{rgb:bg}, patternType:'solid'},
-        alignment: {
-          horizontal: (isTimeCol||isNumCol) ? 'center' : 'left',
-          vertical:   'top',
-          wrapText:   true
-        },
-        border: {
-          top:    isFirstOfGroup ? {style:'medium', color:{rgb:'3C3489'}} : {style:'thin', color:{rgb:'D0CEED'}},
-          bottom: {style:'thin', color:{rgb:'D0CEED'}},
-          right:  {style:'thin', color:{rgb:'D0CEED'}}
-        }
+    // Encabezado — fondo morado
+    for(var c=range.s.c; c<=range.e.c; c++){
+      var hcell = ws[XLSX.utils.encode_cell({r:0,c:c})];
+      if(!hcell) continue;
+      hcell.s = {
+        font:      {bold:true, color:{rgb:'FFFFFF'}, name:'Arial', sz:10},
+        fill:      {fgColor:{rgb:'3C3489'}, patternType:'solid'},
+        alignment: {horizontal:'center', vertical:'center', wrapText:true},
+        border:    {bottom:{style:'medium',color:{rgb:'FFFFFF'}}}
       };
     }
+
+    // Filas con color alternado por OT, para ver qué filas son de la misma OT.
+    var colorDe = {}, toggle = false, ultimo = null;
+    filas.forEach(function(row){
+      if(row[0] !== ultimo){ toggle = !toggle; colorDe[row[0]] = toggle ? 'FFFFFF' : 'EEEDFE'; ultimo = row[0]; }
+    });
+    var centrar = hdrs.map(function(h){ return /HH:MM:SS/.test(h) || h === 'Nú de técnico en la OT' || h === 'Fecha est'; });
+    var prev = null;
+    for(var r=1; r<=range.e.r; r++){
+      var folio = filas[r-1] ? filas[r-1][0] : null;
+      var bg = colorDe[folio] || 'FFFFFF';
+      var primero = folio !== prev; prev = folio;
+      for(var c2=range.s.c; c2<=range.e.c; c2++){
+        var addr = XLSX.utils.encode_cell({r:r, c:c2});
+        var dc = ws[addr];
+        if(!dc){ ws[addr]={t:'s',v:''}; dc=ws[addr]; }
+        dc.s = {
+          font:      {name:'Arial', sz:10, bold: primero && c2===0},
+          fill:      {fgColor:{rgb:bg}, patternType:'solid'},
+          alignment: {horizontal: centrar[c2] ? 'center' : 'left', vertical:'top', wrapText:true},
+          border: {
+            top:    primero ? {style:'medium', color:{rgb:'3C3489'}} : {style:'thin', color:{rgb:'D0CEED'}},
+            bottom: {style:'thin', color:{rgb:'D0CEED'}},
+            right:  {style:'thin', color:{rgb:'D0CEED'}}
+          }
+        };
+        if(marcarFechaEst) marcarFechaEst(r-1, c2, dc);
+      }
+    }
+    ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:0,c:range.e.c}})};
+    return ws;
   }
 
-  // Autofilter
-  ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:0,c:range.e.c}})};
+  XLSX.utils.book_append_sheet(wb, hojaOTs(headers, rows), 'Órdenes de Trabajo');
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Órdenes de Trabajo');
+  // ── SPEC-070: una pestaña por cada estatus abierto ──────────────────────
+  function filasDe(st){
+    var f = [], o = [];
+    rows.forEach(function(row, i){ if(rowOts[i] && rowOts[i].status === st){ f.push(row); o.push(rowOts[i]); } });
+    return {filas: f, ots: o};
+  }
+
+  // En espera: «Fecha est» y «Motivo» entre «Descripción de la falla» y
+  // «Tipo de mantenimiento». La fecha se pinta contra el día de la descarga:
+  // vencida u hoy → rojo con letra blanca; faltan de 1 a 6 días → amarillo.
+  var iDesc = headers.indexOf('Descripción de la falla') + 1;
+  var esp = filasDe('espera');
+  var hdrEsp = headers.slice(0, iDesc).concat(['Fecha est', 'Motivo'], headers.slice(iDesc));
+  var diasEst = [];
+  var filasEsp = esp.filas.map(function(row, i){
+    var e = esp.ots[i].espera || {};
+    var fe = /^\d{4}-\d{2}-\d{2}/.test(e.fechaEst || '') ? e.fechaEst.slice(0,10) : '';
+    var dias = NaN, txt = '';
+    if(fe){
+      var p = fe.split('-'); var d = new Date(+p[0], +p[1]-1, +p[2]);
+      dias = Math.round((d - hoyD) / 864e5);
+      txt = String(p[2]) + '/' + String(p[1]) + '/' + p[0];
+    }
+    diasEst.push(dias);
+    var motivo = [e.motivo, e.comentario].filter(function(x){ return x && String(x).trim(); }).join(' — ');
+    return row.slice(0, iDesc).concat([txt, motivo], row.slice(iDesc));
+  });
+  XLSX.utils.book_append_sheet(wb, hojaOTs(hdrEsp, filasEsp, function(ri, c, cell){
+    if(c !== iDesc) return;
+    var dias = diasEst[ri];
+    if(isNaN(dias)) return;
+    if(dias <= 0){
+      cell.s.fill = {fgColor:{rgb:'C8102E'}, patternType:'solid'};
+      cell.s.font = {name:'Arial', sz:10, bold:true, color:{rgb:'FFFFFF'}};
+    } else if(dias <= 6){
+      cell.s.fill = {fgColor:{rgb:'FFD600'}, patternType:'solid'};
+      cell.s.font = {name:'Arial', sz:10, bold:true, color:{rgb:'000000'}};
+    }
+  }), 'En espera');
+
+  [['abierto','Abierta'], ['proceso','En proceso'], ['validar','Pendiente de validación']].forEach(function(par){
+    XLSX.utils.book_append_sheet(wb, hojaOTs(headers, filasDe(par[0]).filas), par[1]);
+  });
 
   // ── Hoja de resumen ───────────────────────────────────────────────────────
   var total    = ots.length;

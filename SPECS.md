@@ -3029,3 +3029,37 @@ Las OT del incidente de la SPEC-068 se pasan a folios nuevos.
 - Si se pierde la conexión a la mitad, se guardan las que ya se hicieron y el
   aviso sigue para las demás.
 
+---
+
+## SPEC-070 — Pestañas por estatus en el Excel de OT
+
+**Estado:** implementado
+
+El Excel de órdenes (`exportarExcelOTs`) conserva «Órdenes de Trabajo» y
+«Resumen» y suma una pestaña por cada estatus abierto, con las mismas columnas
+y formato: **En espera**, **Abierta**, **En proceso** y **Pendiente de
+validación**. Las cerradas solo están en la general.
+
+### En espera
+
+Lleva dos columnas más, entre «Descripción de la falla» y «Tipo de
+mantenimiento»:
+
+- **Fecha est**: `espera.fechaEst`, la fecha en que se estima retomar la OT.
+- **Motivo**: `espera.motivo` y, si lo hay, `espera.comentario`.
+
+«Fecha est» se pinta contra el día en que se descarga el archivo:
+
+| Situación | Celda |
+|---|---|
+| La fecha ya llegó o pasó (hoy ≥ fecha est) | Fondo rojo, letra blanca |
+| Faltan de 1 a 6 días | Fondo amarillo, letra negra |
+| Faltan 7 días o más, o no tiene fecha | Sin marca |
+
+### Librería
+
+Se cambió `xlsx` 0.18.5 (comunitaria) por **`xlsx-js-style` 1.2.0**, la misma
+SheetJS que sí escribe estilos. La comunitaria ignoraba colores y bordes: el
+encabezado morado y el color alternado por OT que ya tenía el código tampoco
+salían en el archivo. Ahora sí.
+
