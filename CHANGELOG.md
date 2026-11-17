@@ -6,6 +6,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.19.0] — 2026-11-17
+
+### Agregado
+
+- **Ranking de técnicos** (SPEC-071): ordenar por «Tiempo total de orden» y
+  por «Órdenes dejadas en espera», con sus columnas, y filtro por mes.
+
+---
+
 ## [2.18.0] — 2026-11-17
 
 ### Agregado

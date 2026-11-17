@@ -3063,3 +3063,24 @@ SheetJS que sí escribe estilos. La comunitaria ignoraba colores y bordes: el
 encabezado morado y el color alternado por OT que ya tenía el código tampoco
 salían en el archivo. Ahora sí.
 
+---
+
+## SPEC-071 — Ranking de técnicos: tiempo total, esperas y mes
+
+**Estado:** implementado
+
+En «Ranking de técnicos» (perfil del supervisor → Técnicos):
+
+- **«Ordenar por»** suma dos opciones, y la tabla dos columnas:
+  - **Tiempo total de orden** (columna «T. total»): promedio, entre las OT
+    cerradas que tomó el técnico, del tiempo de que se levantó la orden a que se
+    cerró; la misma medida que la columna del Excel. Menor arriba.
+  - **Órdenes dejadas en espera** (columna «En espera»): cuántas OT puso el
+    técnico en espera. Cuenta una por OT y no cuenta las esperas que registra
+    la app sola: comedor, fin de semana y la pausa por atender otra OT. Más
+    arriba.
+- **«Mes»**, junto a «Ordenar por»: con un mes elegido cuentan las OT que el
+  técnico tomó ese mes (por la fecha en que la tomó) y las esperas que puso
+  ese mes. Las opciones son los meses con órdenes tomadas.
+- Los tiempos de 48 horas o más se muestran en días y horas («3d 4h»).
+

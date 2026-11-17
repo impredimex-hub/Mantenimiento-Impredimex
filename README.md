@@ -3,7 +3,7 @@
 Sistema de gestión de Órdenes de Trabajo (OT) de mantenimiento industrial.
 
 **Dirección:** https://impredimex-hub.github.io/Mantenimiento-Impredimex/
-**Versión vigente:** 2.18.0 (ver [`CHANGELOG.md`](./CHANGELOG.md))
+**Versión vigente:** 2.19.0 (ver [`CHANGELOG.md`](./CHANGELOG.md))
 **Estado:** en producción
 
 ---

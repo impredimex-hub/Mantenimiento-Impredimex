@@ -6280,25 +6280,56 @@ function renderTecnicos(){
 
 // SPEC-019: Ranking comparativo de técnicos por órdenes tomadas y tiempos.
 var rankCriterio = 'cerradas';
+var rankMes = '';   // SPEC-071: 'AAAA-MM'; vacío = todos los meses
 
 function setRankCriterio(c){ rankCriterio = c; renderTecnicos(); }
+function setRankMes(m){ rankMes = m; renderTecnicos(); }
+
+// SPEC-071: una espera «de verdad» —con motivo y fecha— y no el comedor, el
+// fin de semana ni la pausa por atender otra orden, que la app registra sola.
+function _esperaDejadaPorTecnico(e){
+  if(!e) return false;
+  var m = String(e.motivo||'');
+  return m !== 'Comedor' && m !== 'Fin de semana' && !/^Técnico reasignado a la OT/.test(m);
+}
+var _mesDe = function(iso){ return iso ? String(iso).slice(0,7) : ''; };
 
 function _fmtSecs(sec){
   if(sec===null || sec===undefined || isNaN(sec)) return '—';
   var h=Math.floor(sec/3600), m=Math.round((sec%3600)/60);
+  // SPEC-071: el tiempo total de una orden se mide en días.
+  if(h >= 48) return Math.floor(h/24)+'d '+(h%24)+'h';
   return h>0 ? h+'h '+m+'m' : m+'m';
 }
 
 // Métricas por técnico: tomadas, cerradas y promedios de respuesta e intervención
-function metricasTecnicos(){
+// SPEC-071: con `mes` ('AAAA-MM') solo cuenta lo de ese mes: las OT por el
+// mes en que el técnico las tomó, y las esperas por el mes en que las puso.
+function metricasTecnicos(mes){
   var tecs = (typeof getTecnicos==='function' ? getTecnicos() : []);
   return tecs.map(function(p){
-    var nom = p.nombre, tomadas=0, cerradas=0, resp=[], interv=[];
+    var nom = p.nombre, tomadas=0, cerradas=0, resp=[], interv=[], totales=[], enEspera=0;
     (DB.ots||[]).forEach(function(ot){
-      if(!ot || !Array.isArray(ot.tecnicos)) return;
+      if(!ot) return;
+      // Órdenes que este técnico dejó en espera (una por OT).
+      var dejo = (ot.esperas||[]).some(function(e){
+        return _esperaDejadaPorTecnico(e)
+          && ((e.nomina && p.nomina && String(e.nomina)===String(p.nomina)) || _mismoNombre(e.tecnico, nom))
+          && (!mes || _mesDe(e.inicio) === mes);
+      });
+      if(dejo) enEspera++;
+
+      if(!Array.isArray(ot.tecnicos)) return;
       var idx = ot.tecnicos.findIndex(function(t){ return t && _mismoNombre(t.nombre, nom); });
       if(idx < 0) return;
+      if(mes && _mesDe(ot.tecnicos[idx].fecha || ot.fechaAlta) !== mes) return;
       tomadas++;
+      // Tiempo total de la orden, de que se levantó a que se cerró: la misma
+      // columna del reporte de Excel.
+      if(ot.status==='cerrado' && ot.fechaAlta && ot.fechaCierre){
+        var tt = diffSecs2(ot.fechaAlta, ot.fechaCierre);
+        if(tt>=0) totales.push(tt);
+      }
       if(ot.status==='cerrado') cerradas++;
       var tec = ot.tecnicos[idx];
       // Respuesta: solo aplica al primero (creación -> toma)
@@ -6320,35 +6351,54 @@ function metricasTecnicos(){
     });
     var prom = function(a){ return a.length ? a.reduce(function(x,y){return x+y;},0)/a.length : null; };
     return {nombre:nom, puesto:p.puesto||'', tomadas:tomadas, cerradas:cerradas,
-            resp:prom(resp), interv:prom(interv)};
+            resp:prom(resp), interv:prom(interv), total:prom(totales), enEspera:enEspera};
   });
 }
 
 function rankingTecnicosHTML(){
-  var m = metricasTecnicos().filter(function(t){ return t.tomadas>0; });
-  if(!m.length){
-    return '<div style="padding:14px 16px;font-size:13px;color:var(--text3)">'
-      +'Aún no hay órdenes tomadas para comparar.</div>';
-  }
+  // Meses con órdenes tomadas, del más reciente al más viejo.
+  var meses = {};
+  (DB.ots||[]).forEach(function(ot){
+    (ot && ot.tecnicos || []).forEach(function(t){ var k = _mesDe(t && (t.fecha || ot.fechaAlta)); if(k) meses[k] = true; });
+  });
+  var NOM_MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var optMes = '<option value="">Todos</option>' + Object.keys(meses).sort().reverse().map(function(k){
+    var et = NOM_MES[parseInt(k.slice(5),10)-1] + ' ' + k.slice(0,4);
+    return '<option value="'+k+'"'+(rankMes===k?' selected':'')+'>'+et.charAt(0).toUpperCase()+et.slice(1)+'</option>';
+  }).join('');
+
+  var m = metricasTecnicos(rankMes).filter(function(t){ return t.tomadas>0 || t.enEspera>0; });
   // Menor tiempo es mejor; mayor cantidad es mejor
   m.sort(function(a,b){
     if(rankCriterio==='tomadas')  return b.tomadas - a.tomadas;
     if(rankCriterio==='resp')     return (a.resp===null?Infinity:a.resp) - (b.resp===null?Infinity:b.resp);
     if(rankCriterio==='interv')   return (a.interv===null?Infinity:a.interv) - (b.interv===null?Infinity:b.interv);
+    // SPEC-071: menor tiempo total arriba; más órdenes dejadas en espera arriba.
+    if(rankCriterio==='total')    return (a.total===null?Infinity:a.total) - (b.total===null?Infinity:b.total);
+    if(rankCriterio==='espera')   return b.enEspera - a.enEspera;
     return b.cerradas - a.cerradas;
   });
 
   var opt = function(v,l){ return '<option value="'+v+'"'+(rankCriterio===v?' selected':'')+'>'+l+'</option>'; };
-  var h = '<div style="padding:8px 16px 4px;display:flex;align-items:center;gap:8px">'
+  var h = '<div style="padding:8px 16px 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + '<span style="font-size:11px;color:var(--text3);white-space:nowrap">Ordenar por</span>'
-    + '<select class="sf-select" style="flex:1" onchange="setRankCriterio(this.value)">'
+    + '<select class="sf-select" style="flex:1;min-width:160px" onchange="setRankCriterio(this.value)">'
       + opt('cerradas','OT cerradas') + opt('tomadas','OT tomadas')
       + opt('resp','Tiempo de respuesta') + opt('interv','Tiempo de intervención')
-    + '</select></div>';
+      + opt('total','Tiempo total de orden') + opt('espera','Órdenes dejadas en espera')
+    + '</select>'
+    + '<span style="font-size:11px;color:var(--text3);white-space:nowrap">Mes</span>'
+    + '<select class="sf-select" style="flex:0 1 160px;min-width:130px" onchange="setRankMes(this.value)">' + optMes + '</select>'
+    + '</div>';
+
+  if(!m.length){
+    return h + '<div style="padding:14px 16px;font-size:13px;color:var(--text3)">'
+      + (rankMes ? 'No hay órdenes tomadas en ese mes.' : 'Aún no hay órdenes tomadas para comparar.') + '</div>';
+  }
 
   h += '<div class="rank-wrap"><table class="rank-tbl">'
      + '<thead><tr><th>#</th><th>Técnico</th><th>Tomadas</th><th>Cerradas</th>'
-     + '<th>T. respuesta</th><th>T. intervención</th></tr></thead><tbody>';
+     + '<th>T. respuesta</th><th>T. intervención</th><th>T. total</th><th>En espera</th></tr></thead><tbody>';
   m.forEach(function(t,i){
     var medalla = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
     h += '<tr>'
@@ -6358,12 +6408,18 @@ function rankingTecnicosHTML(){
       + '<td class="rk-num">'+t.cerradas+'</td>'
       + '<td class="rk-num">'+_fmtSecs(t.resp)+'</td>'
       + '<td class="rk-num">'+_fmtSecs(t.interv)+'</td>'
+      + '<td class="rk-num">'+_fmtSecs(t.total)+'</td>'
+      + '<td class="rk-num">'+t.enEspera+'</td>'
       + '</tr>';
   });
   h += '</tbody></table></div>'
     + '<div style="padding:6px 16px 10px;font-size:10px;color:var(--text3);line-height:1.5">'
     + 'Respuesta: desde que se crea la OT hasta que el técnico la toma (solo cuando es el primero). '
-    + 'Intervención: tiempo neto trabajado, descontando esperas.</div>';
+    + 'Intervención: tiempo neto trabajado, descontando esperas. '
+    + 'Total: promedio de sus OT cerradas, de que se levantó la orden a que se cerró. '
+    + 'En espera: órdenes que el técnico puso en espera (sin contar comedor, fin de semana ni pausas por atender otra OT).'
+    + (rankMes ? ' Con mes elegido cuentan las OT que tomó ese mes y las esperas que puso ese mes.' : '')
+    + '</div>';
   return h;
 }
 
