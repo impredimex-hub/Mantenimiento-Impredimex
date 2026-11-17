@@ -3005,3 +3005,27 @@ Las OT creadas del 12/11 al 17/11/2026 tienen folios #000001 en adelante que
 ya habían usado OT anteriores con otro `id` interno, así que no se pisaron:
 conviven dos OT con el mismo folio visible.
 
+---
+
+## SPEC-069 — Renumerar las OT del folio repetido
+
+**Estado:** implementado
+
+Las OT del incidente de la SPEC-068 se pasan a folios nuevos.
+
+- **Cuáles:** las que tienen folio menor que #000851 y se levantaron después
+  que la #000851 (`otsConFolioRepetido`, ancla
+  `FOLIO_ULTIMO_ANTES_DEL_REINICIO`). Las OT viejas con esos mismos números no
+  se tocan.
+- **Dónde:** un aviso ámbar con el botón «Renumerar a folios nuevos» en la
+  lista de OT del administrador y en el perfil del supervisor, solo mientras
+  haya alguna pendiente.
+- **Cómo:** en el orden en que se levantaron, cada una aparta un folio nuevo
+  con `apartarFolio` (que nunca repite ni pisa) y cambia `id` y `folio`.
+  Guarda `folioAnterior` y `renumeradaEn`. Una sola escritura de `flushDB`
+  crea la clave nueva, borra la anterior y actualiza el índice de abiertas.
+- La búsqueda por número de orden también encuentra el folio anterior, y la
+  lista del administrador lo muestra como «antes #000050».
+- Si se pierde la conexión a la mitad, se guardan las que ya se hicieron y el
+  aviso sigue para las demás.
+

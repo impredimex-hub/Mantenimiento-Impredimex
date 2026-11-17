@@ -3439,7 +3439,9 @@ function applySearchFilters(ots, prefix, conArea){
   var area     = conArea ? ((document.getElementById(prefix+'-f-area')||{}).value||'') : '';
   return ots.filter(function(ot){
     if(area      && _normNombre(areaDeOT(ot)) !== _normNombre(area)) return false;
-    if(folio     && ot.folio.toLowerCase().indexOf(folio.toLowerCase())<0) return false;
+    // SPEC-069: también se encuentra por el folio que tenía antes de renumerarse.
+    if(folio     && ot.folio.toLowerCase().indexOf(folio.toLowerCase())<0
+                 && String(ot.folioAnterior||'').toLowerCase().indexOf(folio.toLowerCase())<0) return false;
     if(fecha     && (!ot.fechaAlta || ot.fechaAlta.split('T')[0]!==fecha)) return false;
     if(prioridad && ot.prioridad !== prioridad) return false;
     if(tipo      && ot.tipo !== tipo) return false;
@@ -3679,6 +3681,68 @@ async function apartarFolio(sugerido){
     console.warn('No se pudo apartar folio en el servidor:', e && e.message);
     return conContadorLocal();
   }
+}
+
+// SPEC-069: las OT que recibieron folios repetidos entre el 12 y el 17 de
+// noviembre de 2026. El #000851 fue el último folio bueno; toda OT con folio
+// menor y levantada después que él es del incidente.
+var FOLIO_ULTIMO_ANTES_DEL_REINICIO = 851;
+
+function otsConFolioRepetido(){
+  var num = function(o){ var t = String(o && o.folio || '').replace(/^#/,''); return /^\d{1,7}$/.test(t) ? parseInt(t,10) : 0; };
+  var ancla = (DB.ots||[]).find(function(o){ return num(o) === FOLIO_ULTIMO_ANTES_DEL_REINICIO; });
+  if(!ancla || !ancla.fechaAlta) return [];
+  var desde = new Date(ancla.fechaAlta).getTime();
+  return (DB.ots||[]).filter(function(o){
+    return o && !o.folioAnterior && num(o) > 0 && num(o) < FOLIO_ULTIMO_ANTES_DEL_REINICIO
+      && o.fechaAlta && new Date(o.fechaAlta).getTime() > desde;
+  }).sort(function(a,b){ return new Date(a.fechaAlta) - new Date(b.fechaAlta); });
+}
+
+function avisoFoliosRepetidosHtml(){
+  var r = (currentUser && (currentUser.role==='admin' || currentUser.role==='supervisor')) ? otsConFolioRepetido() : [];
+  if(!r.length) return '';
+  return '<div style="margin:0 0 10px;padding:10px 12px;border-radius:10px;background:var(--amber-light);border:1px solid var(--amber);font-size:12px;line-height:1.45;color:var(--amber-dark)">'
+    + '<b>'+r.length+(r.length===1?' orden':' órdenes')+' con folio repetido</b> (levantadas después del #000851: '
+    + r[0].folio + (r.length>1 ? ' a ' + r[r.length-1].folio : '') + '). '
+    + '<button class="btn btn-sm" style="margin-top:6px;background:var(--amber-dark);color:#fff;border:none" onclick="renumerarFoliosRepetidos()">Renumerar a folios nuevos</button>'
+    + '</div>';
+}
+
+// Pasa cada OT del incidente a un folio nuevo, en el orden en que se
+// levantaron. Cada una guarda su folio anterior, que se sigue encontrando en
+// la búsqueda. La OT se mueve de clave: `flushDB` escribe la nueva, borra la
+// anterior y actualiza el índice de abiertas en una sola escritura.
+var _renumerando = false;
+async function renumerarFoliosRepetidos(){
+  if(_renumerando) return;
+  var lista = otsConFolioRepetido();
+  if(!lista.length){ appAlert('No hay órdenes con folio repetido.'); return; }
+  if(!(db && _fbConnected)){ appAlert('Necesitas conexión para renumerar.'); return; }
+  if(!(await appConfirm('Se renumerarán ' + lista.length + ' órdenes (' + lista[0].folio + ' a ' + lista[lista.length-1].folio
+      + ') a folios nuevos a partir del siguiente disponible, en el orden en que se levantaron.\n\n'
+      + 'Cada una conserva su historial y su folio anterior, que se puede seguir buscando.\n\n¿Continuar?'))) return;
+  _renumerando = true;
+  var hechas = [];
+  try {
+    for(var i = 0; i < lista.length; i++){
+      var ot = lista[i];
+      var a = await apartarFolio(DB.folioSig);
+      if(a.local) throw new Error('se perdió la conexión');
+      hechas.push(ot.folio + ' → #' + a.folio);
+      ot.folioAnterior = ot.folio;
+      ot.renumeradaEn = new Date().toISOString();
+      ot.id = a.folio;
+      ot.folio = '#' + a.folio;
+    }
+  } catch(e){
+    appAlert('Se detuvo: ' + e.message + '. Se guardan las ' + hechas.length + ' que ya se renumeraron; vuelve a intentarlo para las demás.');
+  } finally {
+    _renumerando = false;
+    if(hechas.length){ saveDB(); }
+    if(typeof renderAdmOTs === 'function') renderAdmOTs();
+  }
+  if(hechas.length === lista.length) appAlert('✓ ' + hechas.length + ' órdenes renumeradas:\n\n' + hechas.join('\n'));
 }
 
 // SPEC-068: al cargar los datos, si el contador quedó por debajo del folio más
@@ -8122,6 +8186,7 @@ function renderSupPerfil(){
     +'<div style="padding:10px 16px;display:flex;flex-direction:column;gap:8px">'
       +'<button class="btn btn-outline btn-block" onclick="archivarOTsAntiguas()">Archivar OT cerradas antiguas</button>'
     +'</div>'
+    +'<div style="padding:0 16px">'+avisoFoliosRepetidosHtml()+'</div>'
     +'<div style="padding:0 16px 16px">'
       +'<button class="btn btn-danger btn-block" onclick="logout()">Cerrar sesión</button>'
     +'</div>'
@@ -8137,15 +8202,16 @@ function renderAdmOTs(){
   ots = applySearchFilters(ots, 'adm');
   var el = document.getElementById('adm-ots-list');
   if(!el) return;
+  var avisoFolios = avisoFoliosRepetidosHtml();   // SPEC-069
   if(!ots.length){
-    el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes de trabajo</div></div>';
+    el.innerHTML=avisoFolios+'<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sin órdenes de trabajo</div></div>';
     return;
   }
   var stMap={abierto:'badge-abierto',proceso:'badge-proceso',espera:'badge-espera',validar:'badge-validar',cerrado:'badge-cerrado'};
   var stLbl={abierto:'Abierta',proceso:'En proceso',espera:'En espera',validar:'Validar',cerrado:'Cerrada'};
-  el.innerHTML = ots.map(function(ot){
+  el.innerHTML = avisoFolios + ots.map(function(ot){
     return '<div class="card" style="margin-bottom:8px">'
-      +'<div class="card-header"><span class="card-folio">'+ot.folio+'</span><span class="badge '+stMap[ot.status]+'">'+stLbl[ot.status]+'</span></div>'
+      +'<div class="card-header"><span class="card-folio">'+ot.folio+(ot.folioAnterior?' <span style="font-size:10px;color:var(--text3);font-weight:400">antes '+ot.folioAnterior+'</span>':'')+'</span><span class="badge '+stMap[ot.status]+'">'+stLbl[ot.status]+'</span></div>'
       +'<div class="card-desc">'+ot.desc+'</div>'
       +'<div class="card-tags" style="margin-bottom:8px"><span class="tag">'+ot.equipo+' · '+ot.nave+'</span><span class="tag">'+(ot.tecnico||'Sin asignar')+'</span></div>'
       +'<div style="display:flex;gap:8px">'

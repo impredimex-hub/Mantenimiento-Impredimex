@@ -6,6 +6,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.17.0] — 2026-11-17
+
+### Agregado
+
+- **Renumerar las OT con folio repetido** (SPEC-069): botón para el
+  administrador y el supervisor que pasa las OT levantadas tras el reinicio a
+  folios nuevos, conservando su folio anterior para buscarlas.
+
+---
+
 ## [2.16.1] — 2026-11-17
 
 ### Corregido
