@@ -6,6 +6,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [2.20.0] — 2026-11-17
+
+### Agregado
+
+- **Exportar el ranking de técnicos a Excel** (SPEC-072), con formato y listo
+  para imprimir en una hoja carta.
+
+---
+
 ## [2.19.0] — 2026-11-17
 
 ### Agregado

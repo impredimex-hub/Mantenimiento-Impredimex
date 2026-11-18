@@ -3084,3 +3084,25 @@ En «Ranking de técnicos» (perfil del supervisor → Técnicos):
   ese mes. Las opciones son los meses con órdenes tomadas.
 - Los tiempos de 48 horas o más se muestran en días y horas («3d 4h»).
 
+---
+
+## SPEC-072 — Ranking de técnicos a Excel, listo para imprimir en carta
+
+**Estado:** implementado
+
+Junto a «Mes» en el ranking, el botón redondo de Excel descarga la tabla tal
+como se ve: mismo mes, mismo orden.
+
+- **Contenido:** título, periodo, criterio de orden y fecha de generación; la
+  tabla (#, técnico, puesto, tomadas, cerradas, T. respuesta, T. intervención,
+  T. total, en espera); y al pie las definiciones de cada tiempo.
+- **Formato:** encabezado azul marino con letra blanca, bordes, renglones
+  alternados, texto justificado en nombre, puesto y notas, números centrados.
+- **Impresión:** carta (`paperSize` 1), vertical, ajustada a una página de
+  ancho, centrada, márgenes de 1.5 cm, encabezado de la tabla repetido en cada
+  hoja y pie «Página N de M».
+
+SheetJS no escribe la configuración de página, así que `_xlsxConPaginaCarta`
+la agrega al XML de la hoja ya armado (con `XLSX.CFB`) antes de descargar. Si
+eso falla, se descarga el archivo igual, sin la configuración de impresión.
+

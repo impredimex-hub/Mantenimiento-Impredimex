@@ -6389,6 +6389,10 @@ function rankingTecnicosHTML(){
     + '</select>'
     + '<span style="font-size:11px;color:var(--text3);white-space:nowrap">Mes</span>'
     + '<select class="sf-select" style="flex:0 1 160px;min-width:130px" onchange="setRankMes(this.value)">' + optMes + '</select>'
+    // SPEC-072: la tabla, a Excel listo para imprimir en carta.
+    + '<button type="button" class="mt-redondo mt-redondo-excel" style="flex-shrink:0" onclick="exportarRankingExcel()" title="Exportar a Excel (listo para imprimir en carta)" aria-label="Exportar ranking a Excel">'
+    +   '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>'
+    + '</button>'
     + '</div>';
 
   if(!m.length){
@@ -6421,6 +6425,133 @@ function rankingTecnicosHTML(){
     + (rankMes ? ' Con mes elegido cuentan las OT que tomó ese mes y las esperas que puso ese mes.' : '')
     + '</div>';
   return h;
+}
+
+/* ═══════ SPEC-072: RANKING DE TÉCNICOS A EXCEL, LISTO PARA CARTA ═══════ */
+
+// Ordena igual que la pantalla.
+function _rankingOrdenado(){
+  var m = metricasTecnicos(rankMes).filter(function(t){ return t.tomadas>0 || t.enEspera>0; });
+  var inf = function(x){ return x===null ? Infinity : x; };
+  m.sort(function(a,b){
+    if(rankCriterio==='tomadas') return b.tomadas - a.tomadas;
+    if(rankCriterio==='resp')    return inf(a.resp) - inf(b.resp);
+    if(rankCriterio==='interv')  return inf(a.interv) - inf(b.interv);
+    if(rankCriterio==='total')   return inf(a.total) - inf(b.total);
+    if(rankCriterio==='espera')  return b.enEspera - a.enEspera;
+    return b.cerradas - a.cerradas;
+  });
+  return m;
+}
+
+// SheetJS no escribe la configuración de página. Se agrega al XML de la hoja
+// ya armado: carta (paperSize 1), vertical, ajustada a una página de ancho,
+// márgenes de 1.5 cm y el encabezado de la tabla repetido en cada hoja.
+function _xlsxConPaginaCarta(wb, filasTitulo){
+  var u8 = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+  var zip = XLSX.CFB.read(new Uint8Array(u8), {type:'array'});
+  var i = zip.FullPaths.findIndex(function(p){ return /xl\/worksheets\/sheet1\.xml$/.test(p); });
+  var xml = new TextDecoder().decode(zip.FileIndex[i].content);
+  xml = xml.replace(/<sheetPr[^>]*\/>|<sheetPr[^>]*>[\s\S]*?<\/sheetPr>/, '');
+  xml = xml.replace(/(<worksheet[^>]*>)/, '$1<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>');
+  xml = xml.replace(/<pageMargins[^>]*\/>/, '');
+  var pagina = '<printOptions horizontalCentered="1"/>'
+    + '<pageMargins left="0.6" right="0.6" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>'
+    + '<pageSetup paperSize="1" orientation="portrait" fitToWidth="1" fitToHeight="0"/>'
+    + '<headerFooter><oddFooter>&amp;L&amp;8Mantenimiento IMPREDIMEX&amp;R&amp;8Página &amp;P de &amp;N</oddFooter></headerFooter>';
+  // Van después de sheetData/mergeCells/autoFilter y antes de drawing, según el esquema.
+  if(/<drawing|<legacyDrawing|<tableParts/.test(xml)) xml = xml.replace(/(<drawing|<legacyDrawing|<tableParts)/, pagina + '$1');
+  else xml = xml.replace('</worksheet>', pagina + '</worksheet>');
+  zip.FileIndex[i].content = new TextEncoder().encode(xml);
+  zip.FileIndex[i].size = zip.FileIndex[i].content.length;
+  return XLSX.CFB.write(zip, {type:'array', fileType:'zip'});
+}
+
+function exportarRankingExcel(){
+  if(typeof XLSX === 'undefined'){ appAlert('No se pudo cargar la librería de Excel. Revisa tu conexión.'); return; }
+  var m = _rankingOrdenado();
+  if(!m.length){ appAlert('No hay datos del ranking para exportar.'); return; }
+
+  var NOM_MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var periodo = rankMes ? NOM_MES[parseInt(rankMes.slice(5),10)-1] + ' ' + rankMes.slice(0,4) : 'todos los meses';
+  var CRIT = {cerradas:'OT cerradas', tomadas:'OT tomadas', resp:'Tiempo de respuesta', interv:'Tiempo de intervención',
+              total:'Tiempo total de orden', espera:'Órdenes dejadas en espera'};
+  var ahora = new Date();
+  var generado = ahora.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' '
+               + ahora.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+
+  var hdr = ['#','Técnico','Puesto','Tomadas','Cerradas','T. respuesta','T. intervención','T. total','En espera'];
+  var aoa = [
+    ['Ranking de técnicos — Mantenimiento IMPREDIMEX'],
+    ['Periodo: ' + periodo.charAt(0).toUpperCase() + periodo.slice(1) + '   ·   Ordenado por: ' + (CRIT[rankCriterio]||'') + '   ·   Generado: ' + generado],
+    [],
+    hdr
+  ];
+  m.forEach(function(t,i){
+    aoa.push([i+1, t.nombre, t.puesto||'', t.tomadas, t.cerradas, _fmtSecs(t.resp), _fmtSecs(t.interv), _fmtSecs(t.total), t.enEspera]);
+  });
+  var fNotas = aoa.length + 1;
+  aoa.push([]);
+  aoa.push(['Respuesta: desde que se crea la OT hasta que el técnico la toma (solo cuando es el primero).']);
+  aoa.push(['Intervención: tiempo neto trabajado, descontando esperas.']);
+  aoa.push(['Total: promedio de sus OT cerradas, de que se levantó la orden a que el solicitante validó el cierre; incluye esperas y validación.']);
+  aoa.push(['En espera: órdenes que el técnico puso en espera, sin contar comedor, fin de semana ni pausas por atender otra OT.']);
+
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var nCol = hdr.length, ultima = nCol - 1;
+  // Anchos pensados para que la tabla quepa en el ancho de una hoja carta vertical.
+  ws['!cols'] = [4, 30, 24, 8, 8, 11, 12, 9, 8].map(function(w){ return {wch:w}; });
+  ws['!rows'] = [{hpt:22},{hpt:16},{hpt:6},{hpt:30}];
+  ws['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:ultima}}, {s:{r:1,c:0}, e:{r:1,c:ultima}}];
+  for(var k = fNotas; k < aoa.length; k++) ws['!merges'].push({s:{r:k,c:0}, e:{r:k,c:ultima}});
+
+  var borde = {style:'thin', color:{rgb:'C9CFE0'}};
+  var bordes = {top:borde, bottom:borde, left:borde, right:borde};
+  var cel = function(r,c){ var a = XLSX.utils.encode_cell({r:r,c:c}); if(!ws[a]) ws[a] = {t:'s', v:''}; return ws[a]; };
+
+  cel(0,0).s = {font:{name:'Arial', sz:14, bold:true, color:{rgb:'002060'}}, alignment:{horizontal:'left', vertical:'center'}};
+  cel(1,0).s = {font:{name:'Arial', sz:9, color:{rgb:'5A6A80'}}, alignment:{horizontal:'left', vertical:'center'}};
+  for(var c = 0; c < nCol; c++){
+    cel(3,c).s = {
+      font:{name:'Arial', sz:9, bold:true, color:{rgb:'FFFFFF'}},
+      fill:{fgColor:{rgb:'002060'}, patternType:'solid'},
+      alignment:{horizontal:'center', vertical:'center', wrapText:true},
+      border:bordes
+    };
+  }
+  for(var r = 4; r < 4 + m.length; r++){
+    var par = (r - 4) % 2 === 1;
+    ws['!rows'][r] = {hpt:20};
+    for(var c2 = 0; c2 < nCol; c2++){
+      var texto = c2 === 1 || c2 === 2;
+      cel(r,c2).s = {
+        font:{name:'Arial', sz:9, bold: c2 === 1},
+        fill:{fgColor:{rgb: par ? 'F3F5FA' : 'FFFFFF'}, patternType:'solid'},
+        alignment:{horizontal: texto ? 'justify' : 'center', vertical:'center', wrapText:true},
+        border:bordes
+      };
+    }
+  }
+  for(var n = fNotas; n < aoa.length; n++){
+    cel(n,0).s = {font:{name:'Arial', sz:8, color:{rgb:'5A6A80'}}, alignment:{horizontal:'justify', vertical:'top', wrapText:true}};
+    ws['!rows'][n] = {hpt:24};
+  }
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ranking');
+  // Encabezado de la tabla repetido en cada hoja impresa.
+  wb.Workbook = {Names:[{Name:'_xlnm.Print_Titles', Sheet:0, Ref:"'Ranking'!$4:$4"}]};
+
+  var stamp = ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0')+'-'+String(ahora.getDate()).padStart(2,'0');
+  var nombre = 'Ranking_tecnicos_' + (rankMes || 'todos') + '_' + stamp + '.xlsx';
+  var datos;
+  try { datos = _xlsxConPaginaCarta(wb); }
+  catch(e){ console.warn('Configuración de página:', e && e.message); XLSX.writeFile(wb, nombre); return; }
+  var blob = new Blob([datos], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nombre;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 function cerrarTablaOTs(){
